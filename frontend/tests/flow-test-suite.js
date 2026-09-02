@@ -370,19 +370,26 @@ async function testAll() {
       watchedAt: Date.now()
     });
     if (adWatchRes.status === 200 && adWatchRes.data.newCoins > 0) {
-      record('Monetization', 'Watch Ad & Credit Reader Coins (+1.00)', 'PASS');
+      record('Monetization', 'Watch Ad & Credit Reader Coins (+100)', 'PASS');
     } else {
-      record('Monetization', 'Watch Ad & Credit Reader Coins (+1.00)', 'FAIL', `Status ${adWatchRes.status}`);
+      record('Monetization', 'Watch Ad & Credit Reader Coins (+100)', 'FAIL', `Status ${adWatchRes.status}`);
     }
 
-    // 8.2 Plan Upgrade Attempt from UI payload ({ plan_id: 'premium' })
-    const uiPlanUpgradeRes = await authClient.post('/plans/subscribe', {
-      plan_id: 'premium'
-    });
-    if (uiPlanUpgradeRes.status === 200) {
-      record('Plan Subscription', 'Subscribe to Premium Plan (Frontend payload)', 'PASS');
+    // 8.2 Submit a manual plan payment with a reference and private image proof
+    const planPayment = new FormData();
+    planPayment.append('plan_type', 'standard');
+    planPayment.append('payment_method', 'gcash');
+    planPayment.append('payment_reference', `GCASH-${timestamp}`);
+    planPayment.append(
+      'payment_proof',
+      new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')], { type: 'image/png' }),
+      'receipt.png',
+    );
+    const uiPlanUpgradeRes = await authClient.post('/plan-purchases', planPayment);
+    if (uiPlanUpgradeRes.status === 201 && uiPlanUpgradeRes.data.purchase?.status === 'pending_review') {
+      record('Plan Subscription', 'Submit Manual Standard Plan Payment', 'PASS');
     } else {
-      record('Plan Subscription', 'Subscribe to Premium Plan (Frontend payload)', 'FAIL', `Status ${uiPlanUpgradeRes.status}: Validation error expecting plan_type and receipt_url: ${JSON.stringify(uiPlanUpgradeRes.data)}`);
+      record('Plan Subscription', 'Submit Manual Standard Plan Payment', 'FAIL', `Status ${uiPlanUpgradeRes.status}: ${JSON.stringify(uiPlanUpgradeRes.data)}`);
     }
 
     // 8.3 Set payment details
@@ -390,6 +397,7 @@ async function testAll() {
       payment_method: 'GCash',
       payment_account_info: '09171234567'
     });
+    record('Withdrawal Flow', 'Save GCash Withdrawal Destination', payRes.status === 200 ? 'PASS' : 'FAIL', payRes.status === 200 ? '' : `Status ${payRes.status}`);
 
     // 8.4 Withdrawal Eligibility Check (Requires coins >= 10.0)
     // Credit coins first to test withdrawal

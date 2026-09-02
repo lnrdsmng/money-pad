@@ -7,6 +7,33 @@ export interface MoneyPadPlan {
   rate_per_minute: string;
   multiplier: string;
   ads: boolean;
+  duration_months: number | null;
+}
+
+export type PaymentMethodId = 'gcash' | 'paymaya' | 'paypal';
+
+export interface PaymentMethodSetting {
+  id: PaymentMethodId;
+  label: string;
+  account_name: string;
+  account_identifier: string;
+  instructions: string | null;
+  is_active: boolean;
+}
+
+export type PlanPurchaseStatus = 'pending_review' | 'approved' | 'rejected' | 'cancelled';
+
+export interface PlanPurchase {
+  id: string;
+  plan_type: PlanId;
+  amount: string;
+  currency: string;
+  payment_method: PaymentMethodId;
+  payment_reference: string;
+  status: PlanPurchaseStatus;
+  submitted_at: string;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
 }
 
 export interface ReadingReward {

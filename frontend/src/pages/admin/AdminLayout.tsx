@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Users, Banknote, MessageSquare, ShieldAlert } from 'lucide-react';
+import { Users, Banknote, MessageSquare, ShieldAlert, CreditCard } from 'lucide-react';
 
 const AdminLayout = () => {
   return (
@@ -24,6 +24,18 @@ const AdminLayout = () => {
             Withdrawals
           </NavLink>
           
+          <NavLink
+            to="/admin/plan-payments"
+            className={({ isActive }) =>
+              `flex items-center px-4 py-3 text-sm font-medium rounded-md ${
+                isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
+              }`
+            }
+          >
+            <CreditCard className="h-5 w-5 mr-3" />
+            Plan Payments
+          </NavLink>
+
           <NavLink
             to="/admin/users"
             className={({ isActive }) =>

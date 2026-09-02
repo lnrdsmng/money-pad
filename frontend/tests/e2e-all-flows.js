@@ -348,23 +348,22 @@ async function runE2ETests() {
 
     console.log('8.5 Opening Upgrade Plan Modal...');
     await page.click('button:has-text("Upgrade Plan")');
-    await page.waitForSelector('text=Upgrade Your Plan', { timeout: 5000 });
+    await page.waitForSelector('text=Choose your monthly plan', { timeout: 5000 });
 
-    console.log('8.6 Selecting Premium Plan...');
-    let alertMsg = '';
-    page.once('dialog', async dialog => {
-      alertMsg = dialog.message();
-      console.log('[UPGRADE DIALOG]:', alertMsg);
-      await dialog.accept();
+    console.log('8.6 Submitting a Standard plan payment proof...');
+    const planDialog = page.locator('[role="dialog"]');
+    const standardCard = planDialog.locator('article').filter({ hasText: 'Standard' });
+    await standardCard.getByRole('button', { name: 'Select plan' }).click();
+    await planDialog.locator('input[placeholder="Transaction/reference number"]').fill(`E2E-${Date.now()}`);
+    await planDialog.locator('input[type="file"]').setInputFiles({
+      name: 'receipt.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
     });
+    await planDialog.getByRole('button', { name: 'Submit for review' }).click();
+    await page.waitForSelector('text=waiting for admin review', { timeout: 5000 });
 
-    const premiumBtn = page.locator('button:has-text("Select Premium")');
-    if (await premiumBtn.isVisible()) {
-      await premiumBtn.click();
-      await page.waitForTimeout(1000);
-    }
-
-    recordResult('Earnings & Plan Upgrades Flow', 'Earnings Dashboard -> Payment Setup (GCash) -> Upgrade Plan Modal Selection', 'PASS');
+    recordResult('Earnings & Plan Upgrades Flow', 'Earnings Dashboard -> GCash Setup -> Submit Standard Plan Proof', 'PASS');
   } catch (err) {
     console.error('Flow 8 Error:', err.message);
     recordResult('Earnings & Plan Upgrades Flow', 'Earnings & Plans', 'FAIL', err.message, { error: err.stack });

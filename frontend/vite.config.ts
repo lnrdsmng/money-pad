@@ -18,7 +18,7 @@ export default defineConfig({
           {
             urlPattern: ({ url, request }) =>
               request.method !== 'GET' ||
-              /^\/api\/v1\/(earnings|reading|plans\/checkout|webhooks|withdrawals|withdrawal-requests)/.test(url.pathname),
+              /^\/api\/v1\/(earnings|reading|plans|plan-purchases|payment-methods|daily-login-reward|withdrawals|withdrawal-requests|admin)/.test(url.pathname),
             handler: 'NetworkOnly',
             options: {
               cacheName: 'financial-api-network-only'

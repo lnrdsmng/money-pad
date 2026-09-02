@@ -20,6 +20,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 import { WithdrawalManagement } from './pages/admin/WithdrawalManagement';
 import { UserManagement } from './pages/admin/UserManagement';
 import { MessagingPanel } from './pages/admin/MessagingPanel';
+import { PlanPaymentManagement } from './pages/admin/PlanPaymentManagement';
 
 function ProfileRedirect() {
   const { user } = useAuth();
@@ -72,6 +73,7 @@ export default function AppRouter() {
               <Route path="withdrawals" element={<WithdrawalManagement />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="messages" element={<MessagingPanel />} />
+              <Route path="plan-payments" element={<PlanPaymentManagement />} />
             </Route>
           </Route>
 
