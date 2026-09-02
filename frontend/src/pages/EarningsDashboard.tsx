@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
@@ -7,13 +6,11 @@ import { DollarSign, BookOpen, Banknote, AlertCircle, Settings } from 'lucide-re
 import { WithdrawalFlowModal } from '../components/WithdrawalFlowModal';
 import { UpgradePlanModal } from '../components/UpgradePlanModal';
 import { ReadingIncomeSection } from '../components/ReadingIncomeSection';
-
-const formatReadingIncome = (value: number | string) => `₱${Number(value || 0).toFixed(3)}`;
+import { formatCoins, formatPesoFromCoins } from '../utils/money';
 
 export const EarningsDashboard = () => {
-  const { user, updateUser, checkAuth } = useAuth();
+  const { user, updateUser } = useAuth();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -23,21 +20,6 @@ export const EarningsDashboard = () => {
   const [account, setAccount] = useState(user?.payment_account_info || '');
   const [bankName, setBankName] = useState(user?.bank_name || '');
   const [isEditingPayment, setIsEditingPayment] = useState(!user?.payment_method);
-  const planPaymentStatus = searchParams.get('plan_payment');
-
-  useEffect(() => {
-    if (planPaymentStatus !== 'success') return;
-
-    let attempts = 0;
-    void checkAuth();
-    const refreshTimer = window.setInterval(() => {
-      attempts += 1;
-      void checkAuth();
-      if (attempts >= 5) window.clearInterval(refreshTimer);
-    }, 3_000);
-
-    return () => window.clearInterval(refreshTimer);
-  }, [planPaymentStatus, checkAuth]);
 
   const { data: withdrawalRequests } = useQuery({
     queryKey: ['withdrawals', user?.id],
@@ -83,17 +65,6 @@ export const EarningsDashboard = () => {
         </button>
       </div>
 
-      {planPaymentStatus === 'success' && (
-        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          Payment submitted. Your plan will appear here after the payment provider verifies it.
-        </div>
-      )}
-      {planPaymentStatus === 'cancelled' && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Checkout was cancelled. Your current plan was not changed.
-        </div>
-      )}
-
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center">
@@ -102,8 +73,8 @@ export const EarningsDashboard = () => {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500 mb-1">Reader Coins</p>
-            <h2 className="text-3xl font-bold text-gray-900">{formatReadingIncome(user?.readerCoins || 0)}</h2>
-            <p className="text-xs text-gray-400 mt-1">Earned by reading stories</p>
+            <h2 className="text-3xl font-bold text-gray-900">{formatCoins(user?.readerCoins || 0)}</h2>
+            <p className="text-xs text-gray-400 mt-1">{formatPesoFromCoins(user?.readerCoins || 0)} cash value at 100 coins = ₱1</p>
           </div>
         </div>
 

@@ -6,8 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import type { CreateClaimResponse, ReadingIncomeResponse } from '../types/earnings';
 import { ClaimedEarningsSection } from './ClaimedEarningsSection';
 import { IncomeClaimModal } from './IncomeClaimModal';
-
-const formatPeso = (value: string | number) => `₱${Number(value).toFixed(3)}`;
+import { formatCoins, formatPesoFromCoins } from '../utils/money';
 
 function formatTimeRemaining(expiresAt: string, now: number) {
   const seconds = Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
@@ -92,7 +91,8 @@ export function ReadingIncomeSection() {
           <div className="flex flex-col gap-4 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 p-5 text-white sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium text-emerald-100">Available to claim</p>
-              <p className="mt-1 text-3xl font-bold">{formatPeso(incomeQuery.data?.pending_total ?? 0)}</p>
+              <p className="mt-1 text-3xl font-bold">{formatCoins(incomeQuery.data?.pending_total ?? 0)}</p>
+              <p className="text-xs text-emerald-100">{formatPesoFromCoins(incomeQuery.data?.pending_total ?? 0)} cash value</p>
               {incomeQuery.data?.nearest_expiration && (
                 <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-100">
                   <Clock3 className="h-4 w-4" />
@@ -140,7 +140,8 @@ export function ReadingIncomeSection() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-emerald-700">+{formatPeso(reward.amount)}</p>
+                    <p className="font-semibold text-emerald-700">+{formatCoins(reward.amount)}</p>
+                    <p className="text-xs text-slate-500">{formatPesoFromCoins(reward.amount)}</p>
                     <p className="text-xs text-amber-700">Expires in {formatTimeRemaining(reward.expires_at, currentTime)}</p>
                   </div>
                 </article>

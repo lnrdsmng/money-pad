@@ -5,6 +5,7 @@ import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import type { CreateClaimResponse } from '../types/earnings';
 import { MockRewardedAd } from './MockRewardedAd';
+import { formatCoins, formatPesoFromCoins } from '../utils/money';
 
 interface IncomeClaimModalProps {
   claim: CreateClaimResponse;
@@ -50,7 +51,7 @@ export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
           <div>
             <h2 className="text-xl font-bold text-slate-900">Claim all available income</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {claim.claim.reward_count} reward{claim.claim.reward_count === 1 ? '' : 's'} totaling ₱{Number(claim.claim.amount).toFixed(3)}
+              {claim.claim.reward_count} reward{claim.claim.reward_count === 1 ? '' : 's'} totaling {formatCoins(claim.claim.amount)} ({formatPesoFromCoins(claim.claim.amount)})
             </p>
           </div>
           <button type="button" onClick={cancelClaim} className="rounded-full p-2 text-slate-400 hover:bg-slate-100" aria-label="Cancel claim">

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import http from '../../api/http';
+import { formatCoins, formatPesoFromCoins } from '../../utils/money';
 
 const planBadge = (plan: string) => {
   if (plan === 'ultimate_premium') return 'bg-amber-100 text-amber-800';
@@ -33,7 +34,7 @@ export const UserManagement = () => {
               <tr key={user.id}>
                 <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{user.username}</td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{user.email}</td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">₱{Number(user.readerCoins || 0).toFixed(3)}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatCoins(user.readerCoins || 0)} <span className="block text-xs">{formatPesoFromCoins(user.readerCoins || 0)}</span></td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">₱{Number(user.authorIncome || 0).toFixed(2)}</td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm">
                   <span className={`rounded px-2 py-1 text-xs capitalize ${planBadge(user.plan)}`}>

@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import BottomNavBar from '../components/BottomNavBar';
 import UserMenu from '../components/UserMenu';
+import { DailyLoginRewardPanel } from '../components/DailyLoginRewardPanel';
 
 export default function AppLayout() {
   const { user } = useAuth();
@@ -48,6 +49,8 @@ export default function AppLayout() {
           </div>
         </div>
       </header>
+
+      {user && user.role !== 'admin' && !isImmersivePage && <DailyLoginRewardPanel />}
       
       <main className={`flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 ${user && !isImmersivePage ? 'pb-20 md:pb-8' : ''}`}>
         <Outlet />

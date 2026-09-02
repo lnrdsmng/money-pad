@@ -3,8 +3,7 @@ import { CheckCircle2, Clock3 } from 'lucide-react';
 import { useState } from 'react';
 import http from '../api/http';
 import type { PaginatedClaims } from '../types/earnings';
-
-const formatPeso = (value: string | number) => `₱${Number(value).toFixed(3)}`;
+import { formatCoins, formatPesoFromCoins } from '../utils/money';
 
 export function ClaimedEarningsSection() {
   const [range, setRange] = useState<'7d' | '30d'>('7d');
@@ -69,7 +68,7 @@ export function ClaimedEarningsSection() {
                   </p>
                 </div>
               </div>
-              <p className="font-semibold text-emerald-700">+{formatPeso(claim.amount)}</p>
+              <div className="text-right"><p className="font-semibold text-emerald-700">+{formatCoins(claim.amount)}</p><p className="text-xs text-slate-500">{formatPesoFromCoins(claim.amount)}</p></div>
             </article>
           ))}
         </div>
