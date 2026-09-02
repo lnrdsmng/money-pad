@@ -73,18 +73,18 @@ export function PlanPaymentManagement() {
   };
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
-      <div><h1 className="text-2xl font-bold text-slate-900">Plan payments</h1><p className="mt-1 text-sm text-slate-500">Review private payment proofs and configure wallet destinations.</p></div>
+    <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8">
+      <div><h1 className="text-xl sm:text-2xl font-bold text-slate-900">Plan payments</h1><p className="mt-1 text-xs sm:text-sm text-slate-500">Review private payment proofs and configure wallet destinations.</p></div>
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
+        <div className="flex overflow-x-auto gap-2 border-b border-slate-200 p-3 sm:p-4">
           {(['pending_review', 'approved', 'rejected'] as const).map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={status === option}
               onClick={() => setStatus(option)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold capitalize ${
+              className={`rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold capitalize whitespace-nowrap ${
                 status === option ? 'bg-primary text-white' : 'bg-slate-100 text-slate-700'
               }`}
             >

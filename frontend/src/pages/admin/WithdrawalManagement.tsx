@@ -204,15 +204,15 @@ export const WithdrawalManagement = () => {
   };
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6 text-gray-900">Withdrawal Management</h1>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900">Withdrawal Management</h1>
 
-      <div className="flex space-x-4 mb-6 border-b border-gray-200">
+      <div className="flex overflow-x-auto space-x-2 sm:space-x-4 mb-6 border-b border-gray-200">
         <button
           type="button"
           aria-pressed={activeTab === 'pending'}
           onClick={() => setActiveTab('pending')}
-          className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${
+          className={`py-2 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
             activeTab === 'pending'
               ? 'border-primary text-primary font-semibold'
               : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -225,7 +225,7 @@ export const WithdrawalManagement = () => {
           type="button"
           aria-pressed={activeTab === 'approved'}
           onClick={() => setActiveTab('approved')}
-          className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${
+          className={`py-2 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
             activeTab === 'approved'
               ? 'border-primary text-primary font-semibold'
               : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -238,7 +238,7 @@ export const WithdrawalManagement = () => {
           type="button"
           aria-pressed={activeTab === 'history'}
           onClick={() => setActiveTab('history')}
-          className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${
+          className={`py-2 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
             activeTab === 'history'
               ? 'border-primary text-primary font-semibold'
               : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -254,28 +254,30 @@ export const WithdrawalManagement = () => {
             {isLoadingPending && <p role="status" className="p-8 text-center text-gray-500">Loading pending review queue...</p>}
             {isPendingError && <p role="alert" className="p-8 text-center text-red-600">Pending withdrawals could not be loaded.</p>}
             {!isLoadingPending && !isPendingError && (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees & Waiver</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {pending?.map((req) => renderWithdrawalRow(req, 'pending'))}
-                  {(!pending || pending.length === 0) && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
-                        No pending payouts for review.
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees & Waiver</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {pending?.map((req) => renderWithdrawalRow(req, 'pending'))}
+                    {(!pending || pending.length === 0) && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
+                          No pending payouts for review.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -285,28 +287,30 @@ export const WithdrawalManagement = () => {
             {isLoadingApproved && <p role="status" className="p-8 text-center text-gray-500">Loading approved queue...</p>}
             {isApprovedError && <p role="alert" className="p-8 text-center text-red-600">Approved withdrawals could not be loaded.</p>}
             {!isLoadingApproved && !isApprovedError && (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Disbursement</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {approved?.map((req) => renderWithdrawalRow(req, 'approved'))}
-                  {(!approved || approved.length === 0) && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
-                        No payouts currently in processing.
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Disbursement</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {approved?.map((req) => renderWithdrawalRow(req, 'approved'))}
+                    {(!approved || approved.length === 0) && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
+                          No payouts currently in processing.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -316,28 +320,30 @@ export const WithdrawalManagement = () => {
             {isLoadingHistory && <p role="status" className="p-8 text-center text-gray-500">Loading history...</p>}
             {isHistoryError && <p role="alert" className="p-8 text-center text-red-600">Withdrawal history could not be loaded.</p>}
             {!isLoadingHistory && !isHistoryError && (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Dates</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Final Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {history?.map((req) => renderWithdrawalRow(req, 'none'))}
-                  {(!history || history.length === 0) && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
-                        No completed or rejected payouts yet.
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Dates</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Final Status</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {history?.map((req) => renderWithdrawalRow(req, 'none'))}
+                    {(!history || history.length === 0) && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
+                          No completed or rejected payouts yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

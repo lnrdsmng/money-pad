@@ -16,9 +16,9 @@ export const UserManagement = () => {
   });
 
   return (
-    <div className="p-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">User Management</h1>
-      <div className="overflow-hidden rounded-lg bg-white shadow">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <h1 className="mb-4 sm:mb-6 text-xl sm:text-2xl font-bold text-gray-900">User Management</h1>
+      <div className="overflow-x-auto rounded-lg bg-white shadow border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

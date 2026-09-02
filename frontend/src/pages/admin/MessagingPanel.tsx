@@ -46,10 +46,10 @@ export const MessagingPanel = () => {
   };
 
   return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6 text-gray-900">System Messaging</h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900">System Messaging</h1>
       
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6 border border-gray-100">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Target</label>
