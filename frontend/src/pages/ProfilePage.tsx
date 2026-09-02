@@ -85,7 +85,7 @@ export default function ProfilePage() {
   return (
     <div className="bg-gray-50 min-h-screen pb-12">
       {/* Cover Image */}
-      <div className="h-64 md:h-80 w-full bg-gray-300 relative">
+      <div className="h-40 sm:h-64 md:h-80 w-full bg-gray-300 relative">
         {profile.coverImageUrl ? (
           <img src={profile.coverImageUrl} alt="Cover" className="w-full h-full object-cover" />
         ) : (
@@ -93,81 +93,81 @@ export default function ProfilePage() {
         )}
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative -mt-24 mb-8 flex flex-col md:flex-row items-center md:items-end justify-between">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="relative -mt-14 sm:-mt-24 mb-6 sm:mb-8 flex flex-col md:flex-row items-center md:items-end justify-between gap-4">
           <div className="flex flex-col md:flex-row items-center md:items-end">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-full border-4 border-white overflow-hidden bg-white shadow-md shrink-0">
               {profile.profileImageUrl ? (
                 <img src={profile.profileImageUrl} alt={profile.username} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-gray-200 flex items-center justify-center text-4xl text-gray-500 font-bold">
+                <div className="w-full h-full bg-gray-200 flex items-center justify-center text-3xl sm:text-4xl text-gray-500 font-bold">
                   {profile.username[0].toUpperCase()}
                 </div>
               )}
             </div>
-            <div className="mt-4 md:mt-0 md:ml-6 text-center md:text-left pb-2">
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <div className="mt-3 md:mt-0 md:ml-6 text-center md:text-left pb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex flex-wrap items-center justify-center md:justify-start gap-1.5">
                 @{profile.username}
-                {profile.role === 'admin' && <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-medium">Admin</span>}
+                {profile.role === 'admin' && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-medium">Admin</span>}
               </h1>
-              {profile.bio && <p className="text-gray-600 mt-2 max-w-lg">{profile.bio}</p>}
+              {profile.bio && <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2 max-w-lg">{profile.bio}</p>}
             </div>
           </div>
           
-          <div className="mt-6 md:mt-0 pb-2">
+          <div className="mt-2 md:mt-0 pb-2 flex justify-center">
             {!isOwnProfile && (
               <button
                 type="button"
                 onClick={handleFollowToggle}
                 disabled={isFollowPending}
                 aria-busy={isFollowPending}
-                className={`flex items-center rounded-full px-6 py-2 font-medium shadow transition disabled:cursor-not-allowed disabled:opacity-60 ${isFollowing ? 'border border-primary bg-white text-primary hover:bg-green-50' : 'bg-primary text-white hover:bg-green-600'}`}
+                className={`flex items-center rounded-full px-5 sm:px-6 py-2 text-sm sm:text-base font-medium shadow transition disabled:cursor-not-allowed disabled:opacity-60 ${isFollowing ? 'border border-primary bg-white text-primary hover:bg-green-50' : 'bg-primary text-white hover:bg-green-600'}`}
               >
-                {isFollowPending ? <LoaderCircle className="mr-2 h-5 w-5 animate-spin" /> : isFollowing ? <UserCheck className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" />}
+                {isFollowPending ? <LoaderCircle className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : isFollowing ? <UserCheck className="mr-2 h-4 w-4 sm:h-5 sm:w-5" /> : <UserPlus className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />}
                 {isFollowPending ? 'Updating...' : isFollowing ? 'Following' : 'Follow'}
               </button>
             )}
             {isOwnProfile && (
               <span className="inline-flex items-center gap-2" title="Profile editing is coming soon">
-                <button type="button" disabled className="flex cursor-not-allowed items-center rounded-full border border-gray-300 bg-white px-6 py-2 font-medium text-gray-400 shadow-sm">
+                <button type="button" disabled className="flex cursor-not-allowed items-center rounded-full border border-gray-300 bg-white px-5 sm:px-6 py-2 text-xs sm:text-sm font-medium text-gray-400 shadow-sm">
                   Edit Profile
                 </button>
-                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Coming soon</span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Coming soon</span>
               </span>
             )}
           </div>
         </div>
 
         {isOwnProfile && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-12">
             <SystemMessageInbox />
             <GroupChat />
           </div>
         )}
 
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-            <BookOpen className="w-6 h-6 mr-2 text-primary" />
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-primary" />
             Published Works ({stories.length})
           </h2>
           
           {stories.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
               {stories.map(story => (
                 <Link key={story.id} to={`/story/${story.id}`} className="group block">
-                  <div className="aspect-[2/3] rounded-lg overflow-hidden mb-3 bg-gray-200 relative shadow-sm transition-transform group-hover:scale-[1.02]">
+                  <div className="aspect-[2/3] rounded-lg overflow-hidden mb-2 sm:mb-3 bg-gray-200 relative shadow-sm transition-transform group-hover:scale-[1.02]">
                     {story.coverImageUrl ? (
                       <img src={story.coverImageUrl} alt={story.title} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
-                        <BookOpen className="w-8 h-8 text-gray-400 mb-2" />
-                        <span className="text-sm font-medium text-gray-500 line-clamp-3">{story.title}</span>
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2 sm:p-4 text-center">
+                        <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mb-1 sm:mb-2" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 line-clamp-3">{story.title}</span>
                       </div>
                     )}
                   </div>
-                  <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">{story.title}</h3>
-                  <div className="flex items-center text-xs text-gray-500 mt-1">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded mr-2">{story.genre || 'General'}</span>
+                  <h3 className="font-semibold text-xs sm:text-sm text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">{story.title}</h3>
+                  <div className="flex items-center text-[10px] sm:text-xs text-gray-500 mt-1">
+                    <span className="bg-gray-100 px-1.5 py-0.5 rounded mr-1.5">{story.genre || 'General'}</span>
                     <Clock className="w-3 h-3 mr-1" />
                     <span>{new Date(story.created_at || story.createdAt).toLocaleDateString()}</span>
                   </div>
@@ -175,8 +175,8 @@ export default function ProfilePage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-100 shadow-sm">
-              <p className="text-gray-500">This author hasn't published any stories yet.</p>
+            <div className="text-center py-8 sm:py-12 bg-white rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-sm text-gray-500">This author hasn't published any stories yet.</p>
             </div>
           )}
         </div>

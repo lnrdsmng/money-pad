@@ -55,47 +55,47 @@ export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <div className="flex items-start justify-between gap-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-4 sm:p-6 shadow-xl">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Claim all available income</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900">Claim all available income</h2>
+            <p className="mt-1 text-xs sm:text-sm text-slate-500">
               {claim.claim.reward_count} reward{claim.claim.reward_count === 1 ? '' : 's'} totaling {formatCoins(claim.claim.amount)} ({formatPesoFromCoins(claim.claim.amount)})
             </p>
           </div>
-          <button type="button" onClick={cancelClaim} disabled={cancelMutation.isPending} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50" aria-label="Cancel claim">
+          <button type="button" onClick={cancelClaim} disabled={cancelMutation.isPending} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50 shrink-0" aria-label="Cancel claim">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {claim.claim.ad_provider !== 'mock' && (
-          <div className="mt-5 flex gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-            <AlertCircle className="h-5 w-5 shrink-0" />
+          <div className="mt-4 flex gap-2.5 rounded-lg bg-amber-50 p-3 text-xs sm:text-sm text-amber-800">
+            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
             The production rewarded-ad provider has not been configured yet.
           </div>
         )}
         {completeMutation.isError && (
-          <div className="mt-5 flex gap-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-            <AlertCircle className="h-5 w-5 shrink-0" />
+          <div className="mt-4 flex gap-2.5 rounded-lg bg-red-50 p-3 text-xs sm:text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
             The ad completion could not be verified. Please try again.
           </div>
         )}
         {cancelMutation.isError && (
-          <div role="alert" className="mt-5 flex gap-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-            <AlertCircle className="h-5 w-5 shrink-0" />
+          <div role="alert" className="mt-4 flex gap-2.5 rounded-lg bg-red-50 p-3 text-xs sm:text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
             The claim could not be cancelled. Please try again.
           </div>
         )}
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={cancelClaim} disabled={cancelMutation.isPending} aria-busy={cancelMutation.isPending} className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+        <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+          <button type="button" onClick={cancelClaim} disabled={cancelMutation.isPending} aria-busy={cancelMutation.isPending} className="w-full sm:w-auto rounded-lg px-4 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 text-center order-2 sm:order-1">
             {cancelMutation.isPending ? 'Cancelling...' : 'Not now'}
           </button>
           <button
             type="button"
             disabled={claim.claim.ad_provider !== 'mock' || cancelMutation.isPending}
             onClick={() => setShowAd(true)}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full sm:w-auto rounded-lg bg-primary px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 text-center order-1 sm:order-2"
           >
             Watch ad and claim
           </button>

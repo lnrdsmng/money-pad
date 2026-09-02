@@ -87,9 +87,9 @@ export default function OnboardingPage() {
   if (!user) return <div className="text-center p-12">Please log in to complete setup.</div>;
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white dark:bg-slate-800 rounded shadow">
-      <h2 className="text-2xl font-bold mb-2 text-center text-primary">Welcome, {user.username}!</h2>
-      <p className="text-center mb-6 text-gray-500">Let's set up your profile.</p>
+    <div className="max-w-md mx-auto mt-6 sm:mt-10 p-4 sm:p-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700">
+      <h2 className="text-xl sm:text-2xl font-bold mb-2 text-center text-primary">Welcome, {user.username}!</h2>
+      <p className="text-center mb-6 text-xs sm:text-sm text-gray-500">Let's set up your profile.</p>
       
       {error && <div role="alert" className="mb-4 text-accent text-center">{error}</div>}
 

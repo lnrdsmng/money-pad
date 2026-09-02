@@ -85,40 +85,40 @@ export default function ReaderPage() {
   return (
     <div className="bg-[#FAF9F6] min-h-screen pb-24">
       {/* Floating Coins Indicator */}
-      <div className={`fixed top-24 right-8 bg-white shadow-lg rounded-full px-4 py-2 flex items-center space-x-2 z-40 transition-opacity ${isPaused ? 'opacity-50' : 'opacity-100'}`}>
-        <Coins className="text-yellow-500 w-5 h-5" />
-        <span className="font-bold text-gray-800">Pending ₱{pendingEarned.toFixed(3)}</span>
-        {isPaused && <span className="text-xs text-red-500 ml-2">(Paused)</span>}
+      <div className={`fixed top-18 right-2 sm:top-24 sm:right-8 bg-white/95 backdrop-blur shadow-md sm:shadow-lg rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center space-x-1.5 sm:space-x-2 z-40 text-xs sm:text-sm transition-opacity ${isPaused ? 'opacity-60' : 'opacity-100'}`}>
+        <Coins className="text-yellow-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+        <span className="font-bold text-gray-800 whitespace-nowrap">Pending ₱{pendingEarned.toFixed(3)}</span>
+        {isPaused && <span className="text-[10px] sm:text-xs text-red-500 ml-1 sm:ml-2">(Paused)</span>}
       </div>
 
       {earningsError && (
-        <div className="fixed right-8 top-36 z-40 max-w-xs rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 shadow">
+        <div className="fixed right-2 sm:right-8 top-28 sm:top-36 z-40 max-w-[calc(100vw-1rem)] sm:max-w-xs rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 shadow">
           {earningsError}
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 py-8 relative">
-        <Link to={`/story/${storyId}`} className="inline-flex items-center text-gray-500 hover:text-primary mb-8 transition-colors">
-          <ArrowLeft className="w-5 h-5 mr-2" />
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8 relative">
+        <Link to={`/story/${storyId}`} className="inline-flex items-center text-xs sm:text-sm text-gray-500 hover:text-primary mb-6 sm:mb-8 transition-colors">
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
           Back to Story
         </Link>
         
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4 font-serif">{part.title}</h1>
+        <div className="text-center mb-8 sm:mb-12">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 font-serif break-words">{part.title}</h1>
         </div>
         
         <div 
           ref={contentRef}
-          className="prose prose-lg max-w-none prose-p:leading-loose text-gray-800 font-serif"
+          className="prose prose-base sm:prose-lg max-w-none prose-p:leading-relaxed sm:prose-p:leading-loose text-gray-800 font-serif"
           dangerouslySetInnerHTML={{ __html: part.content }}
         />
         
-        <div className="mt-16 flex justify-between items-center border-t border-gray-200 pt-8 pb-16">
+        <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200 pt-6 sm:pt-8 pb-16 text-sm sm:text-base">
           {prevPart ? (
             <Link to={`/story/${storyId}/read/${prevPart.id}`} className="text-primary hover:underline font-medium">
               &larr; Previous Chapter
             </Link>
-          ) : <div></div>}
+          ) : <div className="hidden sm:block"></div>}
           
           {nextPart ? (
             <Link to={`/story/${storyId}/read/${nextPart.id}`} className="text-primary hover:underline font-medium">

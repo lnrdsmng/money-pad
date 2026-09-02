@@ -74,19 +74,19 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
           <X className="w-5 h-5" />
         </button>
 
-        <div className="p-6 text-center border-b border-gray-100">
-          <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
-            <CheckCircle className="w-7 h-7" />
+        <div className="p-4 sm:p-6 text-center border-b border-gray-100">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
+            <CheckCircle className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900">Automatic Payout Queued</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Automatic Payout Queued</h2>
           <p className="text-gray-500 text-xs mt-1">
             ₱{grossAmount.toFixed(2)} to {req.payment_method} ({req.payment_account_info})
           </p>
         </div>
 
-        <div className="p-6 bg-gray-50 space-y-6">
+        <div className="p-4 sm:p-6 bg-gray-50 space-y-4 sm:space-y-6">
           {/* Fee & Net Breakdown */}
-          <div className="bg-white p-4 rounded-lg border border-gray-200 text-sm space-y-2">
+          <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 text-xs sm:text-sm space-y-2">
             <div className="flex justify-between text-gray-600">
               <span>Gross Amount</span>
               <span className="font-semibold text-gray-900">₱{grossAmount.toFixed(2)}</span>

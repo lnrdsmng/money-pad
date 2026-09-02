@@ -13,10 +13,10 @@ export default function AppLayout() {
   return (
     <div className="flex flex-col min-h-screen">
       <header className="bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link to="/" className="flex-shrink-0 flex items-center text-primary font-bold text-xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center min-w-0">
+              <Link to="/" className="flex-shrink-0 flex items-center text-primary font-bold text-lg sm:text-xl">
                 MoneyPad
               </Link>
               
@@ -32,13 +32,13 @@ export default function AppLayout() {
               )}
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
               {!user ? (
                 <>
-                  <Link to="/login" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium text-sm">
+                  <Link to="/login" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium text-xs sm:text-sm px-2 py-1">
                     Login
                   </Link>
-                  <Link to="/register" className="bg-primary hover:opacity-90 text-white font-medium px-4 py-2 rounded-md text-sm transition-opacity">
+                  <Link to="/register" className="bg-primary hover:opacity-90 text-white font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition-opacity whitespace-nowrap">
                     Sign up
                   </Link>
                 </>
@@ -52,7 +52,7 @@ export default function AppLayout() {
 
       {user && user.role !== 'admin' && !isImmersivePage && <DailyLoginRewardPanel />}
       
-      <main className={`flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 ${user && !isImmersivePage ? 'pb-20 md:pb-8' : ''}`}>
+      <main className={`flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 ${user && !isImmersivePage ? 'pb-20 md:pb-8' : ''}`}>
         <Outlet />
       </main>
 

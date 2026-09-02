@@ -76,40 +76,40 @@ export const EarningsDashboard = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Earnings Dashboard</h1>
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Earnings Dashboard</h1>
         <button
           onClick={() => setShowUpgradeModal(true)}
-          className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all font-medium"
+          className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all text-xs sm:text-sm font-medium"
         >
           {user?.plan === 'free' ? 'Upgrade Plan' : `Manage ${user?.plan} Plan`}
         </button>
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center">
-          <div className="bg-green-100 p-4 rounded-full mr-6">
-            <BookOpen className="w-8 h-8 text-green-600" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center">
+          <div className="bg-green-100 p-3 sm:p-4 rounded-full mr-4 sm:mr-6 shrink-0">
+            <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Reader Coins</p>
-            <h2 className="text-3xl font-bold text-gray-900">{formatCoins(user?.readerCoins || 0)}</h2>
-            <p className="text-xs text-gray-400 mt-1">
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm font-medium text-gray-500 mb-0.5 sm:mb-1">Reader Coins</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{formatCoins(user?.readerCoins || 0)}</h2>
+            <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">
               {formatPesoFromCoins(user?.readerCoins || 0)} cash value at 100 coins = ₱1
             </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center">
-          <div className="bg-blue-100 p-4 rounded-full mr-6">
-            <DollarSign className="w-8 h-8 text-blue-600" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center">
+          <div className="bg-blue-100 p-3 sm:p-4 rounded-full mr-4 sm:mr-6 shrink-0">
+            <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Author Income</p>
-            <h2 className="text-3xl font-bold text-gray-900">{formatCurrency(user?.authorIncome || 0)}</h2>
-            <p className="text-xs text-gray-400 mt-1">Earned from published stories</p>
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm font-medium text-gray-500 mb-0.5 sm:mb-1">Author Income</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{formatCurrency(user?.authorIncome || 0)}</h2>
+            <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Earned from published stories</p>
           </div>
         </div>
       </div>

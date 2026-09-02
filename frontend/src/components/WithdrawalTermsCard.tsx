@@ -33,17 +33,17 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
   return (
     <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
       {/* Header */}
-      <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="bg-primary/20 p-2 rounded-lg text-primary-light">
-            <Info className="w-5 h-5 text-emerald-400" />
+      <div className="bg-slate-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2.5 sm:space-x-3">
+          <div className="bg-primary/20 p-1.5 sm:p-2 rounded-lg text-primary-light shrink-0">
+            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
           </div>
           <div>
-            <h3 className="text-base font-semibold">Withdrawal Terms & Conditions</h3>
-            <p className="text-xs text-slate-300">Automatic payouts directly to your configured payment method</p>
+            <h3 className="text-sm sm:text-base font-semibold">Withdrawal Terms & Conditions</h3>
+            <p className="text-[11px] sm:text-xs text-slate-300">Automatic payouts directly to your configured payment method</p>
           </div>
         </div>
-        <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800">
+        <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800 shrink-0">
           <Sparkles className="w-3.5 h-3.5 mr-1" />
           Automatic Processing
         </span>
@@ -51,9 +51,9 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
 
       {/* Warning banner when user qualifies but lacks payment setup */}
       {isQualifying && !hasPaymentDetails && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center text-amber-800 text-sm">
-            <ShieldAlert className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0" />
+        <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-3 sm:py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center text-amber-800 text-xs sm:text-sm">
+            <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 mr-2 flex-shrink-0" />
             <span>
               Your balance qualifies for withdrawal (<strong>₱{cashValue.toFixed(2)}</strong>), but you have not configured your payout details yet.
             </span>
@@ -61,7 +61,7 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
           {onSetupPayment && (
             <button
               onClick={onSetupPayment}
-              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors flex-shrink-0"
+              className="w-full sm:w-auto px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors text-center shrink-0"
             >
               Add Payout Account
             </button>
@@ -70,7 +70,7 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
       )}
 
       {/* Content Grid */}
-      <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
         {/* Term 1: Automatic Triggers & Thresholds */}
         <div className="space-y-2">
           <div className="flex items-center text-gray-900 font-semibold text-sm">

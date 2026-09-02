@@ -34,22 +34,22 @@ export default function StoryPage() {
             <div className="w-full aspect-[2/3] flex items-center justify-center text-gray-400">No Cover</div>
           )}
         </div>
-        <div className="p-6 md:w-2/3">
-          <div className="flex justify-between items-start">
-            <h1 className="text-3xl font-bold text-primary mb-2">{story.title}</h1>
-            {story.isMature && <span className="bg-accent text-white px-2 py-1 text-xs font-bold rounded">Mature</span>}
+        <div className="p-4 sm:p-6 md:w-2/3">
+          <div className="flex justify-between items-start gap-2 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary min-w-0 break-words">{story.title}</h1>
+            {story.isMature && <span className="bg-accent text-white px-2 py-0.5 sm:py-1 text-xs font-bold rounded shrink-0">Mature</span>}
           </div>
-          <p className="text-lg text-gray-600 dark:text-gray-300 mb-4">By {story.authorName}</p>
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">By {story.authorName}</p>
           
-          <div className="flex gap-4 text-sm text-gray-500 mb-6">
+          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-6">
             <span>👁 {story.readCount} Reads</span>
             <span>⭐ {story.likes} Likes</span>
             <span>{story.isCompleted ? 'Completed' : 'Ongoing'}</span>
           </div>
 
           <div className="mb-6">
-            <h3 className="font-semibold mb-2">Synopsis</h3>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{story.overview}</p>
+            <h3 className="font-semibold mb-2 text-base sm:text-lg">Synopsis</h3>
+            <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{story.overview}</p>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-8">
@@ -60,23 +60,23 @@ export default function StoryPage() {
             ))}
           </div>
 
-          <h3 className="font-semibold mb-4 text-xl">Table of Contents</h3>
+          <h3 className="font-semibold mb-3 sm:mb-4 text-lg sm:text-xl">Table of Contents</h3>
           {parts?.length > 0 ? (
             <ul className="space-y-2">
               {parts.map((part: any, index: number) => (
                 <li key={part.id}>
                   <Link 
                     to={`/story/${story.id}/read/${part.id}`}
-                    className="flex justify-between p-3 rounded hover:bg-gray-50 dark:hover:bg-slate-700 transition border border-transparent hover:border-gray-200 dark:hover:border-slate-600"
+                    className="flex justify-between items-center gap-2 p-2.5 sm:p-3 rounded hover:bg-gray-50 dark:hover:bg-slate-700 transition border border-transparent hover:border-gray-200 dark:hover:border-slate-600"
                   >
-                    <span>Part {index + 1}: {part.title}</span>
-                    <span className="text-gray-400 text-sm">👁 {part.readCount}</span>
+                    <span className="text-sm sm:text-base font-medium min-w-0 truncate">Part {index + 1}: {part.title}</span>
+                    <span className="text-gray-400 text-xs sm:text-sm shrink-0 whitespace-nowrap">👁 {part.readCount}</span>
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500">No chapters published yet.</p>
+            <p className="text-gray-500 text-sm">No chapters published yet.</p>
           )}
         </div>
       </div>

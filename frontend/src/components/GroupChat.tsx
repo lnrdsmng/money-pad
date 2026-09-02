@@ -41,18 +41,18 @@ export const GroupChat = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px]">
-      <div className="border-b border-gray-100 px-6 py-4 bg-gray-50 flex items-center">
-        <MessageCircle className="w-5 h-5 mr-2 text-gray-500" />
-        <h3 className="text-lg font-medium text-gray-900">Community Chat</h3>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[450px] sm:h-[600px]">
+      <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 flex items-center">
+        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-gray-500" />
+        <h3 className="text-base sm:text-lg font-medium text-gray-900">Community Chat</h3>
       </div>
       
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-50/50 space-y-4">
+      <div className="flex-1 p-3 sm:p-4 overflow-y-auto bg-gray-50/50 space-y-3 sm:space-y-4">
         {messages?.map((msg: any) => {
           const isMe = msg.userId === user?.id;
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] rounded-lg px-4 py-2 shadow-sm ${
+              <div className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 sm:px-4 py-2 shadow-sm ${
                 msg.is_system ? 'bg-orange-100 border border-orange-200' : 
                 isMe ? 'bg-primary text-white' : 'bg-white border border-gray-200'
               }`}>

@@ -12,9 +12,9 @@ export const ChapterSlider: React.FC<ChapterSliderProps> = ({ parts, currentPart
   const currentIndex = parts.findIndex(p => p.id === currentPartId);
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
-      <div className="max-w-4xl mx-auto flex items-center space-x-4">
-        <span className="text-sm font-medium text-gray-500 whitespace-nowrap">Ch. 1</span>
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2.5 sm:p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
+      <div className="max-w-4xl mx-auto flex items-center space-x-2 sm:space-x-4">
+        <span className="text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">Ch. 1</span>
         
         <div className="flex-1 relative group">
           <input 
