@@ -5,6 +5,7 @@ import { ArrowLeft, Coins } from 'lucide-react';
 import { useReadingTimer } from '../hooks/useReadingTimer';
 import { useReadingProgress } from '../hooks/useReadingProgress';
 import { ChapterSlider } from '../components/ChapterSlider';
+import { ActionDialog } from '../components/feedback/ActionDialog';
 
 export default function ReaderPage() {
   const { storyId, partId } = useParams();
@@ -12,6 +13,7 @@ export default function ReaderPage() {
   const [part, setPart] = useState<any>(null);
   const [allParts, setAllParts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dismissedResumePartId, setDismissedResumePartId] = useState<string | null>(null);
   
   // Custom hooks for new features
   const { pendingEarned, isPaused, error: earningsError } = useReadingTimer(storyId!, partId!);
@@ -19,16 +21,12 @@ export default function ReaderPage() {
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Load progress and navigate if needed
-  useEffect(() => {
-    if (progressLoaded && savedPartId && savedPartId !== partId) {
-      // Prompt user or just auto-navigate
-      const resume = window.confirm("You have saved progress on another chapter. Resume there?");
-      if (resume) {
-        navigate(`/story/${storyId}/read/${savedPartId}`);
-      }
-    }
-  }, [progressLoaded, savedPartId, storyId, partId, navigate]);
+  const resumePartId = progressLoaded
+    && savedPartId
+    && savedPartId !== partId
+    && savedPartId !== dismissedResumePartId
+    ? savedPartId
+    : null;
 
   // Handle restoring scroll position when part loads
   useEffect(() => {
@@ -136,6 +134,22 @@ export default function ReaderPage() {
         parts={allParts} 
         currentPartId={partId!} 
         onPartSelect={(newPartId) => navigate(`/story/${storyId}/read/${newPartId}`)} 
+      />
+
+      <ActionDialog
+        open={Boolean(resumePartId)}
+        title="Resume saved chapter?"
+        description="You have saved progress in another chapter. You can resume there or continue reading this one."
+        confirmLabel="Resume chapter"
+        cancelLabel="Continue here"
+        onCancel={() => {
+          if (resumePartId) setDismissedResumePartId(resumePartId);
+        }}
+        onConfirm={() => {
+          const destination = resumePartId;
+          if (destination) setDismissedResumePartId(destination);
+          if (destination) navigate(`/story/${storyId}/read/${destination}`);
+        }}
       />
     </div>
   );

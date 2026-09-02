@@ -5,6 +5,7 @@ import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import type { MoneyPadPlan, PaymentMethodSetting, PlanId, PlanPurchase } from '../types/earnings';
 import { formatPesoFromCoins } from '../utils/money';
+import { useFeedback } from './feedback/feedback';
 
 const planStyles: Record<PlanId, { icon: typeof Shield; buttonClass: string }> = {
   free: { icon: Shield, buttonClass: 'bg-slate-800' },
@@ -16,6 +17,7 @@ const planStyles: Record<PlanId, { icon: typeof Shield; buttonClass: string }> =
 export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const feedback = useFeedback();
   const [selectedPlan, setSelectedPlan] = useState<MoneyPadPlan | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('gcash');
   const [paymentReference, setPaymentReference] = useState('');
@@ -54,6 +56,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
       setPaymentReference('');
       setPaymentProof(null);
       await queryClient.invalidateQueries({ queryKey: ['plan-purchases'] });
+      feedback.success('Payment proof submitted for admin review.');
     },
   });
 
@@ -65,7 +68,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
       <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-        <button type="button" onClick={onClose} className="absolute right-4 top-4 z-10 rounded-full p-2 text-slate-400 hover:bg-slate-100" aria-label="Close plans"><X /></button>
+        <button type="button" onClick={onClose} disabled={submitMutation.isPending} className="absolute right-4 top-4 z-10 rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Close plans"><X /></button>
         <div className="border-b border-slate-100 p-8 text-center">
           <h2 className="text-3xl font-bold text-slate-900">Choose your monthly plan</h2>
           <p className="mt-2 text-slate-500">Pay with GCash, Maya, or PayPal, then submit your proof for admin review.</p>
@@ -93,7 +96,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
                     <li className="flex gap-2"><Check className="h-5 w-5 text-emerald-600" />{Number(plan.rate_per_minute)} coins/min ({formatPesoFromCoins(plan.rate_per_minute)})</li>
                     <li className="flex gap-2"><Check className="h-5 w-5 text-emerald-600" />{plan.ads ? 'Ad required when claiming' : 'No rewarded ad required'}</li>
                   </ul>
-                  <button type="button" disabled={isCurrent || plan.id === 'free' || Boolean(pendingPurchase)} onClick={() => setSelectedPlan(plan)} className={`w-full rounded-lg py-3 font-bold text-white disabled:bg-slate-200 disabled:text-slate-500 ${planStyles[plan.id].buttonClass}`}>
+                  <button type="button" disabled={isCurrent || plan.id === 'free' || Boolean(pendingPurchase) || submitMutation.isPending} onClick={() => setSelectedPlan(plan)} className={`w-full rounded-lg py-3 font-bold text-white disabled:bg-slate-200 disabled:text-slate-500 ${planStyles[plan.id].buttonClass}`}>
                     {isCurrent ? 'Active plan' : plan.id === 'free' ? 'Included' : 'Select plan'}
                   </button>
                 </article>
@@ -106,7 +109,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
               <div><h3 className="text-xl font-bold">Pay ₱{Number(selectedPlan.price).toFixed(2)} for {selectedPlan.name}</h3><p className="text-sm text-slate-500">Your plan changes only after an administrator verifies the payment.</p></div>
               <div>
                 <label className="mb-1 block text-sm font-semibold">Payment method</label>
-                <select required value={selectedPaymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} className="w-full rounded-lg border border-slate-300 p-3">
+                <select required disabled={submitMutation.isPending} value={selectedPaymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} className="w-full rounded-lg border border-slate-300 p-3 disabled:opacity-60">
                   {(methodsQuery.data ?? []).map((method) => <option key={method.id} value={method.id}>{method.label}</option>)}
                 </select>
               </div>
@@ -117,8 +120,8 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
                   {method.instructions && <p className="mt-2">{method.instructions}</p>}
                 </div>
               ))}
-              <div><label className="mb-1 block text-sm font-semibold">Payment reference</label><input required maxLength={150} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} className="w-full rounded-lg border border-slate-300 p-3" placeholder="Transaction/reference number" /></div>
-              <div><label className="mb-1 block text-sm font-semibold">Payment screenshot</label><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-400 p-4"><Upload className="h-5 w-5" /><span>{paymentProof?.name ?? 'Choose JPEG, PNG, or WebP (max 5 MB)'}</span><input required type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setPaymentProof(event.target.files?.[0] ?? null)} className="sr-only" /></label></div>
+              <div><label className="mb-1 block text-sm font-semibold">Payment reference</label><input required disabled={submitMutation.isPending} maxLength={150} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} className="w-full rounded-lg border border-slate-300 p-3 disabled:opacity-60" placeholder="Transaction/reference number" /></div>
+              <div><label className="mb-1 block text-sm font-semibold">Payment screenshot</label><label className={`flex items-center gap-3 rounded-lg border border-dashed border-slate-400 p-4 ${submitMutation.isPending ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}><Upload className="h-5 w-5" /><span>{paymentProof?.name ?? 'Choose JPEG, PNG, or WebP (max 5 MB)'}</span><input required disabled={submitMutation.isPending} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setPaymentProof(event.target.files?.[0] ?? null)} className="sr-only" /></label></div>
               {submitMutation.isError && <p className="text-sm text-red-600">The proof could not be submitted. Check the file and reference, then try again.</p>}
               <button disabled={submitMutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 font-bold text-white disabled:opacity-50">{submitMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" />}Submit for review</button>
             </form>

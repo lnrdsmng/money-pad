@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import http from '../api/http';
-import { UserPlus, BookOpen, Clock } from 'lucide-react';
+import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { SystemMessageInbox } from '../components/SystemMessageInbox';
 import { GroupChat } from '../components/GroupChat';
+import { useFeedback } from '../components/feedback/feedback';
+import { getApiErrorMessage } from '../utils/apiError';
 
 export default function ProfilePage() {
   const { username } = useParams();
@@ -12,6 +14,10 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [stories, setStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowPending, setIsFollowPending] = useState(false);
+  const feedback = useFeedback();
 
   // We find user ID from username
   const isOwnProfile = currentUser?.username === username;
@@ -20,6 +26,8 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       try {
         setLoading(true);
+        setLoadError('');
+        setIsFollowing(false);
         // Step 1: Find user by username
         const searchRes = await http.get(`/users/search?query=${username}`);
         const foundUser = Array.isArray(searchRes.data) ? searchRes.data[0] : searchRes.data.data?.[0];
@@ -29,19 +37,49 @@ export default function ProfilePage() {
           // Step 2: Fetch their published stories
           const storiesRes = await http.get(`/authors/${foundUser.id}/stories/published`);
           setStories(Array.isArray(storiesRes.data) ? storiesRes.data : storiesRes.data.data || []);
+          if (currentUser?.id && currentUser.id !== foundUser.id) {
+            try {
+              const followingRes = await http.get(`/users/${currentUser.id}/is-following/${foundUser.id}`);
+              setIsFollowing(Boolean(followingRes.data.isFollowing));
+            } catch {
+              setIsFollowing(false);
+            }
+          }
         } else {
           setProfile(null);
         }
       } catch (err) {
         console.error("Failed to load profile", err);
+        setLoadError(getApiErrorMessage(err, 'The profile could not be loaded.'));
       } finally {
         setLoading(false);
       }
     };
     if (username) fetchProfile();
-  }, [username]);
+  }, [currentUser?.id, username]);
+
+  const handleFollowToggle = async () => {
+    if (!currentUser || !profile || isFollowPending) return;
+
+    const previousValue = isFollowing;
+    setIsFollowing(!previousValue);
+    setIsFollowPending(true);
+
+    try {
+      await http.post(`/users/${currentUser.id}/${previousValue ? 'unfollow' : 'follow'}`, {
+        followedId: profile.id,
+      });
+      feedback.success(previousValue ? `Unfollowed @${profile.username}.` : `Following @${profile.username}.`);
+    } catch (error) {
+      setIsFollowing(previousValue);
+      feedback.error(getApiErrorMessage(error, 'Your follow preference could not be updated.'));
+    } finally {
+      setIsFollowPending(false);
+    }
+  };
 
   if (loading) return <div className="text-center p-12">Loading profile...</div>;
+  if (loadError) return <div role="alert" className="p-12 text-center text-red-600">{loadError}</div>;
   if (!profile) return <div className="text-center p-12">User not found</div>;
 
   return (
@@ -78,15 +116,24 @@ export default function ProfilePage() {
           
           <div className="mt-6 md:mt-0 pb-2">
             {!isOwnProfile && (
-              <button className="flex items-center px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-green-600 transition shadow">
-                <UserPlus className="w-5 h-5 mr-2" />
-                Follow
+              <button
+                type="button"
+                onClick={handleFollowToggle}
+                disabled={isFollowPending}
+                aria-busy={isFollowPending}
+                className={`flex items-center rounded-full px-6 py-2 font-medium shadow transition disabled:cursor-not-allowed disabled:opacity-60 ${isFollowing ? 'border border-primary bg-white text-primary hover:bg-green-50' : 'bg-primary text-white hover:bg-green-600'}`}
+              >
+                {isFollowPending ? <LoaderCircle className="mr-2 h-5 w-5 animate-spin" /> : isFollowing ? <UserCheck className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" />}
+                {isFollowPending ? 'Updating...' : isFollowing ? 'Following' : 'Follow'}
               </button>
             )}
             {isOwnProfile && (
-              <Link to="/settings" className="flex items-center px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-full font-medium hover:bg-gray-50 transition shadow-sm">
-                Edit Profile
-              </Link>
+              <span className="inline-flex items-center gap-2" title="Profile editing is coming soon">
+                <button type="button" disabled className="flex cursor-not-allowed items-center rounded-full border border-gray-300 bg-white px-6 py-2 font-medium text-gray-400 shadow-sm">
+                  Edit Profile
+                </button>
+                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Coming soon</span>
+              </span>
             )}
           </div>
         </div>

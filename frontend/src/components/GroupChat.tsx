@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, LoaderCircle } from 'lucide-react';
+import { useFeedback } from './feedback/feedback';
+import { getApiErrorMessage } from '../utils/apiError';
 
 export const GroupChat = () => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const feedback = useFeedback();
 
   const { data: messages, refetch } = useQuery({
     queryKey: ['groupChat'],
@@ -23,7 +26,8 @@ export const GroupChat = () => {
     onSuccess: () => {
       setMessage('');
       refetch();
-    }
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'Your message could not be sent.')),
   });
 
   useEffect(() => {
@@ -80,9 +84,11 @@ export const GroupChat = () => {
           <button 
             type="submit" 
             disabled={!message.trim() || sendMutation.isPending}
-            className="bg-primary text-white p-2 rounded-full hover:bg-primary-dark disabled:opacity-50 transition-colors"
+            aria-busy={sendMutation.isPending}
+            aria-label={sendMutation.isPending ? 'Sending message' : 'Send message'}
+            className="bg-primary text-white p-2 rounded-full hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
           >
-            <Send className="w-5 h-5" />
+            {sendMutation.isPending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
         </form>
       </div>

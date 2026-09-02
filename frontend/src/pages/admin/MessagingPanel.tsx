@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import http from '../../api/http';
+import { useFeedback } from '../../components/feedback/feedback';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export const MessagingPanel = () => {
   const [target, setTarget] = useState('all'); // 'all' or userId
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPinned, setIsPinned] = useState(false);
+  const feedback = useFeedback();
 
   const { data: users } = useQuery({
     queryKey: ['admin', 'users', 'list'],
@@ -25,10 +28,15 @@ export const MessagingPanel = () => {
       }
     },
     onSuccess: () => {
-      alert('Message sent!');
+      if (target === 'all') {
+        feedback.info('Broadcast queued (simulated MVP behavior).');
+      } else {
+        feedback.success('Message sent.');
+      }
       setTitle('');
       setContent('');
-    }
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The message could not be sent.')),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -98,6 +106,7 @@ export const MessagingPanel = () => {
             <button
               type="submit"
               disabled={sendMutation.isPending}
+              aria-busy={sendMutation.isPending}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
             >
               {sendMutation.isPending ? 'Sending...' : 'Send Message'}

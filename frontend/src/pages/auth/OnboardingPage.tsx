@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
+import { LoaderCircle } from 'lucide-react';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { useFeedback } from '../../components/feedback/feedback';
 
 export default function OnboardingPage() {
   const { user, isLoading, checkAuth } = useAuth();
@@ -11,6 +14,8 @@ export default function OnboardingPage() {
   const [birthday, setBirthday] = useState('');
   const [genres, setGenres] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [pendingStep, setPendingStep] = useState<number | null>(null);
+  const feedback = useFeedback();
 
   useEffect(() => {
     if (user?.onboardingStep) {
@@ -22,21 +27,29 @@ export default function OnboardingPage() {
 
   const handleGenderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setPendingStep(1);
     try {
       await http.post(`/users/${user?.id}/onboarding/gender`, { gender });
       setStep(2);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error saving gender');
+      setError(getApiErrorMessage(err, 'Your gender selection could not be saved.'));
+    } finally {
+      setPendingStep(null);
     }
   };
 
   const handleBirthdaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setPendingStep(2);
     try {
       await http.post(`/users/${user?.id}/onboarding/birthday`, { birthday });
       setStep(3);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error saving birthday');
+      setError(getApiErrorMessage(err, 'Your birthday could not be saved.'));
+    } finally {
+      setPendingStep(null);
     }
   };
 
@@ -46,13 +59,17 @@ export default function OnboardingPage() {
       setError('Please select at least one genre');
       return;
     }
+    setError('');
+    setPendingStep(3);
     try {
       await http.post(`/users/${user?.id}/onboarding/genres`, { preferredGenres: genres.join(',') });
       await http.post(`/users/${user?.id}/onboarding/complete`);
       await checkAuth(); // Refresh user state
       navigate('/explore');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error saving genres');
+      setError(getApiErrorMessage(err, 'Your genre preferences could not be saved.'));
+    } finally {
+      setPendingStep(null);
     }
   };
 
@@ -61,6 +78,8 @@ export default function OnboardingPage() {
       setGenres(genres.filter(g => g !== genre));
     } else if (genres.length < 5) {
       setGenres([...genres, genre]);
+    } else {
+      feedback.warning('You can select up to five genres.');
     }
   };
 
@@ -72,7 +91,7 @@ export default function OnboardingPage() {
       <h2 className="text-2xl font-bold mb-2 text-center text-primary">Welcome, {user.username}!</h2>
       <p className="text-center mb-6 text-gray-500">Let's set up your profile.</p>
       
-      {error && <div className="mb-4 text-accent text-center">{error}</div>}
+      {error && <div role="alert" className="mb-4 text-accent text-center">{error}</div>}
 
       {step === 1 && (
         <form onSubmit={handleGenderSubmit}>
@@ -81,13 +100,16 @@ export default function OnboardingPage() {
             <div className="space-y-2">
               {['Male', 'Female', 'Non-binary', 'Prefer not to say'].map((g) => (
                 <label key={g} className="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700">
-                  <input type="radio" name="gender" value={g} checked={gender === g} onChange={() => setGender(g)} required />
+                  <input type="radio" name="gender" value={g} checked={gender === g} onChange={() => setGender(g)} disabled={pendingStep === 1} required />
                   <span>{g}</span>
                 </label>
               ))}
             </div>
           </div>
-          <button type="submit" className="w-full bg-primary text-white p-2 rounded hover:bg-green-600 transition" disabled={!gender}>Next</button>
+          <button type="submit" aria-busy={pendingStep === 1} className="flex w-full items-center justify-center gap-2 rounded bg-primary p-2 text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60" disabled={!gender || pendingStep === 1}>
+            {pendingStep === 1 && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {pendingStep === 1 ? 'Saving...' : 'Next'}
+          </button>
         </form>
       )}
 
@@ -100,10 +122,14 @@ export default function OnboardingPage() {
               className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600"
               value={birthday}
               onChange={(e) => setBirthday(e.target.value)}
+              disabled={pendingStep === 2}
               required
             />
           </div>
-          <button type="submit" className="w-full bg-primary text-white p-2 rounded hover:bg-green-600 transition" disabled={!birthday}>Next</button>
+          <button type="submit" aria-busy={pendingStep === 2} className="flex w-full items-center justify-center gap-2 rounded bg-primary p-2 text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60" disabled={!birthday || pendingStep === 2}>
+            {pendingStep === 2 && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {pendingStep === 2 ? 'Saving...' : 'Next'}
+          </button>
         </form>
       )}
 
@@ -117,6 +143,7 @@ export default function OnboardingPage() {
                   key={g}
                   type="button"
                   onClick={() => toggleGenre(g)}
+                  disabled={pendingStep === 3}
                   className={`px-3 py-1 rounded-full border text-sm transition ${
                     genres.includes(g) 
                       ? 'bg-primary border-primary text-white' 
@@ -128,7 +155,10 @@ export default function OnboardingPage() {
               ))}
             </div>
           </div>
-          <button type="submit" className="w-full bg-primary text-white p-2 rounded hover:bg-green-600 transition" disabled={genres.length === 0}>Complete Setup</button>
+          <button type="submit" aria-busy={pendingStep === 3} className="flex w-full items-center justify-center gap-2 rounded bg-primary p-2 text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60" disabled={genres.length === 0 || pendingStep === 3}>
+            {pendingStep === 3 && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {pendingStep === 3 ? 'Finishing setup...' : 'Complete Setup'}
+          </button>
         </form>
       )}
     </div>

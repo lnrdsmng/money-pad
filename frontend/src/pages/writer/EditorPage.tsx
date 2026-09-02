@@ -6,13 +6,19 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import http from '../../api/http'
+import { ActionDialog } from '../../components/feedback/ActionDialog'
+import { useFeedback } from '../../components/feedback/feedback'
+import { getApiErrorMessage } from '../../utils/apiError'
 
 export default function EditorPage() {
   const { storyId, partId } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [title, setTitle] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'draft' | 'publish' | null>(null)
+  const [showImageDialog, setShowImageDialog] = useState(false)
+  const [imageUrl, setImageUrl] = useState('')
+  const feedback = useFeedback()
 
   const { data: part, isLoading } = useQuery({
     queryKey: ['part', partId],
@@ -47,7 +53,8 @@ export default function EditorPage() {
 
   const handleSave = async (publish: boolean = false) => {
     if (!editor) return
-    setSaving(true)
+    if (pendingAction) return
+    setPendingAction(publish ? 'publish' : 'draft')
     try {
       const html = editor.getHTML()
       
@@ -60,14 +67,15 @@ export default function EditorPage() {
       await http.put(`/parts/${partId}`, payload)
       await queryClient.invalidateQueries({ queryKey: ['parts', storyId] })
       if (publish) {
+        feedback.success('Chapter published.')
         navigate(`/writer/story/${storyId}/parts`)
       } else {
-        alert('Draft saved!')
+        feedback.success('Draft saved.')
       }
-    } catch (e) {
-      alert('Failed to save')
+    } catch (error) {
+      feedback.error(getApiErrorMessage(error, publish ? 'The chapter could not be published.' : 'The draft could not be saved.'))
     } finally {
-      setSaving(false)
+      setPendingAction(null)
     }
   }
 
@@ -80,17 +88,19 @@ export default function EditorPage() {
         <div className="flex gap-2">
           <button 
             onClick={() => handleSave(false)} 
-            disabled={saving}
+            disabled={pendingAction !== null}
+            aria-busy={pendingAction === 'draft'}
             className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 dark:hover:bg-slate-700"
           >
-            {saving ? 'Saving...' : 'Save Draft'}
+            {pendingAction === 'draft' ? 'Saving...' : 'Save Draft'}
           </button>
           <button 
             onClick={() => handleSave(true)}
-            disabled={saving}
+            disabled={pendingAction !== null}
+            aria-busy={pendingAction === 'publish'}
             className="px-4 py-2 bg-primary text-white rounded hover:bg-green-600"
           >
-            Publish
+            {pendingAction === 'publish' ? 'Publishing...' : 'Publish'}
           </button>
         </div>
       </div>
@@ -108,14 +118,36 @@ export default function EditorPage() {
         <button onClick={() => editor?.chain().focus().toggleItalic().run()} className={`p-2 rounded ${editor?.isActive('italic') ? 'bg-gray-200 dark:bg-slate-700' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}><i>I</i></button>
         <button onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-2 rounded ${editor?.isActive('heading', { level: 2 }) ? 'bg-gray-200 dark:bg-slate-700' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}>H2</button>
         <button onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`p-2 rounded ${editor?.isActive('bulletList') ? 'bg-gray-200 dark:bg-slate-700' : 'hover:bg-gray-200 dark:hover:bg-slate-700'}`}>List</button>
-        <button onClick={() => {
-            const url = window.prompt('URL')
-            if (url) editor?.chain().focus().setImage({ src: url }).run()
-          }} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-slate-700">Image
+        <button type="button" onClick={() => setShowImageDialog(true)} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-slate-700">Image
         </button>
       </div>
       
       <EditorContent editor={editor} />
+
+      <ActionDialog
+        open={showImageDialog}
+        title="Insert image"
+        description="Enter a public image URL to insert it at the current cursor position."
+        confirmLabel="Insert image"
+        input={{
+          label: 'Image URL',
+          value: imageUrl,
+          onChange: setImageUrl,
+          placeholder: 'https://example.com/image.jpg',
+          required: true,
+          type: 'url',
+        }}
+        onCancel={() => {
+          setShowImageDialog(false)
+          setImageUrl('')
+        }}
+        onConfirm={() => {
+          editor?.chain().focus().setImage({ src: imageUrl.trim() }).run()
+          setShowImageDialog(false)
+          setImageUrl('')
+          feedback.info('Image inserted into the chapter.')
+        }}
+      />
     </div>
   )
 }

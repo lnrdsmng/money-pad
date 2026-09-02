@@ -3,11 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { useFeedback } from '../../components/feedback/feedback';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export default function WriterDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'published' | 'drafts'>('published');
+  const [isCreating, setIsCreating] = useState(false);
+  const feedback = useFeedback();
 
   const { data: stories, isLoading } = useQuery({
     queryKey: ['stories', 'author', user?.id, activeTab],
@@ -19,6 +24,8 @@ export default function WriterDashboard() {
   });
 
   const handleCreateNew = async () => {
+    if (isCreating) return;
+    setIsCreating(true);
     try {
       const response = await http.post('/stories', {
         title: 'Untitled Story',
@@ -26,8 +33,11 @@ export default function WriterDashboard() {
         isMature: false
       });
       navigate(`/writer/story/${response.data.id}`);
-    } catch (err) {
-      console.error('Failed to create story');
+      feedback.success('New story created.');
+    } catch (error) {
+      feedback.error(getApiErrorMessage(error, 'The story could not be created.'));
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -39,9 +49,12 @@ export default function WriterDashboard() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Writer Dashboard</h1>
         <button 
           onClick={handleCreateNew}
-          className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition font-medium"
+          disabled={isCreating}
+          aria-busy={isCreating}
+          className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 font-medium text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          + Create New Story
+          {isCreating && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+          {isCreating ? 'Creating...' : '+ Create New Story'}
         </button>
       </div>
 

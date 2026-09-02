@@ -1,12 +1,18 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../../api/http';
-import { Trash2, Edit } from 'lucide-react';
+import { Trash2, Edit, LoaderCircle } from 'lucide-react';
+import { useState } from 'react';
+import { ActionDialog } from '../../components/feedback/ActionDialog';
+import { useFeedback } from '../../components/feedback/feedback';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export default function StoryPartsPage() {
   const { storyId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [partToDelete, setPartToDelete] = useState<any | null>(null);
+  const feedback = useFeedback();
 
   const { data: story, isLoading: isLoadingStory } = useQuery({
     queryKey: ['story', storyId],
@@ -37,21 +43,22 @@ export default function StoryPartsPage() {
     },
     onSuccess: (newPart) => {
       queryClient.invalidateQueries({ queryKey: ['parts', storyId] });
+      feedback.success('New chapter created.');
       navigate(`/writer/story/${storyId}/read/${newPart.id}/edit`);
-    }
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The chapter could not be created.')),
   });
 
   const deletePartMutation = useMutation({
     mutationFn: async (partId: string) => {
-      if (window.confirm('Are you sure you want to delete this chapter?')) {
-        await http.delete(`/parts/${partId}`);
-      } else {
-        throw new Error('Cancelled');
-      }
+      await http.delete(`/parts/${partId}`);
     },
     onSuccess: () => {
+      setPartToDelete(null);
       queryClient.invalidateQueries({ queryKey: ['parts', storyId] });
-    }
+      feedback.success('Chapter deleted.');
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The chapter could not be deleted.')),
   });
 
   if (isLoadingStory || isLoadingParts) return <div className="p-8 text-center">Loading chapters...</div>;
@@ -67,7 +74,8 @@ export default function StoryPartsPage() {
         </div>
         <button
           onClick={() => createPartMutation.mutate()}
-          disabled={createPartMutation.isPending}
+          disabled={createPartMutation.isPending || deletePartMutation.isPending}
+          aria-busy={createPartMutation.isPending}
           className="px-4 py-2 bg-primary text-white rounded hover:bg-green-600 transition"
         >
           {createPartMutation.isPending ? 'Creating...' : '+ New Chapter'}
@@ -103,11 +111,14 @@ export default function StoryPartsPage() {
                     <Edit size={18} />
                   </Link>
                   <button
-                    onClick={() => deletePartMutation.mutate(part.id)}
-                    className="p-2 text-gray-500 hover:text-red-500 transition rounded hover:bg-gray-100 dark:hover:bg-slate-600"
-                    title="Delete Chapter"
+                    type="button"
+                    onClick={() => setPartToDelete(part)}
+                    disabled={deletePartMutation.isPending}
+                    aria-label={`Delete ${part.title}`}
+                    className="rounded p-2 text-gray-500 transition hover:bg-gray-100 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-slate-600"
+                    title="Delete chapter"
                   >
-                    <Trash2 size={18} />
+                    {deletePartMutation.isPending && deletePartMutation.variables === part.id ? <LoaderCircle size={18} className="animate-spin" /> : <Trash2 size={18} />}
                   </button>
                 </div>
               </li>
@@ -115,6 +126,22 @@ export default function StoryPartsPage() {
           </ul>
         )}
       </div>
+
+      <ActionDialog
+        open={Boolean(partToDelete)}
+        title="Delete chapter?"
+        description={`“${partToDelete?.title ?? 'This chapter'}” will be permanently removed. This cannot be undone.`}
+        confirmLabel="Delete chapter"
+        pendingLabel="Deleting..."
+        tone="danger"
+        isPending={deletePartMutation.isPending}
+        onCancel={() => {
+          if (!deletePartMutation.isPending) setPartToDelete(null);
+        }}
+        onConfirm={() => {
+          if (partToDelete) deletePartMutation.mutate(partToDelete.id);
+        }}
+      />
     </div>
   );
 }

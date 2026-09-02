@@ -6,6 +6,8 @@ import { useAuth } from '../auth/AuthProvider';
 import type { CreateClaimResponse } from '../types/earnings';
 import { MockRewardedAd } from './MockRewardedAd';
 import { formatCoins, formatPesoFromCoins } from '../utils/money';
+import { useFeedback } from './feedback/feedback';
+import { getApiErrorMessage } from '../utils/apiError';
 
 interface IncomeClaimModalProps {
   claim: CreateClaimResponse;
@@ -15,6 +17,7 @@ interface IncomeClaimModalProps {
 export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
   const { updateUser } = useAuth();
   const queryClient = useQueryClient();
+  const feedback = useFeedback();
   const [showAd, setShowAd] = useState(false);
 
   const completeMutation = useMutation({
@@ -27,21 +30,27 @@ export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
         queryClient.invalidateQueries({ queryKey: ['earnings'] }),
         queryClient.invalidateQueries({ queryKey: ['withdrawals'] }),
       ]);
+      feedback.success('Reading income credited.');
       onClose();
     },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The ad completion could not be verified.')),
   });
 
-  const cancelClaim = async () => {
-    try {
-      await http.delete(`/earnings/claims/${claim.claim.id}`);
+  const cancelMutation = useMutation({
+    mutationFn: async () => http.delete(`/earnings/claims/${claim.claim.id}`),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['earnings', 'income'] });
-    } finally {
       onClose();
-    }
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The claim could not be cancelled.')),
+  });
+
+  const cancelClaim = () => {
+    if (!cancelMutation.isPending && !completeMutation.isPending) cancelMutation.mutate();
   };
 
   if (showAd) {
-    return <MockRewardedAd onComplete={() => completeMutation.mutate()} onCancel={cancelClaim} isCompleting={completeMutation.isPending} />;
+    return <MockRewardedAd onComplete={() => completeMutation.mutate()} onCancel={cancelClaim} isCompleting={completeMutation.isPending || cancelMutation.isPending} />;
   }
 
   return (
@@ -54,7 +63,7 @@ export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
               {claim.claim.reward_count} reward{claim.claim.reward_count === 1 ? '' : 's'} totaling {formatCoins(claim.claim.amount)} ({formatPesoFromCoins(claim.claim.amount)})
             </p>
           </div>
-          <button type="button" onClick={cancelClaim} className="rounded-full p-2 text-slate-400 hover:bg-slate-100" aria-label="Cancel claim">
+          <button type="button" onClick={cancelClaim} disabled={cancelMutation.isPending} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50" aria-label="Cancel claim">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -71,12 +80,20 @@ export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
             The ad completion could not be verified. Please try again.
           </div>
         )}
+        {cancelMutation.isError && (
+          <div role="alert" className="mt-5 flex gap-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            The claim could not be cancelled. Please try again.
+          </div>
+        )}
 
         <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={cancelClaim} className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Not now</button>
+          <button type="button" onClick={cancelClaim} disabled={cancelMutation.isPending} aria-busy={cancelMutation.isPending} className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+            {cancelMutation.isPending ? 'Cancelling...' : 'Not now'}
+          </button>
           <button
             type="button"
-            disabled={claim.claim.ad_provider !== 'mock'}
+            disabled={claim.claim.ad_provider !== 'mock' || cancelMutation.isPending}
             onClick={() => setShowAd(true)}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >

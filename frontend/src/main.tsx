@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import AppRouter from './router'
 import { AuthProvider } from './auth/AuthProvider'
+import { ToastProvider } from './components/feedback/ToastProvider'
 import './index.css'
 
 // Step 13: Configure Stale-While-Revalidate caching strategy
@@ -20,9 +21,11 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppRouter />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AppRouter />
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

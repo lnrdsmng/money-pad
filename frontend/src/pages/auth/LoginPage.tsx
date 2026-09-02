@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
+import { LoaderCircle } from 'lucide-react';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
     try {
       const loggedUser = await login({ username, password });
       if (loggedUser?.role === 'admin') {
@@ -19,14 +24,16 @@ export default function LoginPage() {
         navigate(loggedUser?.onboardingCompleted ? '/explore' : '/onboarding');
       }
     } catch (err) {
-      setError('Invalid credentials');
+      setError(getApiErrorMessage(err, 'Unable to sign in. Check your credentials and try again.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white dark:bg-slate-800 rounded shadow">
       <h2 className="text-2xl font-bold mb-6 text-center text-primary">Login to MoneyPad</h2>
-      {error && <div className="mb-4 text-accent text-center">{error}</div>}
+      {error && <div role="alert" className="mb-4 text-accent text-center">{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1">Username</label>
@@ -52,9 +59,12 @@ export default function LoginPage() {
         </div>
         <button
           type="submit"
-          className="w-full bg-primary text-white p-2 rounded hover:bg-green-600 transition"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+          className="flex w-full items-center justify-center gap-2 rounded bg-primary p-2 text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Login
+          {isSubmitting && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+          {isSubmitting ? 'Signing in...' : 'Login'}
         </button>
       </form>
     </div>

@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../../api/http';
+import { useFeedback } from '../../components/feedback/feedback';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export default function StoryEditPage() {
   const { storyId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const feedback = useFeedback();
 
   const [title, setTitle] = useState('');
   const [overview, setOverview] = useState('');
@@ -40,8 +43,10 @@ export default function StoryEditPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['story', storyId] });
       queryClient.invalidateQueries({ queryKey: ['stories'] });
+      feedback.success('Story details saved.');
       navigate('/writer');
-    }
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The story details could not be saved.')),
   });
 
   const publishMutation = useMutation({
@@ -51,8 +56,10 @@ export default function StoryEditPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['story', storyId] });
       queryClient.invalidateQueries({ queryKey: ['stories'] });
+      feedback.success('Story published.');
       navigate('/writer');
-    }
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The story could not be published.')),
   });
 
   const unpublishMutation = useMutation({
@@ -62,8 +69,10 @@ export default function StoryEditPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['story', storyId] });
       queryClient.invalidateQueries({ queryKey: ['stories'] });
+      feedback.success('Story moved back to drafts.');
       navigate('/writer');
-    }
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The story could not be unpublished.')),
   });
 
   const handleSave = (e: React.FormEvent) => {
@@ -87,7 +96,8 @@ export default function StoryEditPage() {
           {!story?.isPublished ? (
             <button
               onClick={() => publishMutation.mutate()}
-              disabled={publishMutation.isPending}
+              disabled={publishMutation.isPending || unpublishMutation.isPending || updateMutation.isPending}
+              aria-busy={publishMutation.isPending}
               className="px-4 py-2 bg-primary text-white rounded hover:bg-green-600 transition"
             >
               {publishMutation.isPending ? 'Publishing...' : 'Publish Story'}
@@ -95,7 +105,8 @@ export default function StoryEditPage() {
           ) : (
             <button
               onClick={() => unpublishMutation.mutate()}
-              disabled={unpublishMutation.isPending}
+              disabled={unpublishMutation.isPending || publishMutation.isPending || updateMutation.isPending}
+              aria-busy={unpublishMutation.isPending}
               className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
             >
               {unpublishMutation.isPending ? 'Unpublishing...' : 'Unpublish Story'}
@@ -170,7 +181,8 @@ export default function StoryEditPage() {
           </button>
           <button
             type="submit"
-            disabled={updateMutation.isPending}
+            disabled={updateMutation.isPending || publishMutation.isPending || unpublishMutation.isPending}
+            aria-busy={updateMutation.isPending}
             className="px-4 py-2 bg-primary text-white rounded hover:bg-green-600 transition"
           >
             {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
