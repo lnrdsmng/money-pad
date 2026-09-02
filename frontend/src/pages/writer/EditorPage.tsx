@@ -82,15 +82,15 @@ export default function EditorPage() {
   if (isLoading) return <div className="p-8 text-center">Loading editor...</div>
 
   return (
-    <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 p-6 rounded shadow">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Editing Chapter</h1>
-        <div className="flex gap-2">
+    <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 p-3 sm:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Editing Chapter</h1>
+        <div className="flex w-full sm:w-auto gap-2">
           <button 
             onClick={() => handleSave(false)} 
             disabled={pendingAction !== null}
             aria-busy={pendingAction === 'draft'}
-            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 dark:hover:bg-slate-700"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50 dark:hover:bg-slate-700 transition"
           >
             {pendingAction === 'draft' ? 'Saving...' : 'Save Draft'}
           </button>
@@ -98,7 +98,7 @@ export default function EditorPage() {
             onClick={() => handleSave(true)}
             disabled={pendingAction !== null}
             aria-busy={pendingAction === 'publish'}
-            className="px-4 py-2 bg-primary text-white rounded hover:bg-green-600"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm bg-primary text-white rounded hover:bg-green-600 transition"
           >
             {pendingAction === 'publish' ? 'Publishing...' : 'Publish'}
           </button>
@@ -110,7 +110,7 @@ export default function EditorPage() {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Chapter Title"
-        className="w-full p-4 mb-4 text-xl font-bold border border-gray-200 dark:border-slate-700 rounded dark:bg-slate-900 focus:outline-none focus:border-primary"
+        className="w-full p-2.5 sm:p-4 mb-3 sm:mb-4 text-base sm:text-xl font-bold border border-gray-200 dark:border-slate-700 rounded dark:bg-slate-900 focus:outline-none focus:border-primary"
       />
 
       <div className="border border-gray-200 dark:border-slate-700 border-b-0 rounded-t p-2 flex gap-2 bg-gray-50 dark:bg-slate-900 flex-wrap">

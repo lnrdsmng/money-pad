@@ -65,10 +65,10 @@ export default function StoryPartsPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <div>
-          <Link to="/writer" className="text-sm text-gray-500 hover:text-primary mb-2 inline-block">&larr; Back to Dashboard</Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <Link to="/writer" className="text-xs sm:text-sm text-gray-500 hover:text-primary mb-1 sm:mb-2 inline-block">&larr; Back to Dashboard</Link>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 break-words">
             Chapters: {story?.title}
           </h1>
         </div>
@@ -76,7 +76,7 @@ export default function StoryPartsPage() {
           onClick={() => createPartMutation.mutate()}
           disabled={createPartMutation.isPending || deletePartMutation.isPending}
           aria-busy={createPartMutation.isPending}
-          className="px-4 py-2 bg-primary text-white rounded hover:bg-green-600 transition"
+          className="w-full sm:w-auto px-4 py-2 bg-primary text-white text-xs sm:text-sm rounded hover:bg-green-600 transition text-center shrink-0"
         >
           {createPartMutation.isPending ? 'Creating...' : '+ New Chapter'}
         </button>
@@ -84,20 +84,20 @@ export default function StoryPartsPage() {
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
         {parts?.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
+          <div className="p-8 sm:p-12 text-center text-sm text-gray-500">
             No chapters yet. Click "New Chapter" to get started.
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-slate-700">
             {parts?.map((part: any, index: number) => (
-              <li key={part.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-slate-700 rounded-full text-sm font-medium text-gray-500 dark:text-gray-400">
+              <li key={part.id} className="p-3 sm:p-4 flex items-center justify-between gap-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-gray-100 dark:bg-slate-700 rounded-full text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 shrink-0">
                     {index + 1}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{part.title}</h3>
-                    <span className={`text-xs px-2 py-1 rounded-full ${part.isPublished ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">{part.title}</h3>
+                    <span className={`inline-block mt-0.5 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full ${part.isPublished ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
                       {part.isPublished ? 'Published' : 'Draft'}
                     </span>
                   </div>

@@ -90,15 +90,15 @@ export default function StoryEditPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Story Details</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Edit Story Details</h1>
+        <div className="flex w-full sm:w-auto justify-end gap-2">
           {!story?.isPublished ? (
             <button
               onClick={() => publishMutation.mutate()}
               disabled={publishMutation.isPending || unpublishMutation.isPending || updateMutation.isPending}
               aria-busy={publishMutation.isPending}
-              className="px-4 py-2 bg-primary text-white rounded hover:bg-green-600 transition"
+              className="w-full sm:w-auto px-4 py-2 bg-primary text-white text-xs sm:text-sm rounded hover:bg-green-600 transition"
             >
               {publishMutation.isPending ? 'Publishing...' : 'Publish Story'}
             </button>
@@ -107,7 +107,7 @@ export default function StoryEditPage() {
               onClick={() => unpublishMutation.mutate()}
               disabled={unpublishMutation.isPending || publishMutation.isPending || updateMutation.isPending}
               aria-busy={unpublishMutation.isPending}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+              className="w-full sm:w-auto px-4 py-2 bg-gray-500 text-white text-xs sm:text-sm rounded hover:bg-gray-600 transition"
             >
               {unpublishMutation.isPending ? 'Unpublishing...' : 'Unpublish Story'}
             </button>
@@ -115,14 +115,14 @@ export default function StoryEditPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
+      <form onSubmit={handleSave} className="space-y-4 sm:space-y-6 bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full p-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
             required
           />
         </div>
@@ -133,7 +133,7 @@ export default function StoryEditPage() {
             value={overview}
             onChange={(e) => setOverview(e.target.value)}
             rows={5}
-            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full p-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
             required
           />
         </div>
@@ -145,11 +145,11 @@ export default function StoryEditPage() {
             value={coverImageUrl}
             onChange={(e) => setCoverImageUrl(e.target.value)}
             placeholder="https://example.com/image.jpg"
-            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full p-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
-        <div className="flex gap-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -157,7 +157,7 @@ export default function StoryEditPage() {
               onChange={(e) => setIsMature(e.target.checked)}
               className="rounded text-primary focus:ring-primary"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Mature Content</span>
+            <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Mature Content</span>
           </label>
 
           <label className="flex items-center space-x-2">
@@ -167,7 +167,7 @@ export default function StoryEditPage() {
               onChange={(e) => setIsCompleted(e.target.checked)}
               className="rounded text-primary focus:ring-primary"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Mark as Completed</span>
+            <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Mark as Completed</span>
           </label>
         </div>
 
