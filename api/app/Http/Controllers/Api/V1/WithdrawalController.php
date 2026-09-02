@@ -15,9 +15,11 @@ class WithdrawalController extends Controller
         $user = $request->user();
 
         $minGcash = config('moneypad.withdrawals.min_gcash_maya');
+        $coinToPhpRate = (float) config('moneypad.conversion.coins_to_cash_ratio');
+        $readerPesoBalance = (float) $user->readerCoins * $coinToPhpRate;
 
         // Simple check for Reader Coins (MVP limit)
-        if ($user->readerCoins >= $minGcash) {
+        if ($readerPesoBalance >= $minGcash) {
             $existing = WithdrawalRequest::where('userId', $user->id)
                 ->whereIn('status', ['eligible', 'pending_ad_choice', 'watching_ads', 'pending_review'])
                 ->first();
@@ -32,7 +34,7 @@ class WithdrawalController extends Controller
                     $req = WithdrawalRequest::create([
                         'id' => Str::uuid()->toString(),
                         'userId' => $user->id,
-                        'amount' => $user->readerCoins, // Withdraw all
+                        'amount' => number_format($readerPesoBalance, 2, '.', ''),
                         'source' => 'READER',
                         'payment_method' => $user->payment_method,
                         'payment_account_info' => $user->payment_account_info,

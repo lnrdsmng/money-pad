@@ -2,16 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Models\ReadingRewardClaim;
+use App\Models\NewAccountRewardEnrollment;
 use App\Models\User;
-use App\ReadingRewardClaimStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends Factory<ReadingRewardClaim>
+ * @extends Factory<NewAccountRewardEnrollment>
  */
-class ReadingRewardClaimFactory extends Factory
+class NewAccountRewardEnrollmentFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -23,11 +22,9 @@ class ReadingRewardClaimFactory extends Factory
         return [
             'id' => (string) Str::uuid(),
             'userId' => User::factory(),
-            'amount' => '1.000',
-            'reward_count' => 1,
-            'status' => ReadingRewardClaimStatus::AwaitingAd,
-            'ad_required' => true,
-            'ad_provider' => 'mock',
+            'starts_on' => now('Asia/Manila')->toDateString(),
+            'timezone' => 'Asia/Manila',
+            'completed_at' => null,
         ];
     }
 }

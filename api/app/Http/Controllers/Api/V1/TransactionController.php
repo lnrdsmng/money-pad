@@ -39,16 +39,17 @@ class TransactionController extends Controller
         }
 
         $user = $request->user();
+        $rewardCoins = (float) config('moneypad.rewards.ad_watch_coins');
 
         DB::table('ad_watch_events')->insert([
             'id' => $validated['id'],
             'userId' => $user->id,
-            'rewardCoins' => 1.0,
+            'rewardCoins' => $rewardCoins,
             'watchedAt' => $validated['watchedAt'],
         ]);
 
-        $user->increment('readerCoins', 1.0);
-        $user->increment('totalReaderCoins', 1.0);
+        $user->increment('readerCoins', $rewardCoins);
+        $user->increment('totalReaderCoins', $rewardCoins);
 
         return response()->json(['success' => true, 'newCoins' => $user->readerCoins]);
     }

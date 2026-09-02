@@ -44,7 +44,9 @@ class AdminController extends Controller
             if ($withdrawal->source === 'AUTHOR') {
                 $user->decrement('authorIncome', $withdrawal->amount);
             } else {
-                $user->decrement('readerCoins', $withdrawal->amount);
+                $coinsToDeduct = (float) $withdrawal->amount
+                    / (float) config('moneypad.conversion.coins_to_cash_ratio');
+                $user->decrement('readerCoins', $coinsToDeduct);
             }
 
             // Referral check

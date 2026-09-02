@@ -131,4 +131,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(PlanPurchase::class, 'userId', 'id');
     }
+
+    public function newAccountRewardEnrollment(): HasOne
+    {
+        return $this->hasOne(NewAccountRewardEnrollment::class, 'userId', 'id');
+    }
+
+    public function dailyLoginRewardClaims(): HasMany
+    {
+        return $this->hasMany(DailyLoginRewardClaim::class, 'userId', 'id');
+    }
 }

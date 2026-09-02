@@ -29,14 +29,14 @@ class ReadingEarningsTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('rewarded_minutes', 1)
-            ->assertJsonPath('amount_awarded', '0.025')
-            ->assertJsonPath('pending_total', '0.025');
+            ->assertJsonPath('amount_awarded', '2.500')
+            ->assertJsonPath('pending_total', '2.500');
 
         $reader->refresh();
         $reward = ReadingReward::query()->sole();
 
         $this->assertSame('0.000', $reader->readerCoins);
-        $this->assertSame('0.025', $reward->amount);
+        $this->assertSame('2.500', $reward->amount);
         $this->assertSame(ReadingRewardStatus::Pending, $reward->status);
         $this->assertSame(24, (int) $reward->earned_at->diffInHours($reward->expires_at));
     }
@@ -44,8 +44,8 @@ class ReadingEarningsTest extends TestCase
     public function test_claim_all_requires_the_mock_ad_and_credits_the_batch_once(): void
     {
         [$reader, $session] = $this->createReadingSession(PlanType::MegaPremium);
-        $this->createReward($reader, $session, 1, now()->subMinutes(2), '0.045');
-        $this->createReward($reader, $session, 2, now()->subMinute(), '0.045');
+        $this->createReward($reader, $session, 1, now()->subMinutes(2), '4.500');
+        $this->createReward($reader, $session, 2, now()->subMinute(), '4.500');
 
         $created = $this->actingAs($reader)->postJson('/api/v1/earnings/claims');
 
@@ -53,7 +53,7 @@ class ReadingEarningsTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('completed', false)
             ->assertJsonPath('claim.reward_count', 2)
-            ->assertJsonPath('claim.amount', '0.090')
+            ->assertJsonPath('claim.amount', '9.000')
             ->assertJsonPath('claim.ad_provider', 'mock');
 
         $claimId = $created->json('claim.id');
@@ -70,33 +70,33 @@ class ReadingEarningsTest extends TestCase
         $completed
             ->assertOk()
             ->assertJsonPath('claim.status', ReadingRewardClaimStatus::Completed->value)
-            ->assertJsonPath('user.readerCoins', '0.090');
+            ->assertJsonPath('user.readerCoins', '9.000');
 
         $this->actingAs($reader)
             ->postJson("/api/v1/earnings/claims/{$claimId}/complete", ['mock_ad_token' => $token])
             ->assertOk();
 
-        $this->assertSame('0.090', $reader->fresh()->readerCoins);
+        $this->assertSame('9.000', $reader->fresh()->readerCoins);
         $this->assertSame(2, ReadingReward::query()->where('status', ReadingRewardStatus::Claimed)->count());
     }
 
     public function test_ultimate_plan_claims_without_an_ad(): void
     {
         [$reader, $session] = $this->createReadingSession(PlanType::UltimatePremium);
-        $this->createReward($reader, $session, 1, now(), '0.060');
+        $this->createReward($reader, $session, 1, now(), '6.000');
 
         $this->actingAs($reader)
             ->postJson('/api/v1/earnings/claims')
             ->assertCreated()
             ->assertJsonPath('completed', true)
             ->assertJsonPath('claim.ad_required', false)
-            ->assertJsonPath('user.readerCoins', '0.060');
+            ->assertJsonPath('user.readerCoins', '6.000');
     }
 
     public function test_expired_income_vanishes_and_claim_history_supports_seven_and_thirty_days(): void
     {
         [$reader, $session] = $this->createReadingSession();
-        $expired = $this->createReward($reader, $session, 1, now()->subHours(25), '0.010');
+        $expired = $this->createReward($reader, $session, 1, now()->subHours(25), '1.000');
         $expired->update(['expires_at' => now()->subHour()]);
 
         $this->actingAs($reader)
@@ -125,7 +125,7 @@ class ReadingEarningsTest extends TestCase
             ->assertOk()
             ->assertJsonCount(2, 'data');
 
-        $staleReward = $this->createReward($reader, $session, 2, now()->subDays(32), '0.010');
+        $staleReward = $this->createReward($reader, $session, 2, now()->subDays(32), '1.000');
         $staleReward->update(['expires_at' => now()->subDays(31)]);
 
         $this->assertSame(1, ReadingRewardClaim::query()->first()->prunable()->count());

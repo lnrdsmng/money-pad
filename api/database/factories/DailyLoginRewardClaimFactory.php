@@ -2,16 +2,16 @@
 
 namespace Database\Factories;
 
-use App\Models\ReadingRewardClaim;
+use App\Models\DailyLoginRewardClaim;
+use App\Models\NewAccountRewardEnrollment;
 use App\Models\User;
-use App\ReadingRewardClaimStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends Factory<ReadingRewardClaim>
+ * @extends Factory<DailyLoginRewardClaim>
  */
-class ReadingRewardClaimFactory extends Factory
+class DailyLoginRewardClaimFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -22,12 +22,12 @@ class ReadingRewardClaimFactory extends Factory
     {
         return [
             'id' => (string) Str::uuid(),
+            'enrollment_id' => NewAccountRewardEnrollment::factory(),
             'userId' => User::factory(),
+            'day_number' => 1,
+            'reward_date' => now('Asia/Manila')->toDateString(),
             'amount' => '1.000',
-            'reward_count' => 1,
-            'status' => ReadingRewardClaimStatus::AwaitingAd,
-            'ad_required' => true,
-            'ad_provider' => 'mock',
+            'claimed_at' => now(),
         ];
     }
 }
