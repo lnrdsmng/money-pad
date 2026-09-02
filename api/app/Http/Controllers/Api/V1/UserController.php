@@ -35,6 +35,8 @@ class UserController extends Controller
 
         $user->update($validated);
 
+        app(\App\Services\WithdrawalService::class)->evaluateAndCreate($user->fresh());
+
         return response()->json(['success' => true, 'user' => $user->fresh()]);
     }
 

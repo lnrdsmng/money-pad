@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('model:prune')->daily();
 Schedule::command('moneypad:prune-payment-proofs')->daily();
+Schedule::command('withdrawals:reconcile')->hourly();

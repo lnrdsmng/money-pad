@@ -39,6 +39,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/stories/{storyId}/parts', [StoryPartController::class, 'index']);
     Route::get('/parts/{partId}', [StoryPartController::class, 'show']);
     Route::get('/stories/{storyId}/parts/published-count', [StoryPartController::class, 'publishedCount']);
+    Route::get('/withdrawals/policy', [WithdrawalController::class, 'policy']);
 
     Route::get('/users/{userId}/followers', [InteractionController::class, 'followers']);
     Route::get('/users/{userId}/following', [InteractionController::class, 'following']);
@@ -153,8 +154,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', AdminMiddleware::class])->prefix('admin')->group(function () {
         Route::get('/withdrawals/eligible', [AdminController::class, 'eligibleWithdrawals']);
         Route::get('/withdrawals/pending-review', [AdminController::class, 'pendingReviewWithdrawals']);
+        Route::get('/withdrawals/approved', [AdminController::class, 'approvedWithdrawals']);
+        Route::get('/withdrawals/completed', [AdminController::class, 'completedWithdrawals']);
         Route::post('/withdrawals/mass-notify', [AdminController::class, 'massNotifyEligible']);
         Route::post('/withdrawals/{id}/approve', [AdminController::class, 'approveWithdrawal']);
+        Route::post('/withdrawals/{id}/complete', [AdminController::class, 'completeWithdrawal']);
         Route::post('/withdrawals/{id}/reject', [AdminController::class, 'rejectWithdrawal']);
         Route::post('/messages/send', [AdminController::class, 'sendMessage']);
         Route::post('/messages/broadcast', [AdminController::class, 'broadcastMessage']);

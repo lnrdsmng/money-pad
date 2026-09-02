@@ -3,7 +3,7 @@
 return [
     'currency' => 'PHP',
     'symbol' => '₱',
-    'conversion' => ['coins_to_cash_ratio' => 0.01],
+    'conversion' => ['coins_to_cash_ratio' => (float) env('COIN_TO_PHP_RATE', 0.01)],
     'rewards' => [
         'ad_watch_coins' => 100.0,
         'referral_bonus' => 1000.0,
@@ -15,11 +15,16 @@ return [
         'ad_free_permanent_fee' => 1499.0,
     ],
     'withdrawals' => [
-        'min_gcash_maya' => 10.0,
-        'min_bank' => 50.0,
-        'platform_fee' => 5.0,
-        'bank_processing_fee' => 10.0,
-        'ads_to_waive_fee' => 10,
+        'min_gcash_maya' => (float) env('WITHDRAWAL_MIN_GCASH_MAYA', 10.0),
+        'min_bank' => (float) env('WITHDRAWAL_MIN_BANK', 20.0),
+        'platform_fee' => (float) env('WITHDRAWAL_PLATFORM_FEE', 3.0),
+        'bank_processing_fee' => (float) env('WITHDRAWAL_BANK_FEE', 10.0),
+        'ads_to_waive_fee' => (int) env('WITHDRAWAL_ADS_TO_WAIVE_FEE', 10),
+        'timezone' => env('WITHDRAWAL_TIMEZONE', 'Asia/Manila'),
+        'processing_days' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        'turnaround_business_days_min' => 1,
+        'turnaround_business_days_max' => 7,
+        'auto_trigger_enabled' => (bool) env('WITHDRAWAL_AUTO_TRIGGER_ENABLED', true),
     ],
     'reading' => [
         'idle_timeout_seconds' => 120,

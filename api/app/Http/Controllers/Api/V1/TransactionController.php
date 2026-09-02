@@ -51,6 +51,8 @@ class TransactionController extends Controller
         $user->increment('readerCoins', $rewardCoins);
         $user->increment('totalReaderCoins', $rewardCoins);
 
+        app(\App\Services\WithdrawalService::class)->evaluateAndCreate($user->fresh());
+
         return response()->json(['success' => true, 'newCoins' => $user->readerCoins]);
     }
 

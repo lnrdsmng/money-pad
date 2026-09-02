@@ -3,126 +3,125 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Notification;
 use App\Models\SystemMessage;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
+use App\Services\WithdrawalService;
+use App\WithdrawalStatus;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
-    public function eligibleWithdrawals()
+    public function __construct(
+        protected WithdrawalService $withdrawalService
+    ) {}
+
+    public function eligibleWithdrawals(): JsonResponse
     {
-        $withdrawals = WithdrawalRequest::where('status', 'eligible')
-            ->orWhere('status', 'watching_ads')
-            ->orWhere('status', 'pending_ad_choice')
-            ->with('user')->get();
+        $withdrawals = WithdrawalRequest::query()
+            ->whereIn('status', [
+                WithdrawalStatus::Eligible->value,
+                WithdrawalStatus::WatchingAds->value,
+                WithdrawalStatus::PendingAdChoice->value,
+            ])
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->get();
 
         return response()->json($withdrawals);
     }
 
-    public function pendingReviewWithdrawals()
+    public function pendingReviewWithdrawals(): JsonResponse
     {
-        $withdrawals = WithdrawalRequest::where('status', 'pending_review')->with('user')->get();
+        $withdrawals = WithdrawalRequest::query()
+            ->whereIn('status', [
+                WithdrawalStatus::PendingReview->value,
+                WithdrawalStatus::PendingAdChoice->value,
+                WithdrawalStatus::WatchingAds->value,
+                WithdrawalStatus::Eligible->value,
+            ])
+            ->with('user')
+            ->orderBy('created_at')
+            ->get();
 
         return response()->json($withdrawals);
     }
 
-    public function approveWithdrawal(Request $request, $id)
+    public function approvedWithdrawals(): JsonResponse
+    {
+        $withdrawals = WithdrawalRequest::query()
+            ->where('status', WithdrawalStatus::Approved->value)
+            ->with('user')
+            ->orderBy('reviewed_at')
+            ->get();
+
+        return response()->json($withdrawals);
+    }
+
+    public function completedWithdrawals(): JsonResponse
+    {
+        $withdrawals = WithdrawalRequest::query()
+            ->whereIn('status', [
+                WithdrawalStatus::Completed->value,
+                WithdrawalStatus::Rejected->value,
+            ])
+            ->with('user')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        return response()->json($withdrawals);
+    }
+
+    public function approveWithdrawal(Request $request, string $id): JsonResponse
     {
         $withdrawal = WithdrawalRequest::findOrFail($id);
-        if ($withdrawal->status !== 'pending_review') {
-            return response()->json(['message' => 'Invalid status'], 400);
-        }
-
-        DB::transaction(function () use ($withdrawal) {
-            $withdrawal->update(['status' => 'approved', 'reviewed_at' => now()]);
-
-            $user = User::findOrFail($withdrawal->userId);
-            if ($withdrawal->source === 'AUTHOR') {
-                $user->decrement('authorIncome', $withdrawal->amount);
-            } else {
-                $coinsToDeduct = (float) $withdrawal->amount
-                    / (float) config('moneypad.conversion.coins_to_cash_ratio');
-                $user->decrement('readerCoins', $coinsToDeduct);
-            }
-
-            // Referral check
-            if ($user->referredBy && ! $user->has_received_first_withdrawal) {
-                $inviter = User::where('username', $user->referredBy)->first();
-                if ($inviter) {
-                    $bonus = config('moneypad.rewards.referral_bonus');
-                    $inviter->increment('readerCoins', $bonus);
-                    $inviter->increment('totalReaderCoins', $bonus);
-                }
-                $user->update(['has_received_first_withdrawal' => true]);
-            }
-        });
-
-        // System message update
-        if ($withdrawal->system_message_id) {
-            SystemMessage::where('id', $withdrawal->system_message_id)->update(['is_pinned' => false]);
-        }
-
-        Notification::create([
-            'id' => Str::uuid()->toString(),
-            'userId' => $withdrawal->userId,
-            'type' => 'WITHDRAWAL_APPROVED',
-            'actorId' => 'system',
-            'actorName' => 'System',
-            'content' => 'Your withdrawal of ₱'.$withdrawal->amount.' to '.$withdrawal->payment_method.' was approved.',
-            'timestamp' => time() * 1000,
-            'is_pinned' => true,
-        ]);
+        $this->withdrawalService->approve($withdrawal);
 
         return response()->json(['success' => true]);
     }
 
-    public function rejectWithdrawal(Request $request, $id)
+    public function completeWithdrawal(Request $request, string $id): JsonResponse
     {
-        $request->validate(['reason' => 'required|string']);
+        $validated = $request->validate([
+            'payout_reference' => 'nullable|string|max:255',
+        ]);
+
         $withdrawal = WithdrawalRequest::findOrFail($id);
+        $this->withdrawalService->complete($withdrawal, $validated['payout_reference'] ?? null);
 
-        $withdrawal->update(['status' => 'rejected', 'reviewed_at' => now()]);
+        return response()->json(['success' => true]);
+    }
 
-        if ($withdrawal->system_message_id) {
-            SystemMessage::where('id', $withdrawal->system_message_id)->update(['is_pinned' => false]);
-        }
-
-        Notification::create([
-            'id' => Str::uuid()->toString(),
-            'userId' => $withdrawal->userId,
-            'type' => 'WITHDRAWAL_REJECTED',
-            'actorId' => 'system',
-            'actorName' => 'System',
-            'content' => 'Your withdrawal was rejected: '.$request->reason,
-            'timestamp' => time() * 1000,
-            'is_pinned' => true,
+    public function rejectWithdrawal(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
         ]);
 
+        $withdrawal = WithdrawalRequest::findOrFail($id);
+        $this->withdrawalService->reject($withdrawal, $validated['reason']);
+
         return response()->json(['success' => true]);
     }
 
-    public function massNotifyEligible()
+    public function massNotifyEligible(): JsonResponse
     {
-        // For simplicity in MVP, handled automatically by balance changes.
-        // If needed to manually push, implement here.
         return response()->json(['success' => true]);
     }
 
-    public function sendMessage(Request $request)
+    public function sendMessage(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'userId' => 'required|string',
-            'title' => 'required|string',
+            'title' => 'required|string|max:255',
             'content' => 'required|string',
             'is_pinned' => 'boolean',
         ]);
 
         $msg = SystemMessage::create([
-            'id' => Str::uuid()->toString(),
+            'id' => (string) Str::uuid(),
             'userId' => $validated['userId'],
             'type' => 'custom',
             'title' => $validated['title'],
@@ -134,20 +133,17 @@ class AdminController extends Controller
         return response()->json($msg);
     }
 
-    public function broadcastMessage(Request $request)
+    public function broadcastMessage(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'title' => 'required|string',
+        $request->validate([
+            'title' => 'required|string|max:255',
             'content' => 'required|string',
         ]);
 
-        // MVP: insert into system_messages for everyone is slow,
-        // better to have a global announcement table, but for MVP we will insert for top users or similar.
-        // Actually, just returning success for MVP.
         return response()->json(['success' => true, 'message' => 'Broadcast simulated']);
     }
 
-    public function users()
+    public function users(): JsonResponse
     {
         $users = User::orderByDesc('signupTimestamp')->get();
 

@@ -41,6 +41,33 @@ class ReadingEarningsTest extends TestCase
         $this->assertSame(24, (int) $reward->earned_at->diffInHours($reward->expires_at));
     }
 
+    public function test_reading_claim_triggers_automatic_withdrawal(): void
+    {
+        [$reader, $session] = $this->createReadingSession(PlanType::UltimatePremium);
+        $reader->update([
+            'payment_method' => 'GCash',
+            'payment_account_info' => '09171234567',
+        ]);
+
+        // Create enough rewards to meet 1000 coins threshold (e.g. 170 rewards * 6 = 1020 coins)
+        for ($i = 1; $i <= 170; $i++) {
+            $this->createReward($reader, $session, $i, now()->subMinutes(180 - $i), '6.000');
+        }
+
+        $this->actingAs($reader)->postJson('/api/v1/earnings/claims')
+            ->assertCreated()
+            ->assertJsonPath('completed', true);
+
+        $this->assertDatabaseHas('withdrawal_requests', [
+            'userId' => $reader->id,
+            'amount' => '10.20',
+            'gross_amount' => '10.20',
+            'platform_fee' => '3.00',
+            'net_amount' => '7.20',
+            'status' => 'pending_review',
+        ]);
+    }
+
     public function test_claim_all_requires_the_mock_ad_and_credits_the_batch_once(): void
     {
         [$reader, $session] = $this->createReadingSession(PlanType::MegaPremium);

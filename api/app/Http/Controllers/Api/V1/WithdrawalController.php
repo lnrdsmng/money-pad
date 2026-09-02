@@ -3,125 +3,75 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\SystemMessage;
 use App\Models\WithdrawalRequest;
+use App\Services\WithdrawalService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class WithdrawalController extends Controller
 {
-    public function checkEligibility(Request $request)
+    public function __construct(
+        protected WithdrawalService $withdrawalService
+    ) {}
+
+    /**
+     * Get withdrawal policy.
+     */
+    public function policy(): JsonResponse
     {
-        $user = $request->user();
-
-        $minGcash = config('moneypad.withdrawals.min_gcash_maya');
-        $coinToPhpRate = (float) config('moneypad.conversion.coins_to_cash_ratio');
-        $readerPesoBalance = (float) $user->readerCoins * $coinToPhpRate;
-
-        // Simple check for Reader Coins (MVP limit)
-        if ($readerPesoBalance >= $minGcash) {
-            $existing = WithdrawalRequest::where('userId', $user->id)
-                ->whereIn('status', ['eligible', 'pending_ad_choice', 'watching_ads', 'pending_review'])
-                ->first();
-
-            if (! $existing) {
-                // Must have payment method set
-                if ($user->payment_method && $user->payment_account_info) {
-                    $fee = config('moneypad.withdrawals.platform_fee');
-
-                    $bankFee = $user->payment_method === 'Bank Transfer' ? config('moneypad.withdrawals.bank_processing_fee') : 0;
-
-                    $req = WithdrawalRequest::create([
-                        'id' => Str::uuid()->toString(),
-                        'userId' => $user->id,
-                        'amount' => number_format($readerPesoBalance, 2, '.', ''),
-                        'source' => 'READER',
-                        'payment_method' => $user->payment_method,
-                        'payment_account_info' => $user->payment_account_info,
-                        'bank_name' => $user->bank_name,
-                        'platform_fee' => $fee,
-                        'bank_fee' => $bankFee,
-                        'fee_waived' => $fee == 0,
-                        'status' => $fee > 0 ? 'pending_ad_choice' : 'pending_review',
-                    ]);
-
-                    if ($fee > 0) {
-                        $msg = SystemMessage::create([
-                            'id' => Str::uuid()->toString(),
-                            'userId' => $user->id,
-                            'type' => 'withdrawal_eligible',
-                            'title' => 'Congratulations! Eligible for withdrawal',
-                            'content' => 'You are eligible to withdraw ₱'.$req->amount.'. Platform fee is ₱'.$fee.'. Watch 10 ads to remove it?',
-                            'action_type' => 'watch_ads_prompt',
-                            'action_payload' => ['withdrawal_request_id' => $req->id],
-                            'is_pinned' => true,
-                            'withdrawal_request_id' => $req->id,
-                        ]);
-                        $req->update(['system_message_id' => $msg->id]);
-                    } else {
-                        SystemMessage::create([
-                            'id' => Str::uuid()->toString(),
-                            'userId' => $user->id,
-                            'type' => 'custom',
-                            'title' => 'Withdrawal processing',
-                            'content' => 'Your withdrawal is pending review.',
-                            'action_type' => 'none',
-                            'is_pinned' => true,
-                        ]);
-                    }
-                }
-            }
-        }
-
-        return response()->json(['success' => true]);
+        return response()->json($this->withdrawalService->getPolicy());
     }
 
-    public function index(Request $request, $userId)
+    /**
+     * Check eligibility and create automatic withdrawal if eligible (idempotent compatibility endpoint).
+     */
+    public function checkEligibility(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $created = $this->withdrawalService->evaluateAndCreate($user);
+
+        return response()->json([
+            'success' => true,
+            'triggered' => $created !== null,
+            'withdrawal' => $created,
+        ]);
+    }
+
+    /**
+     * Get user's withdrawal history.
+     */
+    public function index(Request $request, string $userId): JsonResponse
     {
         if ($request->user()->id !== $userId) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        $reqs = WithdrawalRequest::where('userId', $userId)->orderByDesc('created_at')->get();
 
-        return response()->json($reqs);
+        $requests = WithdrawalRequest::where('userId', $userId)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json($requests);
     }
 
-    public function watchAd(Request $request, $id)
+    /**
+     * Complete a fee-waiver task (ad watch).
+     */
+    public function watchAd(Request $request, string $id): JsonResponse
     {
         $req = WithdrawalRequest::findOrFail($id);
-        if ($req->userId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $result = $this->withdrawalService->recordWaiverTask($req, $request->user());
 
-        if ($req->status !== 'pending_ad_choice' && $req->status !== 'watching_ads') {
-            return response()->json(['message' => 'Invalid status'], 400);
-        }
-
-        $req->increment('ads_watched_count');
-        $req->status = 'watching_ads';
-
-        $target = config('moneypad.withdrawals.ads_to_waive_fee');
-        if ($req->ads_watched_count >= $target) {
-            $req->fee_waived = true;
-            $req->status = 'pending_review';
-        }
-        $req->save();
-
-        return response()->json(['success' => true, 'count' => $req->ads_watched_count, 'status' => $req->status]);
+        return response()->json($result);
     }
 
-    public function skipAds(Request $request, $id)
+    /**
+     * Skip fee waiver tasks and accept platform fee.
+     */
+    public function skipAds(Request $request, string $id): JsonResponse
     {
         $req = WithdrawalRequest::findOrFail($id);
-        if ($req->userId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $result = $this->withdrawalService->skipWaiverTask($req, $request->user());
 
-        $req->update([
-            'fee_waived' => false,
-            'status' => 'pending_review',
-        ]);
-
-        return response()->json(['success' => true]);
+        return response()->json($result);
     }
 }

@@ -298,6 +298,8 @@ class ReadingRewardService
             'claimed_at' => $claimedAt,
         ]);
 
+        app(\App\Services\WithdrawalService::class)->evaluateAndCreate($lockedUser);
+
         return ['claim' => $claim->fresh(), 'user' => $lockedUser->fresh()];
     }
 

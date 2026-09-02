@@ -53,6 +53,8 @@ class User extends Authenticatable
         'totalReaderCoins',
         'followers',
         'following',
+        'referredBy',
+        'has_received_first_withdrawal',
     ];
 
     /**
@@ -69,6 +71,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'isVerified' => 'boolean',
             'isReferralRewardClaimed' => 'boolean',
+            'has_received_first_withdrawal' => 'boolean',
             'onboardingCompleted' => 'boolean',
             'isAdFreePermanently' => 'boolean',
             'plan' => PlanType::class,

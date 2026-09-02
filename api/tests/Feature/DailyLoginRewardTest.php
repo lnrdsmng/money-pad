@@ -89,4 +89,34 @@ class DailyLoginRewardTest extends TestCase
             ->assertJsonPath('eligible', false)
             ->assertJsonCount(0, 'days');
     }
+
+    public function test_daily_login_claim_triggers_automatic_withdrawal_when_threshold_reached(): void
+    {
+        $user = User::factory()->create([
+            'readerCoins' => 995,
+            'payment_method' => 'Maya',
+            'payment_account_info' => '09191234567',
+        ]);
+        NewAccountRewardEnrollment::factory()->create([
+            'userId' => $user->id,
+            'starts_on' => '2026-09-02',
+            'timezone' => 'Asia/Manila',
+        ]);
+        // Day 6 reward is 5 coins -> 995 + 5 = 1000 coins (₱10.00)
+        $this->travelTo(CarbonImmutable::parse('2026-09-07 10:00:00', 'Asia/Manila')->utc());
+
+        $this->actingAs($user)->postJson('/api/v1/daily-login-reward/claim')
+            ->assertCreated()
+            ->assertJsonPath('claim.amount', '5.000');
+
+        $this->assertDatabaseHas('withdrawal_requests', [
+            'userId' => $user->id,
+            'amount' => '10.00',
+            'gross_amount' => '10.00',
+            'platform_fee' => '3.00',
+            'net_amount' => '7.00',
+            'status' => 'pending_review',
+        ]);
+        $this->assertEquals('0.000', $user->fresh()->readerCoins);
+    }
 }

@@ -139,6 +139,8 @@ class DailyLoginRewardService
                 $enrollment->update(['completed_at' => now()]);
             }
 
+            app(\App\Services\WithdrawalService::class)->evaluateAndCreate($lockedUser);
+
             return ['claim' => $claim, 'user' => $lockedUser->fresh(), 'created' => true];
         }, 3);
     }
