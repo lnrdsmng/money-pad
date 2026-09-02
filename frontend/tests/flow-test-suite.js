@@ -392,20 +392,35 @@ async function testAll() {
       record('Plan Subscription', 'Submit Manual Standard Plan Payment', 'FAIL', `Status ${uiPlanUpgradeRes.status}: ${JSON.stringify(uiPlanUpgradeRes.data)}`);
     }
 
-    // 8.3 Set payment details
+    // 8.3 Check Withdrawal Policy Endpoint
+    const policyRes = await client().get('/withdrawals/policy');
+    if (policyRes.status === 200 && policyRes.data.platform_fee === 3 && policyRes.data.min_gcash_maya === 10) {
+      record('Withdrawal Flow', 'Fetch Withdrawal Policy (Single Source of Truth)', 'PASS');
+    } else {
+      record('Withdrawal Flow', 'Fetch Withdrawal Policy (Single Source of Truth)', 'FAIL', `Status ${policyRes.status}`);
+    }
+
+    // 8.4 Set payment details (triggers automatic withdrawal if balance meets threshold)
     const payRes = await authClient.put(`/users/${userId}/profile`, {
       payment_method: 'GCash',
       payment_account_info: '09171234567'
     });
-    record('Withdrawal Flow', 'Save GCash Withdrawal Destination', payRes.status === 200 ? 'PASS' : 'FAIL', payRes.status === 200 ? '' : `Status ${payRes.status}`);
+    record('Withdrawal Flow', 'Save GCash Destination & Trigger Evaluation', payRes.status === 200 ? 'PASS' : 'FAIL', payRes.status === 200 ? '' : `Status ${payRes.status}`);
 
-    // 8.4 Withdrawal Eligibility Check (Requires coins >= 10.0)
-    // Credit coins first to test withdrawal
-    const checkEligRes = await authClient.post('/withdrawals/check-eligibility');
-    if (checkEligRes.status === 200) {
-      record('Withdrawal Flow', 'Check Withdrawal Eligibility Endpoint', 'PASS');
+    // 8.5 Verify Withdrawal Requests Endpoint
+    const listRes = await authClient.get(`/users/${userId}/withdrawal-requests`);
+    if (listRes.status === 200 && Array.isArray(listRes.data)) {
+      record('Withdrawal Flow', 'List User Payout History', 'PASS');
     } else {
-      record('Withdrawal Flow', 'Check Withdrawal Eligibility Endpoint', 'FAIL', `Status ${checkEligRes.status}`);
+      record('Withdrawal Flow', 'List User Payout History', 'FAIL', `Status ${listRes.status}`);
+    }
+
+    // 8.6 Idempotent Eligibility Reconciliation Endpoint
+    const checkEligRes = await authClient.post('/withdrawals/check-eligibility');
+    if (checkEligRes.status === 200 && checkEligRes.data.success) {
+      record('Withdrawal Flow', 'Idempotent Eligibility Check Endpoint', 'PASS');
+    } else {
+      record('Withdrawal Flow', 'Idempotent Eligibility Check Endpoint', 'FAIL', `Status ${checkEligRes.status}`);
     }
   } catch (err) {
     record('Monetization Flow', 'Earnings & Withdrawals', 'FAIL', err.message);

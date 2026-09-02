@@ -199,30 +199,32 @@ async function runE2ETests() {
     const editorLocator = page.locator('.tiptap.prose');
     await editorLocator.click();
     await page.keyboard.type('In a world governed by digital stories and opportunities, writers embarked on unprecedented journeys.');
-    
-    console.log('3.10 Saving Draft...');
-    page.once('dialog', async dialog => {
-      console.log('[ALERT DIALOG]:', dialog.message());
-      await dialog.accept();
-    });
-    await page.click('button:has-text("Save Draft")');
-    await page.waitForTimeout(1000);
 
-    console.log('3.11 Publishing Chapter...');
+    console.log('3.10 Checking the accessible image dialog...');
+    await page.getByRole('button', { name: 'Image' }).click();
+    const imageDialog = page.getByRole('dialog', { name: 'Insert image' });
+    await imageDialog.waitFor({ state: 'visible', timeout: 5000 });
+    await imageDialog.getByRole('button', { name: 'Cancel' }).click();
+    
+    console.log('3.11 Saving Draft...');
+    await page.click('button:has-text("Save Draft")');
+    await page.waitForSelector('[role="status"]:has-text("Draft saved.")', { timeout: 5000 });
+
+    console.log('3.12 Publishing Chapter...');
     await page.click('button:has-text("Publish")');
     await page.waitForURL(`**/writer/story/${createdStoryId}/parts`, { timeout: 8000 });
 
-    console.log('3.12 Verifying Chapter is Published...');
+    console.log('3.13 Verifying Chapter is Published...');
     await page.waitForSelector('text=Published', { timeout: 5000 });
 
-    console.log('3.13 Navigating to Story Edit Details to Publish the Story...');
+    console.log('3.14 Navigating to Story Edit Details to Publish the Story...');
     await page.goto(`${BASE_URL}/writer/story/${createdStoryId}`, { waitUntil: 'domcontentloaded' });
 
     const publishBtn = page.locator('button:has-text("Publish Story")');
     if (await publishBtn.isVisible()) {
       await publishBtn.click();
       await page.waitForURL('**/writer', { timeout: 8000 });
-      console.log('3.14 Story successfully published!');
+      console.log('3.15 Story successfully published!');
     } else {
       const unpublishBtn = page.locator('button:has-text("Unpublish Story")');
       if (await unpublishBtn.isVisible()) {
@@ -302,6 +304,7 @@ async function runE2ETests() {
     }
 
     await page.waitForSelector(`text=@${testUser}`, { timeout: 5000 });
+    await page.waitForSelector('text=Coming soon', { timeout: 5000 });
     console.log('6.2 Profile loaded successfully!');
 
     console.log('6.3 Testing Community Chat on Profile...');
@@ -329,7 +332,8 @@ async function runE2ETests() {
 
     await page.waitForSelector('text=Reader Coins', { timeout: 5000 });
     await page.waitForSelector('text=Author Income', { timeout: 5000 });
-    console.log('8.2 Earnings balances rendered!');
+    await page.waitForSelector('text=Withdrawal Terms & Conditions', { timeout: 5000 });
+    console.log('8.2 Earnings balances & terms card rendered!');
 
     console.log('8.3 Setting up GCash payment method...');
     const methodSelect = page.locator('select');
@@ -337,11 +341,8 @@ async function runE2ETests() {
       await methodSelect.selectOption('GCash');
       await page.fill('input[placeholder="09XX XXX XXXX or Account No"]', '09171234567');
       
-      page.once('dialog', async dialog => {
-        console.log('[ALERT DIALOG]:', dialog.message());
-        await dialog.accept();
-      });
       await page.click('button:has-text("Save Settings")');
+      await page.waitForSelector('[role="status"]:has-text("Payment method saved.")', { timeout: 5000 });
       await page.waitForSelector('text=09171234567', { timeout: 5000 });
       console.log('8.4 Payment settings saved!');
     }
@@ -391,7 +392,8 @@ async function runE2ETests() {
       await adminPage.goto(`${BASE_URL}/admin/withdrawals`, { waitUntil: 'domcontentloaded' });
       await adminPage.waitForSelector('h1:has-text("Withdrawal Management")', { timeout: 8000 });
       console.log('9.2 Admin Withdrawal Management accessible!');
-      await adminPage.click('button:has-text("Eligible Users")');
+      await adminPage.click('button:has-text("Approved / In Processing")');
+      await adminPage.click('button:has-text("History")');
       await adminPage.click('button:has-text("Pending Review")');
 
       await adminPage.goto(`${BASE_URL}/admin/users`, { waitUntil: 'domcontentloaded' });
