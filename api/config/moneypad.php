@@ -3,10 +3,12 @@
 return [
     'currency' => 'PHP',
     'symbol' => '₱',
-    'conversion' => ['coins_to_cash_ratio' => 1.0],
+    'conversion' => ['coins_to_cash_ratio' => 0.01],
     'rewards' => [
-        'ad_watch_coins' => 1.0,
-        'referral_bonus' => 10.0,
+        'ad_watch_coins' => 100.0,
+        'referral_bonus' => 1000.0,
+        'new_account_timezone' => 'Asia/Manila',
+        'new_account_daily_coins' => [1, 2, 2, 3, 4, 5, 8],
     ],
     'fees' => [
         'verification_fee' => 149.0,
@@ -30,31 +32,34 @@ return [
         'free' => [
             'name' => 'Free',
             'price' => '0.00',
-            'rate_per_minute' => '0.010',
+            'rate_per_minute' => '1.000',
             'multiplier' => '1.0',
             'ads' => true,
         ],
         'standard' => [
             'name' => 'Standard',
             'price' => '85.00',
-            'rate_per_minute' => '0.025',
+            'rate_per_minute' => '2.500',
             'multiplier' => '2.5',
             'ads' => true,
         ],
         'mega_premium' => [
             'name' => 'Mega Premium',
             'price' => '199.00',
-            'rate_per_minute' => '0.045',
+            'rate_per_minute' => '4.500',
             'multiplier' => '4.5',
             'ads' => true,
         ],
         'ultimate_premium' => [
             'name' => 'Ultimate Premium',
             'price' => '449.00',
-            'rate_per_minute' => '0.060',
+            'rate_per_minute' => '6.000',
             'multiplier' => '6.0',
             'ads' => false,
         ],
+    ],
+    'payments' => [
+        'proof_retention_days' => 180,
     ],
     'rewarded_ads' => [
         'provider' => env('REWARDED_AD_PROVIDER', 'mock'),

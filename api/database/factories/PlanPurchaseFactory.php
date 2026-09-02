@@ -27,11 +27,13 @@ class PlanPurchaseFactory extends Factory
             'plan_type' => PlanType::Standard,
             'amount' => '85.00',
             'currency' => 'PHP',
-            'provider' => 'paymongo',
-            'provider_checkout_id' => 'cs_'.Str::lower(Str::random(24)),
+            'provider' => 'manual',
+            'payment_method' => 'gcash',
             'reference_number' => 'MP-'.Str::upper(Str::random(16)),
-            'status' => PlanPurchaseStatus::Pending,
-            'checkout_url' => 'https://checkout.paymongo.test/session',
+            'payment_reference' => Str::upper(Str::random(12)),
+            'payment_proof_path' => 'proofs/'.Str::uuid().'.png',
+            'status' => PlanPurchaseStatus::PendingReview,
+            'submitted_at' => now(),
         ];
     }
 }

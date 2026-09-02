@@ -23,4 +23,9 @@ enum PlanType: string
     {
         return (bool) config("moneypad.plans.{$this->value}.ads", true);
     }
+
+    public function durationMonths(): int
+    {
+        return $this === self::Free ? 0 : 1;
+    }
 }

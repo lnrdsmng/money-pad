@@ -1,13 +1,16 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AdminController;
+use App\Http\Controllers\Api\V1\AdminPlanPurchaseController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ChatController;
+use App\Http\Controllers\Api\V1\DailyLoginRewardController;
 use App\Http\Controllers\Api\V1\EarningsController;
 use App\Http\Controllers\Api\V1\InteractionController;
 use App\Http\Controllers\Api\V1\NotificationController;
-use App\Http\Controllers\Api\V1\PayMongoWebhookController;
+use App\Http\Controllers\Api\V1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\V1\PlanController;
+use App\Http\Controllers\Api\V1\PlanPurchaseController;
 use App\Http\Controllers\Api\V1\ReadingSessionController;
 use App\Http\Controllers\Api\V1\StoryController;
 use App\Http\Controllers\Api\V1\StoryPartController;
@@ -17,15 +20,13 @@ use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WithdrawalController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\SyncExpiredPlan;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/signup', [AuthController::class, 'signup']);
-    Route::post('/webhooks/paymongo', PayMongoWebhookController::class)
-        ->middleware('throttle:60,1');
-
     Route::get('/users/search', [UserController::class, 'search']);
     Route::get('/users/{userId}', [UserController::class, 'show']);
 
@@ -48,7 +49,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{username}/referral-stats', [TransactionController::class, 'referralStats']);
 
     // Protected Routes (Require Authentication)
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', SyncExpiredPlan::class])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
 
@@ -136,9 +137,16 @@ Route::prefix('v1')->group(function () {
 
         // Plans
         Route::get('/plans', [PlanController::class, 'index']);
-        Route::post('/plans/checkout', [PlanController::class, 'checkout'])
+        Route::get('/payment-methods', [PaymentMethodSettingController::class, 'index']);
+        Route::get('/plan-purchases', [PlanPurchaseController::class, 'index']);
+        Route::post('/plan-purchases', [PlanPurchaseController::class, 'store'])
             ->middleware('throttle:10,1');
         Route::get('/users/{userId}/plan', [PlanController::class, 'current']);
+
+        // New-account daily rewards
+        Route::get('/daily-login-reward', [DailyLoginRewardController::class, 'show']);
+        Route::post('/daily-login-reward/claim', [DailyLoginRewardController::class, 'claim'])
+            ->middleware('throttle:10,1');
     });
 
     // Admin Routes
@@ -151,5 +159,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/messages/send', [AdminController::class, 'sendMessage']);
         Route::post('/messages/broadcast', [AdminController::class, 'broadcastMessage']);
         Route::get('/users', [AdminController::class, 'users']);
+        Route::get('/plan-purchases', [AdminPlanPurchaseController::class, 'index']);
+        Route::get('/plan-purchases/{planPurchase}/proof', [AdminPlanPurchaseController::class, 'proof']);
+        Route::post('/plan-purchases/{planPurchase}/approve', [AdminPlanPurchaseController::class, 'approve']);
+        Route::post('/plan-purchases/{planPurchase}/reject', [AdminPlanPurchaseController::class, 'reject']);
+        Route::get('/payment-methods', [PaymentMethodSettingController::class, 'adminIndex']);
+        Route::put('/payment-methods/{paymentMethodSetting}', [PaymentMethodSettingController::class, 'update']);
     });
 });

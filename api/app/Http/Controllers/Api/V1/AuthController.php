@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\DailyLoginRewardService;
+use App\Services\PlanExpirationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(Request $request, PlanExpirationService $planExpirationService)
     {
         $request->validate([
             'username' => 'required|string',
@@ -47,6 +50,7 @@ class AuthController extends Controller
 
         // Authenticate for SPA (Session)
         Auth::login($user);
+        $user = $planExpirationService->synchronize($user);
 
         // Generate token for mobile app if needed
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -57,7 +61,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function signup(Request $request)
+    public function signup(Request $request, DailyLoginRewardService $rewardService)
     {
         $request->validate([
             'username' => 'required|string|unique:users',
@@ -71,19 +75,24 @@ class AuthController extends Controller
             return response()->json(['message' => 'Password is too weak. Must contain uppercase, lowercase, and numbers.'], 400);
         }
 
-        $user = User::create([
-            'id' => Str::uuid()->toString(),
-            'username' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'signupTimestamp' => time() * 1000,
-            'onboardingStep' => 1,
-            'onboardingCompleted' => false,
-            'readerCoins' => 0.00,
-            'authorIncome' => 0.00,
-            'role' => 'user',
-            'plan' => 'free',
-        ]);
+        $user = DB::transaction(function () use ($request, $rewardService): User {
+            $user = User::create([
+                'id' => Str::uuid()->toString(),
+                'username' => $request->username,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'signupTimestamp' => time() * 1000,
+                'onboardingStep' => 1,
+                'onboardingCompleted' => false,
+                'readerCoins' => 0.00,
+                'authorIncome' => 0.00,
+                'role' => 'user',
+                'plan' => 'free',
+            ]);
+            $rewardService->enroll($user);
+
+            return $user;
+        }, 3);
 
         Auth::login($user);
         $token = $user->createToken('auth_token')->plainTextToken;
