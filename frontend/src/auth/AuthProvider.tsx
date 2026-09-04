@@ -2,12 +2,14 @@ import { createContext, useCallback, useContext, useState, useEffect, type React
 import http from '../api/http';
 import type { PlanId } from '../types/earnings';
 
-interface User {
+export interface User {
   id: string;
   username: string;
   email: string;
   balance: number | string;
+  bio?: string;
   profileImageUrl?: string;
+  coverImageUrl?: string;
   onboardingStep: number;
   onboardingCompleted: boolean;
   isVerified: boolean;
@@ -15,6 +17,15 @@ interface User {
   plan: PlanId;
   authorIncome: number | string;
   readerCoins: number | string;
+  totalReaderCoins?: number | string;
+  preferredGenres?: string;
+  referredBy?: string;
+  referralCount?: number;
+  isReferralRewardClaimed?: boolean;
+  signupTimestamp?: number | string;
+  created_at?: string;
+  followers?: number;
+  following?: number;
   payment_method?: string;
   payment_account_info?: string;
   bank_name?: string;

@@ -14,6 +14,8 @@ import StoryEditPage from './pages/writer/StoryEditPage';
 import StoryPartsPage from './pages/writer/StoryPartsPage';
 import ProfilePage from './pages/ProfilePage';
 import EarningsDashboard from './pages/EarningsDashboard';
+import SettingsPage from './pages/SettingsPage';
+import AuthorVerificationPage from './pages/writer/AuthorVerificationPage';
 import LandingPage from './pages/LandingPage';
 import AdminRoute from './auth/AdminRoute';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -58,6 +60,7 @@ export default function AppRouter() {
             <Route path="story/:storyId/read/:partId" element={<ReaderPage />} />
             
             <Route path="writer" element={<WriterDashboard />} />
+            <Route path="writer/verification" element={<AuthorVerificationPage />} />
             <Route path="writer/story/:storyId" element={<StoryEditPage />} />
             <Route path="writer/story/:storyId/parts" element={<StoryPartsPage />} />
             <Route path="writer/story/:storyId/read/:partId/edit" element={<EditorPage />} />
@@ -65,6 +68,7 @@ export default function AppRouter() {
             <Route path="profile" element={<ProfileRedirect />} />
             <Route path="profile/:username" element={<ProfilePage />} />
             <Route path="earnings" element={<EarningsDashboard />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
 
           <Route element={<AdminRoute />}>

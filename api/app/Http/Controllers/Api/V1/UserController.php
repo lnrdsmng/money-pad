@@ -10,7 +10,7 @@ class UserController extends Controller
 {
     public function show($userId)
     {
-        $user = User::findOrFail($userId);
+        $user = User::where('id', $userId)->orWhere('username', $userId)->firstOrFail();
 
         return response()->json($user);
     }
@@ -109,12 +109,61 @@ class UserController extends Controller
         $query = $request->input('query', $request->input('q', ''));
         $excludeUserId = $request->input('excludeUserId');
 
-        $users = User::where('username', 'like', "%{$query}%");
+        $users = User::query();
+
+        if (!empty($query)) {
+            $users->where('username', 'like', "%{$query}%");
+
+            $lowerQuery = strtolower($query);
+            $users->orderByRaw("CASE 
+                WHEN LOWER(username) = ? THEN 3
+                WHEN LOWER(username) LIKE ? THEN 2
+                WHEN LOWER(username) LIKE ? THEN 1
+                ELSE 0 END DESC", [
+                $lowerQuery,
+                $lowerQuery . '%',
+                '%' . $lowerQuery . '%'
+            ]);
+        }
 
         if ($excludeUserId) {
             $users->where('id', '!=', $excludeUserId);
         }
 
+        // Secondary sort by isVerified
+        $users->orderByDesc('isVerified');
+        $users->orderBy('username');
+
         return response()->json($users->get());
+    }
+
+    public function updateSettings(Request $request, $userId = null)
+    {
+        $user = $request->user();
+
+        if ($userId && $userId !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'username' => ['sometimes', 'string', 'min:3', 'max:50', \Illuminate\Validation\Rule::unique('users')->ignore($user->id)],
+            'preferredGenres' => ['sometimes', 'string'],
+        ]);
+
+        $oldUsername = $user->username;
+        $user->update($validated);
+
+        if (!empty($validated['username']) && $validated['username'] !== $oldUsername) {
+            \App\Models\Story::where('authorId', $user->id)->update(['authorName' => $validated['username']]);
+            \App\Models\Conversation::where('senderId', $user->id)->update(['senderName' => $validated['username']]);
+            \App\Models\Review::where('userId', $user->id)->update(['username' => $validated['username']]);
+            \App\Models\PartAnnotation::where('userId', $user->id)->update(['username' => $validated['username']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Settings updated successfully.',
+            'user' => $user->fresh(),
+        ]);
     }
 }

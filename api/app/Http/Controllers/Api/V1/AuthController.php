@@ -123,4 +123,31 @@ class AuthController extends Controller
     {
         return response()->json($request->user());
     }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8',
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Current password does not match.'], 422);
+        }
+
+        $pwd = $request->new_password;
+        if (! preg_match('/[A-Z]/', $pwd) || ! preg_match('/[a-z]/', $pwd) || ! preg_match('/[0-9]/', $pwd)) {
+            return response()->json(['message' => 'Password is too weak. Must contain uppercase, lowercase, and numbers.'], 400);
+        }
+
+        $user->password = Hash::make($pwd);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password changed successfully.',
+        ]);
+    }
 }

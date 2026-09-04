@@ -24,6 +24,17 @@ class User extends Authenticatable
      */
     public $incrementing = false;
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($user) {
+            if (empty($user->signupTimestamp)) {
+                $user->signupTimestamp = ($user->created_at ? $user->created_at->timestamp : time()) * 1000;
+            }
+        });
+    }
+
     /**
      * The attributes that are mass assignable.
      */
@@ -54,6 +65,8 @@ class User extends Authenticatable
         'followers',
         'following',
         'referredBy',
+        'referralCount',
+        'isReferralRewardClaimed',
         'has_received_first_withdrawal',
     ];
 
@@ -143,5 +156,15 @@ class User extends Authenticatable
     public function dailyLoginRewardClaims(): HasMany
     {
         return $this->hasMany(DailyLoginRewardClaim::class, 'userId', 'id');
+    }
+
+    public function authorVerificationRequests(): HasMany
+    {
+        return $this->hasMany(AuthorVerificationRequest::class, 'user_id', 'id');
+    }
+
+    public function referralMilestoneClaims(): HasMany
+    {
+        return $this->hasMany(ReferralMilestoneClaim::class, 'referrer_id', 'id');
     }
 }
