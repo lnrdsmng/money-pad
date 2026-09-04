@@ -1,0 +1,26 @@
+export const STORY_GENRES = [
+  'Romance',
+  'Fantasy',
+  'Mystery',
+  'Sci-Fi',
+  'Horror',
+  'Action',
+  'LGBTQIA+',
+  'Werewolf',
+  'New Adult',
+  'Short Story',
+  'Teen Fiction',
+  'Historical Fiction',
+  'Paranormal',
+  'Humor',
+  'Contemporary Lit',
+  'Diverse Lit',
+  'Thriller',
+  'Adventure',
+  'Fan Fiction',
+  'Non-Fiction',
+  'Poetry',
+  'General',
+] as const;
+
+export type StoryGenre = (typeof STORY_GENRES)[number];
