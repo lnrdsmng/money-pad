@@ -62,6 +62,13 @@ return [
             'multiplier' => '6.0',
             'ads' => false,
         ],
+        'author_verification' => [
+            'name' => 'Author Verification',
+            'price' => '149.00',
+            'rate_per_minute' => '0.000',
+            'multiplier' => '1.0',
+            'ads' => false,
+        ],
     ],
     'payments' => [
         'proof_retention_days' => 180,

@@ -1,7 +1,8 @@
-export type PlanId = 'free' | 'standard' | 'mega_premium' | 'ultimate_premium';
+export type ReadingPlanId = 'free' | 'standard' | 'mega_premium' | 'ultimate_premium';
+export type PlanId = ReadingPlanId | 'author_verification';
 
 export interface MoneyPadPlan {
-  id: PlanId;
+  id: ReadingPlanId;
   name: string;
   price: string;
   rate_per_minute: string;

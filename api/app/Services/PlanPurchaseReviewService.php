@@ -2,11 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\AuthorVerificationRequest;
+use App\Models\Notification;
 use App\Models\PlanPurchase;
+use App\Models\Story;
 use App\Models\SystemMessage;
 use App\Models\User;
 use App\Models\UserPlan;
 use App\PlanPurchaseStatus;
+use App\PlanType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -29,6 +33,53 @@ class PlanPurchaseReviewService
             }
 
             $user = User::query()->whereKey($lockedPurchase->userId)->lockForUpdate()->firstOrFail();
+
+            if ($lockedPurchase->plan_type === PlanType::AuthorVerification) {
+                $user->update(['isVerified' => true]);
+                Story::where('authorId', $user->id)->update(['isAuthorVerified' => true]);
+
+                $lockedPurchase->update([
+                    'status' => PlanPurchaseStatus::Approved,
+                    'paid_at' => now(),
+                    'reviewed_by' => $admin->id,
+                    'reviewed_at' => now(),
+                    'rejection_reason' => null,
+                ]);
+
+                AuthorVerificationRequest::where('user_id', $user->id)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'approved',
+                        'reviewed_by' => $admin->id,
+                        'reviewed_at' => now(),
+                    ]);
+
+                SystemMessage::create([
+                    'id' => (string) Str::uuid(),
+                    'userId' => $user->id,
+                    'type' => 'custom',
+                    'title' => 'Author Verification Approved',
+                    'content' => 'Congratulations! Your author verification application has been approved.',
+                    'action_type' => 'info',
+                    'is_pinned' => true,
+                    'is_read' => false,
+                ]);
+
+                Notification::create([
+                    'id' => (string) Str::uuid(),
+                    'userId' => $user->id,
+                    'type' => 'VERIFIED',
+                    'actorId' => $admin->id,
+                    'actorName' => $admin->username,
+                    'content' => 'Congratulations! Your author verification application has been approved.',
+                    'timestamp' => time() * 1000,
+                    'isRead' => false,
+                    'isActorVerified' => true,
+                ]);
+
+                return $lockedPurchase->fresh(['user', 'reviewer']);
+            }
+
             $currentPlan = UserPlan::query()
                 ->where('userId', $user->id)
                 ->where('is_active', true)
@@ -112,11 +163,33 @@ class PlanPurchaseReviewService
                 'rejection_reason' => $reason,
             ]);
 
+            if ($lockedPurchase->plan_type === PlanType::AuthorVerification) {
+                AuthorVerificationRequest::where('user_id', $lockedPurchase->userId)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'rejected',
+                        'rejection_reason' => $reason,
+                        'reviewed_by' => $admin->id,
+                        'reviewed_at' => now(),
+                    ]);
+
+                Notification::create([
+                    'id' => (string) Str::uuid(),
+                    'userId' => $lockedPurchase->userId,
+                    'type' => 'SYSTEM',
+                    'actorId' => $admin->id,
+                    'actorName' => $admin->username,
+                    'content' => 'Your author verification request was rejected: ' . $reason,
+                    'timestamp' => time() * 1000,
+                    'isRead' => false,
+                ]);
+            }
+
             SystemMessage::create([
                 'id' => (string) Str::uuid(),
                 'userId' => $lockedPurchase->userId,
                 'type' => 'custom',
-                'title' => 'Plan payment needs attention',
+                'title' => $lockedPurchase->plan_type === PlanType::AuthorVerification ? 'Verification payment needs attention' : 'Plan payment needs attention',
                 'content' => 'Your payment was rejected: '.$reason,
                 'action_type' => 'info',
                 'is_pinned' => true,

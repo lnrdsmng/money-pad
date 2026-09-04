@@ -3,11 +3,11 @@ import { Check, Crown, LoaderCircle, Shield, Sparkles, Upload, X, Zap } from 'lu
 import { useState, type FormEvent } from 'react';
 import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
-import type { MoneyPadPlan, PaymentMethodSetting, PlanId, PlanPurchase } from '../types/earnings';
+import type { MoneyPadPlan, PaymentMethodSetting, ReadingPlanId, PlanPurchase } from '../types/earnings';
 import { formatPesoFromCoins } from '../utils/money';
 import { useFeedback } from './feedback/feedback';
 
-const planStyles: Record<PlanId, { icon: typeof Shield; buttonClass: string }> = {
+const planStyles: Record<ReadingPlanId, { icon: typeof Shield; buttonClass: string }> = {
   free: { icon: Shield, buttonClass: 'bg-slate-800' },
   standard: { icon: Sparkles, buttonClass: 'bg-emerald-600' },
   mega_premium: { icon: Zap, buttonClass: 'bg-blue-600' },

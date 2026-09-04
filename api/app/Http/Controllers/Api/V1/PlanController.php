@@ -13,6 +13,7 @@ class PlanController extends Controller
     public function index(): JsonResponse
     {
         $plans = collect(config('moneypad.plans'))
+            ->reject(fn (array $plan, string $id): bool => $id === 'author_verification')
             ->map(fn (array $plan, string $id): array => [
                 'id' => $id,
                 ...$plan,
