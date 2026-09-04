@@ -1,26 +1,30 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Compass, PenTool, Wallet, UserCircle } from 'lucide-react';
+import { Compass, MessageCircle, PenTool, Wallet, UserCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
+import { useDailyLoginReward } from '../hooks/useDailyLoginReward';
 
 export default function BottomNavBar() {
   const { user } = useAuth();
   const location = useLocation();
+  const { hasAvailableReward } = useDailyLoginReward();
 
   if (!user) return null;
 
-  // Hide bottom nav on reader and editor pages
+  // Hide bottom nav on reader, editor, and admin pages
   if (
     location.pathname.includes('/read/') || 
-    location.pathname.includes('/edit')
+    location.pathname.includes('/edit') ||
+    location.pathname.startsWith('/admin')
   ) {
     return null;
   }
 
   const tabs = [
-    { name: 'Explore', path: '/explore', icon: Compass },
-    { name: 'Write', path: '/writer', icon: PenTool },
-    { name: 'Earnings', path: '/earnings', icon: Wallet },
-    { name: 'Profile', path: '/profile', icon: UserCircle },
+    { name: 'Explore', path: '/explore', icon: Compass, hasBadge: hasAvailableReward },
+    { name: 'Community', path: '/community', icon: MessageCircle, hasBadge: false },
+    { name: 'Write', path: '/writer', icon: PenTool, hasBadge: false },
+    { name: 'Earnings', path: '/earnings', icon: Wallet, hasBadge: hasAvailableReward },
+    { name: 'Profile', path: '/profile', icon: UserCircle, hasBadge: false },
   ];
 
   return (
@@ -35,14 +39,19 @@ export default function BottomNavBar() {
             <Link
               key={tab.name}
               to={tab.path}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
+              className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
                 isActive 
                   ? 'text-primary' 
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
               }`}
             >
-              <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[10px] font-medium">{tab.name}</span>
+              <div className="relative">
+                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                {tab.hasBadge && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent ring-2 ring-white dark:ring-slate-900 animate-pulse" />
+                )}
+              </div>
+              <span className="text-[10px] font-medium tracking-tight">{tab.name}</span>
             </Link>
           );
         })}
@@ -50,3 +59,4 @@ export default function BottomNavBar() {
     </nav>
   );
 }
+

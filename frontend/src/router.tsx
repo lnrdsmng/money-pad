@@ -24,6 +24,8 @@ import { UserManagement } from './pages/admin/UserManagement';
 import { MessagingPanel } from './pages/admin/MessagingPanel';
 import { PlanPaymentManagement } from './pages/admin/PlanPaymentManagement';
 
+import CommunityPage from './pages/CommunityPage';
+
 function ProfileRedirect() {
   const { user } = useAuth();
   return <Navigate to={`/profile/${user?.username}`} replace />;
@@ -51,11 +53,24 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Standalone Admin Interface completely decoupled from AppLayout */}
+        <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="withdrawals" replace />} />
+            <Route path="withdrawals" element={<WithdrawalManagement />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="messages" element={<MessagingPanel />} />
+            <Route path="plan-payments" element={<PlanPaymentManagement />} />
+          </Route>
+        </Route>
+
+        {/* User Web App Shell */}
         <Route path="/" element={<AppLayout />}>
           <Route index element={getInitialRedirect()} />
           
           <Route element={<ProtectedRoute />}>
             <Route path="explore" element={<ExplorePage />} />
+            <Route path="community" element={<CommunityPage />} />
             <Route path="story/:storyId" element={<StoryPage />} />
             <Route path="story/:storyId/read/:partId" element={<ReaderPage />} />
             
@@ -71,16 +86,6 @@ export default function AppRouter() {
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 
-          <Route element={<AdminRoute />}>
-            <Route path="admin" element={<AdminLayout />}>
-              <Route index element={<Navigate to="withdrawals" replace />} />
-              <Route path="withdrawals" element={<WithdrawalManagement />} />
-              <Route path="users" element={<UserManagement />} />
-              <Route path="messages" element={<MessagingPanel />} />
-              <Route path="plan-payments" element={<PlanPaymentManagement />} />
-            </Route>
-          </Route>
-
           <Route path="login" element={getAuthRedirect(<LoginPage />)} />
           <Route path="register" element={getAuthRedirect(<RegisterPage />)} />
           <Route path="onboarding" element={<OnboardingPage />} />
@@ -89,3 +94,4 @@ export default function AppRouter() {
     </BrowserRouter>
   );
 }
+

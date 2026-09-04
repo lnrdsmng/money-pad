@@ -3,17 +3,18 @@ import { useAuth } from '../auth/AuthProvider';
 import BottomNavBar from '../components/BottomNavBar';
 import UserMenu from '../components/UserMenu';
 import { NotificationBell } from '../components/notifications/NotificationBell';
-import { DailyLoginRewardPanel } from '../components/DailyLoginRewardPanel';
+import { useDailyLoginReward } from '../hooks/useDailyLoginReward';
 
 export default function AppLayout() {
   const { user } = useAuth();
   const location = useLocation();
+  const { hasAvailableReward } = useDailyLoginReward();
   
   const isImmersivePage = location.pathname.includes('/read/') || location.pathname.includes('/edit');
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800">
+    <div className="flex flex-col min-h-screen bg-[#FAF9F6] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      <header className="bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center min-w-0">
@@ -23,11 +24,67 @@ export default function AppLayout() {
               
               {user && (
                 <nav className="hidden md:flex ml-10 space-x-8">
-                  <Link to="/explore" className={`text-sm font-medium ${location.pathname.startsWith('/explore') ? 'text-primary' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}`}>Explore</Link>
-                  <Link to="/writer" className={`text-sm font-medium ${location.pathname.startsWith('/writer') ? 'text-primary' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}`}>Write</Link>
-                  <Link to="/earnings" className={`text-sm font-medium ${location.pathname.startsWith('/earnings') ? 'text-primary' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}`}>Earnings</Link>
+                  <Link
+                    to="/explore"
+                    className={`relative text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                      location.pathname.startsWith('/explore')
+                        ? 'text-primary'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    <span>Explore</span>
+                    {hasAvailableReward && (
+                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse" title="Daily reward available!" />
+                    )}
+                  </Link>
+
+                  <Link
+                    to="/community"
+                    className={`text-sm font-medium transition-colors ${
+                      location.pathname.startsWith('/community')
+                        ? 'text-primary'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    Community
+                  </Link>
+
+                  <Link
+                    to="/writer"
+                    className={`text-sm font-medium transition-colors ${
+                      location.pathname.startsWith('/writer')
+                        ? 'text-primary'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    Write
+                  </Link>
+
+                  <Link
+                    to="/earnings"
+                    className={`relative text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                      location.pathname.startsWith('/earnings')
+                        ? 'text-primary'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    <span>Earnings</span>
+                    {hasAvailableReward && (
+                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse" title="Daily reward available!" />
+                    )}
+                  </Link>
+
                   {user.role === 'admin' && (
-                    <Link to="/admin" className={`text-sm font-medium ${location.pathname.startsWith('/admin') ? 'text-accent font-bold' : 'text-accent/80 hover:text-accent dark:text-red-400'}`}>Admin Panel</Link>
+                    <Link
+                      to="/admin"
+                      className={`text-sm font-medium ${
+                        location.pathname.startsWith('/admin')
+                          ? 'text-accent font-bold'
+                          : 'text-accent/80 hover:text-accent dark:text-red-400'
+                      }`}
+                    >
+                      Admin Panel
+                    </Link>
                   )}
                 </nav>
               )}
@@ -39,7 +96,7 @@ export default function AppLayout() {
                   <Link to="/login" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium text-xs sm:text-sm px-2 py-1">
                     Login
                   </Link>
-                  <Link to="/register" className="bg-primary hover:opacity-90 text-white font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition-opacity whitespace-nowrap">
+                  <Link to="/register" className="bg-primary hover:bg-primary-hover text-white font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm transition shadow-xs whitespace-nowrap">
                     Sign up
                   </Link>
                 </>
@@ -54,13 +111,11 @@ export default function AppLayout() {
         </div>
       </header>
 
-      {user && user.role !== 'admin' && !isImmersivePage && <DailyLoginRewardPanel />}
-      
       <main className={`flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 ${user && !isImmersivePage ? 'pb-20 md:pb-8' : ''}`}>
         <Outlet />
       </main>
 
-      <footer className={`bg-white border-t border-gray-200 p-4 text-center text-sm text-gray-500 dark:bg-slate-900 dark:border-slate-800 ${user && !isImmersivePage ? 'mb-16 md:mb-0' : ''}`}>
+      <footer className={`bg-white border-t border-gray-200 p-4 text-center text-xs sm:text-sm text-gray-500 dark:bg-slate-900 dark:border-slate-800 ${user && !isImmersivePage ? 'mb-16 md:mb-0' : ''}`}>
         © {new Date().getFullYear()} MoneyPad. All rights reserved.
       </footer>
       
@@ -68,3 +123,4 @@ export default function AppLayout() {
     </div>
   );
 }
+
