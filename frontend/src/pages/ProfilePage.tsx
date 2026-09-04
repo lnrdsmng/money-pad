@@ -3,8 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import http from '../api/http';
 import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle, Edit3, MessageSquare } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
-import { SystemMessageInbox } from '../components/SystemMessageInbox';
-import { GroupChat } from '../components/GroupChat';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { UserListModal } from '../components/profile/UserListModal';
 import { EditProfileModal } from '../components/profile/EditProfileModal';
@@ -147,6 +145,8 @@ export default function ProfilePage() {
                 >
                   <strong className="text-gray-900 dark:text-gray-100">{profile.following || 0}</strong> Following
                 </button>
+                <span>•</span>
+                <span className="text-[11px] text-gray-400 dark:text-gray-500">Coming soon</span>
               </div>
 
               {profile.bio && <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 max-w-lg">{profile.bio}</p>}
@@ -183,12 +183,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {isOwnProfile && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-12">
-            <SystemMessageInbox />
-            <GroupChat />
-          </div>
-        )}
 
         {/* Profile Tabs */}
         <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6 gap-6">
