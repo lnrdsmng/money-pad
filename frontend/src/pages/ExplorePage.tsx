@@ -7,6 +7,7 @@ import { STORY_GENRES } from '../constants/genres';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { ContinueReadingShelf } from '../components/explore/ContinueReadingShelf';
 import { RecommendedShelf } from '../components/explore/RecommendedShelf';
+import { DailyLoginRewardPanel } from '../components/DailyLoginRewardPanel';
 
 export default function ExplorePage() {
   const [searchInput, setSearchInput] = useState('');
@@ -88,6 +89,9 @@ export default function ExplorePage() {
         </div>
       </div>
 
+      {/* Daily Login Check-in Reward Hero Banner */}
+      <DailyLoginRewardPanel isDismissible={true} />
+
       {/* SEARCH RESULTS VIEW */}
       {isSearching ? (
         <div className="space-y-8">
@@ -164,7 +168,7 @@ export default function ExplorePage() {
           {/* Recommended Shelf */}
           <RecommendedShelf />
 
-          {/* 22 Genre Filter Pills */}
+          {/* 22 Genre Filter Pills with Secondary Warm Cream */}
           <div className="mb-6">
             <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5">
               Browse by Genre
@@ -176,8 +180,8 @@ export default function ExplorePage() {
                   onClick={() => setSelectedGenre(genre)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
                     selectedGenre === genre
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:border-primary/50'
+                      ? 'bg-primary text-white shadow-xs font-semibold'
+                      : 'bg-[#F5E9DA] text-stone-800 dark:bg-amber-950/40 dark:text-amber-200 border border-amber-200/80 dark:border-amber-900/50 hover:border-primary/50'
                   }`}
                 >
                   {genre}

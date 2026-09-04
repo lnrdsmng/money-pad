@@ -95,7 +95,7 @@ export default function OnboardingPage() {
       {step === 1 && (
         <form onSubmit={handleGenderSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-3">What is your sex?</label>
+            <label className="block text-sm font-medium mb-3">What is your gender?</label>
             <div className="space-y-2">
               {['Male', 'Female'].map((g) => (
                 <label key={g} className="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700">
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
       {step === 3 && (
         <form onSubmit={handleGenresSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">What are your preferred genres? (up to 8)</label>
+            <label className="block text-sm font-medium mb-2">Select your favorite genres (up to 8)</label>
             <div className="flex flex-wrap gap-2">
               {STORY_GENRES.map((g) => (
                 <button
