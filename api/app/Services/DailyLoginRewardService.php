@@ -67,7 +67,7 @@ class DailyLoginRewardService
             return [
                 'day' => $dayNumber,
                 'date' => $rewardDate->toDateString(),
-                'amount' => number_format((float) $amount, 3, '.', ''),
+                'amount' => $status === 'upcoming' ? null : number_format((float) $amount, 3, '.', ''),
                 'status' => $status,
                 'claimed_at' => $claim?->claimed_at?->toIso8601String(),
             ];

@@ -7,7 +7,7 @@ import { formatPesoFromCoins } from '../utils/money';
 interface RewardDay {
   day: number;
   date: string;
-  amount: string;
+  amount: string | null;
   status: 'claimed' | 'missed' | 'available' | 'upcoming';
 }
 
@@ -51,16 +51,20 @@ export function DailyLoginRewardPanel() {
           {rewardQuery.data.days.map((day) => (
             <div key={day.day} title={`${day.date}: ${day.status}`} className={`min-w-14 sm:min-w-16 flex-1 sm:flex-none rounded-lg border p-1.5 sm:p-2 text-center text-xs ${day.status === 'available' ? 'border-amber-500 bg-white ring-2 ring-amber-200' : day.status === 'claimed' ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white/60 text-slate-500'}`}>
               <p className="font-semibold text-[11px] sm:text-xs">Day {day.day}</p>
-              <p className="mt-0.5 sm:mt-1 font-bold text-[11px] sm:text-xs">{Number(day.amount)} coins</p>
+              {day.status === 'upcoming' ? (
+                <p className="mt-0.5 sm:mt-1 font-bold text-[11px] sm:text-xs text-amber-700">? Surprise</p>
+              ) : (
+                <p className="mt-0.5 sm:mt-1 font-bold text-[11px] sm:text-xs">{Number(day.amount)} coins</p>
+              )}
               {day.status === 'claimed' && <Check className="mx-auto mt-1 h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />}
               {day.status === 'missed' && <span className="mt-1 block text-[10px] sm:text-xs">Missed</span>}
-              {day.status === 'upcoming' && <LockKeyhole className="mx-auto mt-1 h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+              {day.status === 'upcoming' && <LockKeyhole className="mx-auto mt-1 h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600/70" />}
             </div>
           ))}
         </div>
         {availableDay && (
           <button type="button" disabled={claimMutation.isPending} onClick={() => claimMutation.mutate()} className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-60">
-            {claimMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" />}Claim {availableDay.amount} coins ({formatPesoFromCoins(availableDay.amount)})
+            {claimMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" />}Claim {availableDay.amount} coins ({formatPesoFromCoins(availableDay.amount ?? '0')})
           </button>
         )}
         {claimedToday && <p className="w-full sm:w-auto shrink-0 rounded-lg bg-emerald-100 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-emerald-800 text-center">Today's reward claimed</p>}
