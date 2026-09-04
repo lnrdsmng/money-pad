@@ -162,7 +162,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-200 py-2.5 font-medium text-gray-700 text-sm hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
                 >
                   {skipAdsMutation.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FastForward className="w-4 h-4" />}
-                  <span>{skipAdsMutation.isPending ? 'Submitting...' : `Skip Tasks (Accept ₱${platformFee.toFixed(2)} Fee)`}</span>
+                  <span>{skipAdsMutation.isPending ? 'Submitting...' : `Skip Tasks (Proceed with ₱${platformFee.toFixed(2)} Fee — No Ads)`}</span>
                 </button>
               </div>
             </div>
