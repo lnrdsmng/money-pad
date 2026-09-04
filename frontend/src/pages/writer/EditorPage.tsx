@@ -14,6 +14,11 @@ import {
   LoaderCircle,
   ArrowLeft,
   X,
+  Bold,
+  Italic,
+  Heading2,
+  List,
+  Image as LucideImage,
 } from 'lucide-react';
 import http from '../../api/http';
 import { ActionDialog } from '../../components/feedback/ActionDialog';
@@ -239,7 +244,7 @@ export default function EditorPage() {
           setTitle(e.target.value);
           setAutosaveStatus('dirty');
         }}
-        placeholder="Chapter Title (e.g. Chapter 1: The Encounter)"
+        placeholder="Chapter Title"
         className="w-full p-3 sm:p-4 text-lg sm:text-2xl font-bold border border-gray-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary shadow-xs"
       />
 
@@ -289,45 +294,55 @@ export default function EditorPage() {
           <button
             type="button"
             onClick={() => editor?.chain().focus().toggleBold().run()}
-            className={`px-2.5 py-1.5 rounded font-bold transition ${
-              editor?.isActive('bold') ? 'bg-gray-200 dark:bg-slate-700' : 'hover:bg-gray-200'
+            title="Bold"
+            aria-label="Bold"
+            className={`p-2 rounded-lg transition cursor-pointer ${
+              editor?.isActive('bold') ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
             }`}
           >
-            B
+            <Bold className="w-4 h-4" />
           </button>
           <button
             type="button"
             onClick={() => editor?.chain().focus().toggleItalic().run()}
-            className={`px-2.5 py-1.5 rounded italic transition ${
-              editor?.isActive('italic') ? 'bg-gray-200 dark:bg-slate-700' : 'hover:bg-gray-200'
+            title="Italic"
+            aria-label="Italic"
+            className={`p-2 rounded-lg transition cursor-pointer ${
+              editor?.isActive('italic') ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
             }`}
           >
-            I
+            <Italic className="w-4 h-4" />
           </button>
           <button
             type="button"
             onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`px-2.5 py-1.5 rounded font-bold transition ${
-              editor?.isActive('heading', { level: 2 }) ? 'bg-gray-200 dark:bg-slate-700' : 'hover:bg-gray-200'
+            title="Heading 2"
+            aria-label="Heading 2"
+            className={`p-2 rounded-lg transition cursor-pointer ${
+              editor?.isActive('heading', { level: 2 }) ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
             }`}
           >
-            H2
+            <Heading2 className="w-4 h-4" />
           </button>
           <button
             type="button"
             onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            className={`px-2.5 py-1.5 rounded transition ${
-              editor?.isActive('bulletList') ? 'bg-gray-200 dark:bg-slate-700' : 'hover:bg-gray-200'
+            title="Bullet List"
+            aria-label="Bullet List"
+            className={`p-2 rounded-lg transition cursor-pointer ${
+              editor?.isActive('bulletList') ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
             }`}
           >
-            List
+            <List className="w-4 h-4" />
           </button>
           <button
             type="button"
             onClick={() => setShowImageDialog(true)}
-            className="px-2.5 py-1.5 rounded hover:bg-gray-200 dark:hover:bg-slate-700 transition"
+            title="Image"
+            aria-label="Image"
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition cursor-pointer"
           >
-            Image
+            <LucideImage className="w-4 h-4" />
           </button>
 
           <div className="ml-auto text-[11px] text-gray-400 flex items-center gap-3 pr-2">

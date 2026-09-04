@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, BookOpen, ArrowRight } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
@@ -9,6 +9,7 @@ import { VerifiedBadge } from '../../components/common/VerifiedBadge';
 
 export default function WriterDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'published' | 'drafts'>('published');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -20,6 +21,19 @@ export default function WriterDashboard() {
     },
     enabled: !!user,
   });
+
+  const handleCreateNew = async () => {
+    try {
+      const response = await http.post('/stories', {
+        title: 'Untitled Story',
+        overview: 'Write your synopsis here...',
+        isMature: false,
+      });
+      navigate(`/writer/story/${response.data.id}`);
+    } catch {
+      setShowCreateModal(true);
+    }
+  };
 
   if (!user) return <div className="p-8 text-center">Please login</div>;
 
@@ -35,7 +49,7 @@ export default function WriterDashboard() {
         </div>
 
         <button 
-          onClick={() => setShowCreateModal(true)}
+          onClick={handleCreateNew}
           className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-bold text-xs sm:text-sm text-white transition hover:bg-green-600 shadow-sm cursor-pointer"
         >
           + Create New Story
@@ -44,17 +58,17 @@ export default function WriterDashboard() {
 
       {/* AUTHOR VERIFICATION CALLOUT */}
       {!user.isVerified && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="bg-[#F5E9DA]/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 bg-blue-500 text-white rounded-xl shrink-0 mt-0.5">
+            <div className="p-2.5 bg-primary text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-blue-950 dark:text-blue-100 flex items-center gap-1.5">
+              <h2 className="text-base font-bold text-stone-900 dark:text-amber-100 flex items-center gap-1.5">
                 Get Verified as an Official Author
                 <VerifiedBadge size={16} />
               </h2>
-              <p className="text-xs text-blue-800 dark:text-blue-300 mt-0.5">
+              <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
                 Unlock ₱20 minimum withdrawals, $0.05 / 100 views payout rates, and priority ranking across discovery.
               </p>
             </div>
@@ -62,7 +76,7 @@ export default function WriterDashboard() {
 
           <Link
             to="/writer/verification"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 shadow-xs"
+            className="px-4 py-2 bg-primary hover:bg-primary-hover active:scale-98 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
           >
             <span>Learn More & Apply</span>
             <ArrowRight className="w-3.5 h-3.5" />
