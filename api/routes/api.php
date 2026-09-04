@@ -12,12 +12,14 @@ use App\Http\Controllers\Api\V1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\PlanPurchaseController;
 use App\Http\Controllers\Api\V1\ReadingSessionController;
+use App\Http\Controllers\Api\V1\ReferralController;
 use App\Http\Controllers\Api\V1\StoryController;
 use App\Http\Controllers\Api\V1\StoryPartController;
 use App\Http\Controllers\Api\V1\SystemMessageController;
 use App\Http\Controllers\Api\V1\TransactionController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\VerificationController;
 use App\Http\Controllers\Api\V1\WithdrawalController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\SyncExpiredPlan;
@@ -32,6 +34,8 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/stories', [StoryController::class, 'index']);
     Route::get('/stories/search', [StoryController::class, 'search']);
+    Route::get('/stories/continue-reading', [StoryController::class, 'continueReading'])->middleware(['auth:sanctum', SyncExpiredPlan::class]);
+    Route::get('/stories/recommended', [StoryController::class, 'recommended'])->middleware(['auth:sanctum', SyncExpiredPlan::class]);
     Route::get('/stories/{storyId}', [StoryController::class, 'show']);
     Route::get('/authors/{authorId}/stories/published', [StoryController::class, 'publishedByAuthor']);
     Route::get('/genres', [StoryController::class, 'genres']);
@@ -59,6 +63,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/users/{userId}/onboarding/birthday', [UserController::class, 'onboardingBirthday']);
         Route::post('/users/{userId}/onboarding/genres', [UserController::class, 'onboardingGenres']);
         Route::post('/users/{userId}/onboarding/complete', [UserController::class, 'completeOnboarding']);
+        Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
+        Route::put('/users/settings', [UserController::class, 'updateSettings']);
+        Route::put('/users/{userId}/settings', [UserController::class, 'updateSettings']);
 
         // Media
         Route::post('/upload', [UploadController::class, 'upload']);
@@ -68,6 +75,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/users/{userId}/withdrawal-requests', [WithdrawalController::class, 'index']);
         Route::post('/withdrawal-requests/{id}/watch-ad', [WithdrawalController::class, 'watchAd']);
         Route::post('/withdrawal-requests/{id}/skip-ads', [WithdrawalController::class, 'skipAds']);
+
+        // Author Verification
+        Route::get('/authors/verification-status', [VerificationController::class, 'status']);
+        Route::post('/authors/verify', [VerificationController::class, 'apply']);
 
         // System Messages
         Route::get('/users/{userId}/system-messages', [SystemMessageController::class, 'index']);
@@ -85,7 +96,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/users/{userId}/reading-progress/{storyId}', [ReadingSessionController::class, 'getProgress']);
         Route::post('/users/{userId}/reading-progress', [ReadingSessionController::class, 'saveProgress']);
 
-        // Stories
+        // Feeds & Stories
+        Route::get('/stories/continue-reading', [StoryController::class, 'continueReading']);
+        Route::get('/stories/recommended', [StoryController::class, 'recommended']);
         Route::post('/stories', [StoryController::class, 'store']);
         Route::put('/stories/{storyId}', [StoryController::class, 'update']);
         Route::delete('/stories/{storyId}', [StoryController::class, 'destroy']);
@@ -113,10 +126,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/stories/{storyId}/is-liked', [InteractionController::class, 'isStoryLiked']);
         Route::post('/parts/{partId}/annotations', [InteractionController::class, 'storeAnnotation']);
 
+        // Referrals
+        Route::post('/referrals/claim-welcome', [ReferralController::class, 'claimWelcome']);
+        Route::get('/referrals/milestones', [ReferralController::class, 'milestones']);
+        Route::post('/referrals/claim-milestone', [ReferralController::class, 'claimMilestone']);
+
         // Transactions
         Route::get('/users/{userId}/transactions', [TransactionController::class, 'index']);
         Route::post('/transactions/withdraw', [TransactionController::class, 'withdraw']);
-        Route::post('/transactions/claim-referral', [TransactionController::class, 'claimReferral']);
         Route::post('/transactions/ad-watch', [TransactionController::class, 'adWatch']);
 
         // Pending reading income and claims
@@ -130,10 +147,14 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:10,1');
 
         // Notifications
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::put('/notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::get('/users/{userId}/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications', [NotificationController::class, 'store']);
         Route::get('/users/{userId}/notifications/unread-count', [NotificationController::class, 'unreadCount']);
-        Route::put('/notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
         Route::put('/users/{userId}/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
         // Plans
@@ -169,5 +190,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/plan-purchases/{planPurchase}/reject', [AdminPlanPurchaseController::class, 'reject']);
         Route::get('/payment-methods', [PaymentMethodSettingController::class, 'adminIndex']);
         Route::put('/payment-methods/{paymentMethodSetting}', [PaymentMethodSettingController::class, 'update']);
+        Route::get('/verification-requests', [VerificationController::class, 'adminIndex']);
+        Route::get('/verification-requests/{verificationRequest}/proof', [VerificationController::class, 'adminProof']);
+        Route::post('/verification-requests/{id}/approve', [VerificationController::class, 'adminApprove']);
+        Route::post('/verification-requests/{id}/reject', [VerificationController::class, 'adminReject']);
     });
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { BookOpen } from 'lucide-react';
@@ -13,6 +13,14 @@ export default function RegisterPage() {
   
   const { signup } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('pending_referral_code', ref.trim());
+    }
+  }, []);
 
   const getPasswordStrength = (pwd: string) => {
     let score = 0;

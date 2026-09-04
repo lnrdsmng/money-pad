@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
-import { DollarSign, BookOpen, Banknote, AlertCircle, Settings, Clock, Sparkles, CheckCircle2 } from 'lucide-react';
+import { DollarSign, BookOpen, Banknote, AlertCircle, Settings, Clock, Sparkles, CheckCircle2, Users } from 'lucide-react';
 import { WithdrawalFlowModal } from '../components/WithdrawalFlowModal';
 import { UpgradePlanModal } from '../components/UpgradePlanModal';
 import { ReadingIncomeSection } from '../components/ReadingIncomeSection';
+import { ReferralProgramSection } from '../components/earnings/ReferralProgramSection';
 import { WithdrawalTermsCard } from '../components/WithdrawalTermsCard';
 import { formatCoins, formatPesoFromCoins } from '../utils/money';
 import { useFeedback } from '../components/feedback/feedback';
@@ -87,8 +88,8 @@ export const EarningsDashboard = () => {
         </button>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      {/* Overview Cards: Author / Reader / Referral 3-Card Layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center">
           <div className="bg-green-100 p-3 sm:p-4 rounded-full mr-4 sm:mr-6 shrink-0">
             <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
@@ -112,9 +113,22 @@ export const EarningsDashboard = () => {
             <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Earned from published stories</p>
           </div>
         </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center sm:col-span-2 lg:col-span-1">
+          <div className="bg-purple-100 p-3 sm:p-4 rounded-full mr-4 sm:mr-6 shrink-0">
+            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm font-medium text-gray-500 mb-0.5 sm:mb-1">Referral Program</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{user?.referralCount || 0} <span className="text-sm font-normal text-gray-500">invites</span></h2>
+            <p className="text-[11px] sm:text-xs text-purple-600 mt-0.5 sm:mt-1">Up to 550 coins / friend + 5% comm.</p>
+          </div>
+        </div>
       </div>
 
       <ReadingIncomeSection />
+
+      <ReferralProgramSection />
 
       {/* Terms & Conditions Card */}
       <WithdrawalTermsCard
