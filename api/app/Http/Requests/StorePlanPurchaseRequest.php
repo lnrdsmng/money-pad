@@ -17,6 +17,13 @@ class StorePlanPurchaseRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('account_name') && ! $this->filled('payment_reference')) {
+            $this->merge(['payment_reference' => $this->input('account_name')]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -38,8 +45,11 @@ class StorePlanPurchaseRequest extends FormRequest
                 'required',
                 'string',
                 'max:150',
-                Rule::unique('plan_purchases', 'payment_reference')
-                    ->where(fn ($query) => $query->where('payment_method', $this->input('payment_method'))),
+            ],
+            'account_name' => [
+                'nullable',
+                'string',
+                'max:150',
             ],
             'payment_proof' => [
                 'required',

@@ -4,7 +4,6 @@ import { useState, type FormEvent } from 'react';
 import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import type { MoneyPadPlan, PaymentMethodSetting, ReadingPlanId, PlanPurchase } from '../types/earnings';
-import { formatPesoFromCoins } from '../utils/money';
 import { useFeedback } from './feedback/feedback';
 
 const planStyles: Record<ReadingPlanId, { icon: typeof Shield; buttonClass: string }> = {
@@ -48,6 +47,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
       form.append('plan_type', selectedPlan.id);
       form.append('payment_method', selectedPaymentMethod);
       form.append('payment_reference', paymentReference);
+      form.append('account_name', paymentReference);
       form.append('payment_proof', paymentProof);
       return (await http.post('/plan-purchases', form)).data;
     },
@@ -70,7 +70,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
       <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-xl">
         <button type="button" onClick={onClose} disabled={submitMutation.isPending} className="absolute right-4 top-4 z-10 rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Close plans"><X /></button>
         <div className="border-b border-slate-100 p-4 sm:p-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">Choose your monthly plan</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">Choose your lifetime plan</h2>
           <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-500">Pay with GCash, Maya, or PayPal, then submit your proof for admin review.</p>
         </div>
         <div className="space-y-6 bg-slate-50 p-3.5 sm:p-8">
@@ -91,10 +91,13 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
                   <Icon className="h-6 w-6 sm:h-8 sm:w-8 text-slate-700" />
                   <h3 className="mt-3 sm:mt-4 text-lg sm:text-xl font-bold">{plan.name}</h3>
                   <p className="mt-1.5 sm:mt-2 text-2xl sm:text-3xl font-extrabold">₱{Number(plan.price).toFixed(0)}</p>
-                  <p className="text-xs text-slate-500">valid for one month</p>
+                  <p className="text-xs text-slate-500">Lifetime access</p>
                   <ul className="my-4 sm:my-5 space-y-2 text-xs sm:text-sm text-slate-600">
-                    <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />{Number(plan.rate_per_minute)} coins/min ({formatPesoFromCoins(plan.rate_per_minute)})</li>
-                    <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />{plan.ads ? 'Ad required when claiming' : 'No rewarded ad required'}</li>
+                    <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />{Number(plan.rate_per_minute)} coins/min</li>
+                    <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />{plan.ads ? 'Ad required when claiming' : '100% ad-free reading & claiming'}</li>
+                    {plan.id === 'ultimate_premium' && (
+                      <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />Optional withdrawal fee-waiver tasks</li>
+                    )}
                   </ul>
                   <button type="button" disabled={isCurrent || plan.id === 'free' || Boolean(pendingPurchase) || submitMutation.isPending} onClick={() => setSelectedPlan(plan)} className={`w-full rounded-lg py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white disabled:bg-slate-200 disabled:text-slate-500 ${planStyles[plan.id].buttonClass}`}>
                     {isCurrent ? 'Active plan' : plan.id === 'free' ? 'Included' : 'Select plan'}
@@ -120,9 +123,9 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
                   {method.instructions && <p className="mt-2">{method.instructions}</p>}
                 </div>
               ))}
-              <div><label className="mb-1 block text-sm font-semibold">Payment reference</label><input required disabled={submitMutation.isPending} maxLength={150} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} className="w-full rounded-lg border border-slate-300 p-3 disabled:opacity-60" placeholder="Transaction/reference number" /></div>
+              <div><label className="mb-1 block text-sm font-semibold">Account Name</label><input required disabled={submitMutation.isPending} maxLength={150} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} className="w-full rounded-lg border border-slate-300 p-3 disabled:opacity-60" placeholder="e.g. Juan Dela Cruz" /></div>
               <div><label className="mb-1 block text-sm font-semibold">Payment screenshot</label><label className={`flex items-center gap-3 rounded-lg border border-dashed border-slate-400 p-4 ${submitMutation.isPending ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}><Upload className="h-5 w-5" /><span>{paymentProof?.name ?? 'Choose JPEG, PNG, or WebP (max 5 MB)'}</span><input required disabled={submitMutation.isPending} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setPaymentProof(event.target.files?.[0] ?? null)} className="sr-only" /></label></div>
-              {submitMutation.isError && <p className="text-sm text-red-600">The proof could not be submitted. Check the file and reference, then try again.</p>}
+              {submitMutation.isError && <p className="text-sm text-red-600">The proof could not be submitted. Check the file and account name, then try again.</p>}
               <button disabled={submitMutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 font-bold text-white disabled:opacity-50">{submitMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin" />}Submit for review</button>
             </form>
           )}

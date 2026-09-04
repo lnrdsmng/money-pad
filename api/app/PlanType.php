@@ -27,6 +27,6 @@ enum PlanType: string
 
     public function durationMonths(): int
     {
-        return in_array($this, [self::Free, self::AuthorVerification], true) ? 0 : 1;
+        return 0;
     }
 }

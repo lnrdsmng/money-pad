@@ -86,12 +86,17 @@ class PlanPurchaseReviewService
                 ->lockForUpdate()
                 ->first();
             $now = now();
-            $expiresAt = $now->copy()->addMonthsNoOverflow($lockedPurchase->plan_type->durationMonths());
+            $durationMonths = $lockedPurchase->plan_type->durationMonths();
+            $expiresAt = null;
 
-            if ($currentPlan?->plan_type === $lockedPurchase->plan_type
-                && $currentPlan->expires_at?->isAfter($now)) {
-                $expiresAt = $currentPlan->expires_at->copy()
-                    ->addMonthsNoOverflow($lockedPurchase->plan_type->durationMonths());
+            if ($durationMonths > 0) {
+                $expiresAt = $now->copy()->addMonthsNoOverflow($durationMonths);
+
+                if ($currentPlan?->plan_type === $lockedPurchase->plan_type
+                    && $currentPlan->expires_at?->isAfter($now)) {
+                    $expiresAt = $currentPlan->expires_at->copy()
+                        ->addMonthsNoOverflow($durationMonths);
+                }
             }
 
             UserPlan::query()
@@ -135,7 +140,7 @@ class PlanPurchaseReviewService
                 'type' => 'custom',
                 'title' => 'Plan activated',
                 'content' => config("moneypad.plans.{$lockedPurchase->plan_type->value}.name")
-                    .' is active until '.$expiresAt->format('F j, Y').'.',
+                    . ($expiresAt ? ' is active until ' . $expiresAt->format('F j, Y') . '.' : ' lifetime plan is now active.'),
                 'action_type' => 'info',
                 'is_pinned' => true,
                 'is_read' => false,

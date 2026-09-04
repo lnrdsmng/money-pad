@@ -81,7 +81,7 @@ class PlanPurchaseTest extends TestCase
 
         $this->assertSame(PlanType::MegaPremium, $user->fresh()->plan);
         $plan = UserPlan::query()->sole();
-        $this->assertSame('2026-02-28', $plan->expires_at->toDateString());
+        $this->assertNull($plan->expires_at);
         $this->assertSame($admin->id, $purchase->fresh()->reviewed_by);
 
         $this->actingAs($admin)->postJson("/api/v1/admin/plan-purchases/{$purchase->id}/approve")->assertOk();
