@@ -31,19 +31,19 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
   const isQualifying = cashValue >= selectedMin;
 
   return (
-    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-gray-200 dark:border-slate-800 overflow-hidden mb-6">
       {/* Header */}
-      <div className="bg-slate-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between">
+      <div className="bg-[#F5E9DA]/40 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between">
         <div className="flex items-center space-x-2.5 sm:space-x-3">
-          <div className="bg-primary/20 p-1.5 sm:p-2 rounded-lg text-primary-light shrink-0">
-            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+          <div className="bg-primary/10 p-1.5 sm:p-2 rounded-xl text-primary shrink-0">
+            <Info className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <h3 className="text-sm sm:text-base font-semibold">Withdrawal Terms & Conditions</h3>
-            <p className="text-[11px] sm:text-xs text-slate-300">Automatic payouts directly to your configured payment method</p>
+            <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-100">Withdrawal Terms & Conditions</h3>
+            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">Automatic payouts directly to your configured payment method</p>
           </div>
         </div>
-        <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800 shrink-0">
+        <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 shrink-0">
           <Sparkles className="w-3.5 h-3.5 mr-1" />
           Automatic Processing
         </span>

@@ -216,23 +216,23 @@ export const ReferralProgramSection = () => {
         </div>
 
         {/* 5% Author Referral Commission Callout */}
-        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800 shadow-xs flex flex-col justify-between">
+        <div className="bg-[#F5E9DA]/50 dark:bg-amber-950/20 rounded-2xl p-6 border border-amber-200/80 dark:border-amber-900/40 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
                 Lifetime Perk
               </span>
-              <Award className="w-6 h-6 text-purple-600" />
+              <Award className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="font-bold text-base sm:text-lg text-purple-950 dark:text-purple-100 mb-1">
+            <h3 className="font-bold text-base sm:text-lg text-stone-900 dark:text-amber-100 mb-1">
               5% Author Referral Commission
             </h3>
-            <p className="text-xs text-purple-800 dark:text-purple-300 leading-relaxed">
+            <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
               When an author who signed up with your referral link withdraws their story earnings, you automatically receive a <strong>5% lifetime bonus</strong> added to your referral balance without reducing their payout!
             </p>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-purple-200 dark:border-purple-800/60 text-xs text-purple-900 dark:text-purple-200 font-semibold flex items-center gap-1">
+          <div className="mt-4 pt-3 border-t border-amber-200 dark:border-amber-900/50 text-xs text-stone-800 dark:text-amber-200 font-semibold flex items-center gap-1">
             <span>Paid out automatically upon their withdrawal approvals</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </div>

@@ -62,20 +62,20 @@ export function ReadingIncomeSection() {
   const currentTime = now || (incomeQuery.data?.server_time ? new Date(incomeQuery.data.server_time).getTime() : 0);
 
   return (
-    <section className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-6 shadow-sm">
+    <section className="mb-6 rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-xs">
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-bold text-slate-900">Reading earnings</h2>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">Each minute remains available for 24 hours after it is earned.</p>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">Reading Earnings & Rewards</h2>
+          <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">Earn coins by reading stories. Each minute remains available for 24 hours.</p>
         </div>
-        <div className="inline-flex rounded-lg bg-slate-200 p-1 shrink-0" aria-label="Reading earnings views">
+        <div className="inline-flex rounded-xl bg-gray-100 dark:bg-slate-800 p-1 shrink-0" aria-label="Reading earnings views">
           {(['income', 'claimed'] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold capitalize transition ${
-                activeTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              className={`rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-semibold capitalize transition cursor-pointer ${
+                activeTab === tab ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 shadow-xs' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
               }`}
             >
               {tab}
@@ -88,14 +88,14 @@ export function ReadingIncomeSection() {
         <ClaimedEarningsSection />
       ) : (
         <div className="space-y-5">
-          <div className="flex flex-col gap-4 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 p-4 sm:p-5 text-white sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-primary to-[#3d934b] p-5 sm:p-6 text-white sm:flex-row sm:items-center sm:justify-between shadow-xs">
             <div>
-              <p className="text-xs sm:text-sm font-medium text-emerald-100">Available to claim</p>
-              <p className="mt-1 text-2xl sm:text-3xl font-bold">{formatCoins(incomeQuery.data?.pending_total ?? 0)}</p>
-              <p className="text-xs text-emerald-100">{formatPesoFromCoins(incomeQuery.data?.pending_total ?? 0)} cash value</p>
+              <p className="text-xs sm:text-sm font-medium text-green-100">Available to Claim</p>
+              <p className="mt-1 text-2xl sm:text-4xl font-bold">{formatCoins(incomeQuery.data?.pending_total ?? 0)}</p>
+              <p className="text-xs text-green-100 mt-0.5">{formatPesoFromCoins(incomeQuery.data?.pending_total ?? 0)} cash value</p>
               {incomeQuery.data?.nearest_expiration && (
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] sm:text-xs text-emerald-100">
-                  <Clock3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                <p className="mt-2.5 flex items-center gap-1.5 text-[11px] sm:text-xs text-green-100 bg-white/15 px-2.5 py-1 rounded-lg w-fit">
+                  <Clock3 className="h-3.5 w-3.5 shrink-0" />
                   Earliest reward expires in {formatTimeRemaining(incomeQuery.data.nearest_expiration, currentTime)}
                 </p>
               )}
@@ -104,10 +104,10 @@ export function ReadingIncomeSection() {
               type="button"
               disabled={!incomeQuery.data?.data.length || createClaim.isPending}
               onClick={() => createClaim.mutate()}
-              className="inline-flex w-full sm:w-auto sm:min-w-40 items-center justify-center gap-2 rounded-lg bg-white px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full sm:w-auto sm:min-w-44 items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-accent-hover active:scale-98 transition disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {createClaim.isPending && <LoaderCircle className="h-4 w-4 animate-spin" />}
-              Claim all available
+              Claim All Available
             </button>
           </div>
 

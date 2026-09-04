@@ -73,21 +73,21 @@ export function WatchAdsTaskSection() {
   });
 
   return (
-    <section className="mb-6 sm:mb-8 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-purple-50/70 p-4 sm:p-6 shadow-xs">
+    <section className="mb-6 rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-xs">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-start space-x-3 sm:space-x-4">
-          <div className="rounded-xl bg-blue-600 p-2.5 sm:p-3 text-white shadow-xs shrink-0 mt-0.5 sm:mt-0">
+          <div className="rounded-xl bg-primary/10 text-primary p-2.5 sm:p-3 shadow-xs shrink-0 mt-0.5 sm:mt-0">
             <Tv className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">Watch Ads Task</h2>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100">Watch Ads Task</h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
                 <Sparkles className="w-3 h-3 mr-1" />
                 +2 Coins / Ad
               </span>
             </div>
-            <p className="mt-1 text-xs sm:text-sm text-slate-600">
+            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               Watch a quick rewarded ad to earn 2 Reader Coins directly to your balance. Cooldown: 1 minute between ads.
             </p>
           </div>
@@ -98,9 +98,9 @@ export function WatchAdsTaskSection() {
             <button
               type="button"
               disabled
-              className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 cursor-not-allowed opacity-90 transition-all"
+              className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-gray-100 dark:bg-slate-800 px-5 py-2.5 text-xs sm:text-sm font-semibold text-gray-500 cursor-not-allowed opacity-90 transition-all"
             >
-              <Clock className="h-4 w-4 text-slate-500 animate-pulse" />
+              <Clock className="h-4 w-4 text-gray-400 animate-pulse" />
               <span>Cooldown: {cooldown}s</span>
             </button>
           ) : (
@@ -108,7 +108,7 @@ export function WatchAdsTaskSection() {
               type="button"
               onClick={() => setShowAd(true)}
               disabled={isLoading || watchAdMutation.isPending}
-              className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-98 transition-all disabled:opacity-50"
+              className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-primary-hover active:scale-98 transition-all disabled:opacity-50 cursor-pointer"
             >
               {watchAdMutation.isPending ? (
                 <>
