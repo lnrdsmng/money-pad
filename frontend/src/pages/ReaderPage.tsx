@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import http from '../api/http';
-import { ArrowLeft, Coins } from 'lucide-react';
+import { ArrowLeft, Coins, MessageSquare } from 'lucide-react';
 import { useReadingTimer } from '../hooks/useReadingTimer';
 import { useReadingProgress } from '../hooks/useReadingProgress';
 import { ChapterSlider } from '../components/ChapterSlider';
 import { ActionDialog } from '../components/feedback/ActionDialog';
+import { TextAnnotationBar } from '../components/reader/TextAnnotationBar';
+import { ChapterAnnotationsDrawer } from '../components/reader/ChapterAnnotationsDrawer';
 
 export default function ReaderPage() {
   const { storyId, partId } = useParams();
@@ -14,6 +16,7 @@ export default function ReaderPage() {
   const [allParts, setAllParts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dismissedResumePartId, setDismissedResumePartId] = useState<string | null>(null);
+  const [isAnnotationsDrawerOpen, setIsAnnotationsDrawerOpen] = useState(false);
   
   // Custom hooks for new features
   const { pendingEarned, isPaused, error: earningsError } = useReadingTimer(storyId!, partId!);
@@ -75,6 +78,20 @@ export default function ReaderPage() {
     if (storyId && partId) fetchData();
   }, [storyId, partId]);
 
+  const handleSelectPassage = (selectedText: string) => {
+    setIsAnnotationsDrawerOpen(false);
+    if (!contentRef.current) return;
+    const elements = contentRef.current.querySelectorAll('p, h1, h2, h3, div');
+    for (const el of elements) {
+      if (el.textContent?.includes(selectedText)) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bg-amber-100', 'transition-colors');
+        setTimeout(() => el.classList.remove('bg-amber-100'), 2500);
+        break;
+      }
+    }
+  };
+
   if (loading) return <div className="text-center p-12">Loading...</div>;
   if (!part) return <div className="text-center p-12">Chapter not found</div>;
 
@@ -83,12 +100,25 @@ export default function ReaderPage() {
   const nextPart = currentIndex < allParts.length - 1 ? allParts[currentIndex + 1] : null;
 
   return (
-    <div className="bg-[#FAF9F6] min-h-screen pb-24">
-      {/* Floating Coins Indicator */}
-      <div className={`fixed top-18 right-2 sm:top-24 sm:right-8 bg-white/95 backdrop-blur shadow-md sm:shadow-lg rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center space-x-1.5 sm:space-x-2 z-40 text-xs sm:text-sm transition-opacity ${isPaused ? 'opacity-60' : 'opacity-100'}`}>
-        <Coins className="text-yellow-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-        <span className="font-bold text-gray-800 whitespace-nowrap">Pending ₱{pendingEarned.toFixed(3)}</span>
-        {isPaused && <span className="text-[10px] sm:text-xs text-red-500 ml-1 sm:ml-2">(Paused)</span>}
+    <div className="bg-[#FAF9F6] min-h-screen pb-24 relative">
+      {/* Floating Indicators Container */}
+      <div className="fixed top-18 right-2 sm:top-24 sm:right-8 flex flex-col items-end gap-2 z-40">
+        {/* Floating Coins Indicator */}
+        <div className={`bg-white/95 backdrop-blur shadow-md sm:shadow-lg rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm transition-opacity ${isPaused ? 'opacity-60' : 'opacity-100'}`}>
+          <Coins className="text-yellow-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+          <span className="font-bold text-gray-800 whitespace-nowrap">Pending ₱{pendingEarned.toFixed(3)}</span>
+          {isPaused && <span className="text-[10px] sm:text-xs text-red-500 ml-1 sm:ml-2">(Paused)</span>}
+        </div>
+
+        {/* Floating Reactions Drawer Toggle Button */}
+        <button
+          onClick={() => setIsAnnotationsDrawerOpen(true)}
+          className="bg-white/95 backdrop-blur shadow-md sm:shadow-lg rounded-full px-3 py-1.5 flex items-center gap-1.5 text-xs text-gray-700 hover:text-primary transition-colors cursor-pointer border border-gray-200"
+          title="View chapter reactions and comments"
+        >
+          <MessageSquare className="w-4 h-4 text-primary" />
+          <span className="font-medium">Reactions</span>
+        </button>
       </div>
 
       {earningsError && (
@@ -97,11 +127,24 @@ export default function ReaderPage() {
         </div>
       )}
 
+      {/* Floating Selection Tool for Annotations */}
+      <TextAnnotationBar
+        partId={partId!}
+        containerRef={contentRef}
+      />
+
       <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8 relative">
         <Link to={`/story/${storyId}`} className="inline-flex items-center text-xs sm:text-sm text-gray-500 hover:text-primary mb-6 sm:mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
           Back to Story
         </Link>
+
+        {/* Chapter Header Image if present */}
+        {part.headerImageUrl && (
+          <div className="w-full h-48 sm:h-64 rounded-xl overflow-hidden mb-6 sm:mb-8 shadow-sm">
+            <img src={part.headerImageUrl} alt={part.title} className="w-full h-full object-cover" />
+          </div>
+        )}
         
         <div className="text-center mb-8 sm:mb-12">
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 font-serif break-words">{part.title}</h1>
@@ -134,6 +177,13 @@ export default function ReaderPage() {
         parts={allParts} 
         currentPartId={partId!} 
         onPartSelect={(newPartId) => navigate(`/story/${storyId}/read/${newPartId}`)} 
+      />
+
+      <ChapterAnnotationsDrawer
+        partId={partId!}
+        isOpen={isAnnotationsDrawerOpen}
+        onClose={() => setIsAnnotationsDrawerOpen(false)}
+        onSelectPassage={handleSelectPassage}
       />
 
       <ActionDialog

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Models\Notification;
 use App\Models\PartAnnotation;
 use App\Models\Review;
 use App\Models\Story;
+use App\Models\StoryPart;
 use App\Models\User;
 use App\Models\UserStoryLike;
 use Illuminate\Http\Request;
@@ -25,10 +27,32 @@ class InteractionController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        DB::table('follows')->insertOrIgnore([
+        if ($userId === $validated['followedId']) {
+            return response()->json(['message' => 'You cannot follow yourself.'], 422);
+        }
+
+        $inserted = DB::table('follows')->insertOrIgnore([
             'followerId' => $userId,
             'followedId' => $validated['followedId'],
         ]);
+
+        if ($inserted) {
+            User::where('id', $userId)->increment('following');
+            User::where('id', $validated['followedId'])->increment('followers');
+
+            Notification::create([
+                'id' => Str::uuid()->toString(),
+                'userId' => $validated['followedId'],
+                'type' => 'FOLLOW',
+                'actorId' => $userId,
+                'actorName' => $request->user()->username,
+                'actorProfileImageUrl' => $request->user()->profileImageUrl,
+                'content' => $request->user()->username . ' started following you',
+                'timestamp' => time() * 1000,
+                'isRead' => false,
+                'isActorVerified' => (bool)$request->user()->isVerified,
+            ]);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -43,10 +67,15 @@ class InteractionController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        DB::table('follows')
+        $deleted = DB::table('follows')
             ->where('followerId', $userId)
             ->where('followedId', $validated['followedId'])
             ->delete();
+
+        if ($deleted) {
+            User::where('id', $userId)->where('following', '>', 0)->decrement('following');
+            User::where('id', $validated['followedId'])->where('followers', '>', 0)->decrement('followers');
+        }
 
         return response()->json(['success' => true]);
     }
@@ -109,6 +138,62 @@ class InteractionController extends Controller
             'isSenderVerified' => $user->isVerified,
         ]);
 
+        // If threaded reply, notify parent message author
+        if (!empty($validated['parentId'])) {
+            $parent = Conversation::find($validated['parentId']);
+            if ($parent && $parent->senderId !== $user->id) {
+                Notification::create([
+                    'id' => Str::uuid()->toString(),
+                    'userId' => $parent->senderId,
+                    'type' => 'REPLY',
+                    'actorId' => $user->id,
+                    'actorName' => $user->username,
+                    'actorProfileImageUrl' => $user->profileImageUrl,
+                    'content' => $user->username . ' replied to your comment on the author wall',
+                    'timestamp' => time() * 1000,
+                    'isRead' => false,
+                    'isActorVerified' => (bool)$user->isVerified,
+                ]);
+            }
+        } elseif ($validated['authorId'] !== $user->id) {
+            // New wall post, notify wall owner
+            Notification::create([
+                'id' => Str::uuid()->toString(),
+                'userId' => $validated['authorId'],
+                'type' => 'CONVERSATION',
+                'actorId' => $user->id,
+                'actorName' => $user->username,
+                'actorProfileImageUrl' => $user->profileImageUrl,
+                'content' => $user->username . ' posted on your message wall',
+                'timestamp' => time() * 1000,
+                'isRead' => false,
+                'isActorVerified' => (bool)$user->isVerified,
+            ]);
+        }
+
+        // Scan for @mentions
+        if (preg_match_all('/@([a-zA-Z0-9_]+)/', $validated['message'], $matches)) {
+            $mentionedUsernames = array_unique($matches[1]);
+            $mentionedUsers = User::whereIn('username', $mentionedUsernames)
+                ->where('id', '!=', $user->id)
+                ->get();
+
+            foreach ($mentionedUsers as $mUser) {
+                Notification::create([
+                    'id' => Str::uuid()->toString(),
+                    'userId' => $mUser->id,
+                    'type' => 'MENTION',
+                    'actorId' => $user->id,
+                    'actorName' => $user->username,
+                    'actorProfileImageUrl' => $user->profileImageUrl,
+                    'content' => $user->username . ' mentioned you in a message on the author wall',
+                    'timestamp' => time() * 1000,
+                    'isRead' => false,
+                    'isActorVerified' => (bool)$user->isVerified,
+                ]);
+            }
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -134,6 +219,21 @@ class InteractionController extends Controller
         $conversation->increment('likes', $validated['delta']);
         $conversation->update(['isLiked' => $validated['delta'] > 0]);
 
+        if ($validated['delta'] > 0 && $conversation->senderId !== $request->user()->id) {
+            Notification::create([
+                'id' => Str::uuid()->toString(),
+                'userId' => $conversation->senderId,
+                'type' => 'CONVERSATION_LIKE',
+                'actorId' => $request->user()->id,
+                'actorName' => $request->user()->username,
+                'actorProfileImageUrl' => $request->user()->profileImageUrl,
+                'content' => $request->user()->username . ' liked your message',
+                'timestamp' => time() * 1000,
+                'isRead' => false,
+                'isActorVerified' => (bool)$request->user()->isVerified,
+            ]);
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -158,6 +258,10 @@ class InteractionController extends Controller
 
         $user = $request->user();
 
+        if (Review::where('storyId', $storyId)->where('userId', $user->id)->exists()) {
+            return response()->json(['message' => 'You have already reviewed this story.'], 422);
+        }
+
         Review::create([
             'id' => Str::uuid()->toString(),
             'storyId' => $storyId,
@@ -169,6 +273,24 @@ class InteractionController extends Controller
             'timestamp' => time() * 1000,
             'isUserVerified' => $user->isVerified,
         ]);
+
+        $story = Story::find($storyId);
+        if ($story && $story->authorId !== $user->id) {
+            Notification::create([
+                'id' => Str::uuid()->toString(),
+                'userId' => $story->authorId,
+                'type' => 'REVIEW',
+                'actorId' => $user->id,
+                'actorName' => $user->username,
+                'actorProfileImageUrl' => $user->profileImageUrl,
+                'storyId' => $story->id,
+                'storyTitle' => $story->title,
+                'content' => $user->username . ' gave "' . $story->title . '" a ' . $validated['rating'] . '-star review',
+                'timestamp' => time() * 1000,
+                'isRead' => false,
+                'isActorVerified' => (bool)$user->isVerified,
+            ]);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -203,6 +325,23 @@ class InteractionController extends Controller
         } else {
             UserStoryLike::create(['userId' => $userId, 'storyId' => $storyId]);
             $story->increment('likes');
+
+            if ($story->authorId !== $userId) {
+                Notification::create([
+                    'id' => Str::uuid()->toString(),
+                    'userId' => $story->authorId,
+                    'type' => 'LIKE',
+                    'actorId' => $userId,
+                    'actorName' => $request->user()->username,
+                    'actorProfileImageUrl' => $request->user()->profileImageUrl,
+                    'storyId' => $story->id,
+                    'storyTitle' => $story->title,
+                    'content' => $request->user()->username . ' liked your story "' . $story->title . '"',
+                    'timestamp' => time() * 1000,
+                    'isRead' => false,
+                    'isActorVerified' => (bool)$request->user()->isVerified,
+                ]);
+            }
         }
 
         return response()->json(['success' => true, 'newLikes' => $story->likes]);
@@ -253,6 +392,28 @@ class InteractionController extends Controller
             'timestamp' => time() * 1000,
             'isUserVerified' => $user->isVerified,
         ]);
+
+        $part = StoryPart::with('story')->find($partId);
+        if ($part && $part->story && $part->story->authorId !== $user->id) {
+            Notification::create([
+                'id' => Str::uuid()->toString(),
+                'userId' => $part->story->authorId,
+                'type' => $validated['type'] === 'LIKE' ? 'LIKE' : 'REVIEW',
+                'actorId' => $user->id,
+                'actorName' => $user->username,
+                'actorProfileImageUrl' => $user->profileImageUrl,
+                'storyId' => $part->story->id,
+                'storyTitle' => $part->story->title,
+                'partId' => $part->id,
+                'partTitle' => $part->title,
+                'content' => $validated['type'] === 'LIKE'
+                    ? $user->username . ' liked a passage in "' . $part->title . '"'
+                    : $user->username . ' commented on a passage in "' . $part->title . '"',
+                'timestamp' => time() * 1000,
+                'isRead' => false,
+                'isActorVerified' => (bool)$user->isVerified,
+            ]);
+        }
 
         return response()->json(['success' => true]);
     }
