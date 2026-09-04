@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import BottomNavBar from '../components/BottomNavBar';
 import UserMenu from '../components/UserMenu';
+import { NotificationBell } from '../components/notifications/NotificationBell';
 import { DailyLoginRewardPanel } from '../components/DailyLoginRewardPanel';
 
 export default function AppLayout() {
@@ -43,7 +44,10 @@ export default function AppLayout() {
                   </Link>
                 </>
               ) : (
-                <UserMenu />
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <NotificationBell />
+                  <UserMenu />
+                </div>
               )}
             </div>
           </div>

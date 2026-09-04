@@ -9,9 +9,15 @@ use Illuminate\Support\Str;
 
 class NotificationController extends Controller
 {
-    public function index($userId)
+    public function index(Request $request, $userId = null)
     {
-        $notifications = Notification::where('userId', $userId)
+        $targetUserId = $userId ?? $request->user()->id;
+
+        if ($targetUserId !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $notifications = Notification::where('userId', $targetUserId)
             ->orderByDesc('is_pinned')
             ->orderByDesc('timestamp')
             ->get();
@@ -45,9 +51,15 @@ class NotificationController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function unreadCount($userId)
+    public function unreadCount(Request $request, $userId = null)
     {
-        $count = Notification::where('userId', $userId)->where('isRead', false)->count();
+        $targetUserId = $userId ?? $request->user()->id;
+
+        if ($targetUserId !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $count = Notification::where('userId', $targetUserId)->where('isRead', false)->count();
 
         return response()->json(['count' => $count]);
     }
@@ -65,13 +77,15 @@ class NotificationController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function markAllAsRead(Request $request, $userId)
+    public function markAllAsRead(Request $request, $userId = null)
     {
-        if ($userId !== $request->user()->id) {
+        $targetUserId = $userId ?? $request->user()->id;
+
+        if ($targetUserId !== $request->user()->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        Notification::where('userId', $userId)->where('isRead', false)->update(['isRead' => true]);
+        Notification::where('userId', $targetUserId)->where('isRead', false)->update(['isRead' => true]);
 
         return response()->json(['success' => true]);
     }
