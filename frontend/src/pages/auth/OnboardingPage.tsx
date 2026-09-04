@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { LoaderCircle } from 'lucide-react';
+import { STORY_GENRES } from '../../constants/genres';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { useFeedback } from '../../components/feedback/feedback';
 
@@ -22,8 +23,6 @@ export default function OnboardingPage() {
       setStep(user.onboardingStep);
     }
   }, [user?.onboardingStep]);
-
-  const availableGenres = ['Romance', 'Fantasy', 'Sci-Fi', 'Mystery', 'Thriller', 'Horror', 'Historical', 'Action', 'Adventure'];
 
   const handleGenderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,10 +75,10 @@ export default function OnboardingPage() {
   const toggleGenre = (genre: string) => {
     if (genres.includes(genre)) {
       setGenres(genres.filter(g => g !== genre));
-    } else if (genres.length < 5) {
+    } else if (genres.length < 8) {
       setGenres([...genres, genre]);
     } else {
-      feedback.warning('You can select up to five genres.');
+      feedback.warning('You can select up to eight genres.');
     }
   };
 
@@ -96,9 +95,9 @@ export default function OnboardingPage() {
       {step === 1 && (
         <form onSubmit={handleGenderSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-3">What is your gender?</label>
+            <label className="block text-sm font-medium mb-3">What is your sex?</label>
             <div className="space-y-2">
-              {['Male', 'Female', 'Non-binary', 'Prefer not to say'].map((g) => (
+              {['Male', 'Female'].map((g) => (
                 <label key={g} className="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700">
                   <input type="radio" name="gender" value={g} checked={gender === g} onChange={() => setGender(g)} disabled={pendingStep === 1} required />
                   <span>{g}</span>
@@ -136,9 +135,9 @@ export default function OnboardingPage() {
       {step === 3 && (
         <form onSubmit={handleGenresSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">Select your favorite genres (up to 5)</label>
+            <label className="block text-sm font-medium mb-2">What are your preferred genres? (up to 8)</label>
             <div className="flex flex-wrap gap-2">
-              {availableGenres.map((g) => (
+              {STORY_GENRES.map((g) => (
                 <button
                   key={g}
                   type="button"

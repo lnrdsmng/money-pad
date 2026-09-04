@@ -49,7 +49,7 @@ class UserController extends Controller
         }
 
         $validated = $request->validate([
-            'gender' => 'required|string',
+            'gender' => 'required|string|in:Male,Female',
         ]);
 
         $user->update(['gender' => $validated['gender'], 'onboardingStep' => 2]);
