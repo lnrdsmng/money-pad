@@ -2,10 +2,15 @@
 
 @theme {
   --color-primary: #47AA57;
+  --color-primary-hover: #3d934b;
   --color-secondary: #F5E9DA;
+  --color-secondary-dark: #2A241E;
   --color-accent: #EF3F30;
+  --color-accent-hover: #d73325;
+  --color-canvas: #FAF9F6;
+  --color-canvas-dark: #090d16;
 }
 
 body {
-  @apply bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100;
+  @apply bg-[#FAF9F6] text-slate-900 dark:bg-slate-950 dark:text-slate-100;
 }
