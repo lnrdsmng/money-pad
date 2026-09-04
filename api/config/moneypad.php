@@ -5,7 +5,8 @@ return [
     'symbol' => '₱',
     'conversion' => ['coins_to_cash_ratio' => (float) env('COIN_TO_PHP_RATE', 0.01)],
     'rewards' => [
-        'ad_watch_coins' => 100.0,
+        'ad_watch_coins' => 2.0,
+        'ad_watch_cooldown_seconds' => 60,
         'referral_bonus' => 1000.0,
         'new_account_timezone' => 'Asia/Manila',
         'new_account_daily_coins' => [1, 2, 2, 3, 4, 5, 8],

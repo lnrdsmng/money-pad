@@ -134,6 +134,7 @@ Route::prefix('v1')->group(function () {
         // Transactions
         Route::get('/users/{userId}/transactions', [TransactionController::class, 'index']);
         Route::post('/transactions/withdraw', [TransactionController::class, 'withdraw']);
+        Route::get('/transactions/ad-watch/status', [TransactionController::class, 'adWatchStatus']);
         Route::post('/transactions/ad-watch', [TransactionController::class, 'adWatch']);
 
         // Pending reading income and claims

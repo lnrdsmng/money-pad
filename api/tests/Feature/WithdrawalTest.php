@@ -122,7 +122,7 @@ class WithdrawalTest extends TestCase
     public function test_automatic_withdrawal_triggered_on_ad_watch(): void
     {
         $user = User::factory()->create([
-            'readerCoins' => 950,
+            'readerCoins' => 1048,
             'payment_method' => 'Maya',
             'payment_account_info' => '09191234567',
         ]);
@@ -133,7 +133,7 @@ class WithdrawalTest extends TestCase
             'watchedAt' => time() * 1000,
         ])->assertOk();
 
-        // 950 + 100 = 1050 coins -> triggers ₱10.50 withdrawal
+        // 1048 + 2 = 1050 coins -> triggers ₱10.50 withdrawal
         $this->assertDatabaseHas('withdrawal_requests', [
             'userId' => $user->id,
             'amount' => '10.50',

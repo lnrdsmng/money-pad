@@ -6,6 +6,7 @@ import { DollarSign, BookOpen, Banknote, AlertCircle, Settings, Clock, Sparkles,
 import { WithdrawalFlowModal } from '../components/WithdrawalFlowModal';
 import { UpgradePlanModal } from '../components/UpgradePlanModal';
 import { ReadingIncomeSection } from '../components/ReadingIncomeSection';
+import { WatchAdsTaskSection } from '../components/earnings/WatchAdsTaskSection';
 import { ReferralProgramSection } from '../components/earnings/ReferralProgramSection';
 import { WithdrawalTermsCard } from '../components/WithdrawalTermsCard';
 import { formatCoins, formatPesoFromCoins } from '../utils/money';
@@ -127,6 +128,8 @@ export const EarningsDashboard = () => {
       </div>
 
       <ReadingIncomeSection />
+
+      <WatchAdsTaskSection />
 
       <ReferralProgramSection />
 
