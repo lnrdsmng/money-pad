@@ -113,7 +113,9 @@ export const NotificationBell = () => {
     setIsOpen(false);
 
     // Deep link navigation
-    if (item.type === 'VERIFIED') {
+    if (['CHAT_REPLY', 'CHAT_MENTION', 'CHAT_LIKE'].includes(item.type)) {
+      navigate(item.partId ? `/community?messageId=${item.partId}` : '/community');
+    } else if (item.type === 'VERIFIED') {
       navigate('/writer/verification');
     } else if (item.type === 'REFERRAL_REWARD' || item.type === 'EARNINGS') {
       navigate('/earnings');
@@ -130,6 +132,7 @@ export const NotificationBell = () => {
     switch (type) {
       case 'LIKE':
       case 'CONVERSATION_LIKE':
+      case 'CHAT_LIKE':
         return <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />;
       case 'FOLLOW':
         return <UserPlus className="w-4 h-4 text-blue-500" />;
@@ -141,6 +144,8 @@ export const NotificationBell = () => {
       case 'CONVERSATION':
       case 'REPLY':
       case 'MENTION':
+      case 'CHAT_REPLY':
+      case 'CHAT_MENTION':
         return <MessageSquare className="w-4 h-4 text-purple-500" />;
       case 'VERIFIED':
         return <ShieldCheck className="w-4 h-4 text-emerald-500" />;
@@ -269,7 +274,13 @@ export const NotificationBell = () => {
                         <strong className="font-semibold text-gray-900 dark:text-gray-100">
                           {item.actorName || 'System'}
                         </strong>{' '}
-                        {item.content || 'interacted with your profile.'}
+                        {(() => {
+                          const text = item.content || 'interacted with your profile.';
+                          if (item.actorName && text.startsWith(item.actorName + ' ')) {
+                            return text.slice(item.actorName.length + 1);
+                          }
+                          return text;
+                        })()}
                       </p>
                       {item.storyTitle && (
                         <p className="text-[11px] text-gray-400 truncate mt-0.5 font-medium">
