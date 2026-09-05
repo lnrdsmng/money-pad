@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { LoaderCircle } from 'lucide-react';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -36,22 +36,22 @@ export default function LoginPage() {
       {error && <div role="alert" className="mb-4 text-accent text-center">{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Username</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Username</label>
           <input
             type="text"
             placeholder="Username"
-            className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600"
+            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
           />
         </div>
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-1">Password</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Password</label>
           <input
             type="password"
             placeholder="Password"
-            className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600"
+            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -61,11 +61,17 @@ export default function LoginPage() {
           type="submit"
           disabled={isSubmitting}
           aria-busy={isSubmitting}
-          className="flex w-full items-center justify-center gap-2 rounded bg-primary p-2 text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded bg-primary p-2 text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
         >
           {isSubmitting && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {isSubmitting ? 'Signing in...' : 'Login'}
         </button>
+        <div className="mt-4 text-center text-sm">
+          <span className="text-gray-600 dark:text-gray-400">Don't have an account? </span>
+          <Link to="/register" className="font-medium text-primary hover:text-green-500">
+            Sign up
+          </Link>
+        </div>
       </form>
     </div>
   );

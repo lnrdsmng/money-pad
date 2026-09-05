@@ -26,14 +26,14 @@ export const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps>
   return (
     <div className="mt-2">
       <div className="flex justify-between items-center mb-1">
-        <span className="text-xs text-gray-500 font-medium">Password Strength</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Password Strength</span>
         <span className={`text-xs font-bold ${color.replace('bg-', 'text-')}`}>{label}</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-1.5">
+      <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
         <div className={`${color} ${width} h-1.5 rounded-full transition-all duration-300`}></div>
       </div>
       {label === 'Weak' && (
-        <p className="text-xs text-red-500 mt-1">
+        <p className="text-xs text-red-500 dark:text-red-400 mt-1">
           Must be at least 8 characters with uppercase, lowercase, and numbers.
         </p>
       )}

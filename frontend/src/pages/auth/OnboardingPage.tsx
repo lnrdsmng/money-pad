@@ -95,7 +95,7 @@ export default function OnboardingPage() {
       {step === 1 && (
         <form onSubmit={handleGenderSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-3">What is your gender?</label>
+            <label className="block text-sm font-medium mb-3">What is your sex?</label>
             <div className="space-y-2">
               {['Male', 'Female'].map((g) => (
                 <label key={g} className="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700">
