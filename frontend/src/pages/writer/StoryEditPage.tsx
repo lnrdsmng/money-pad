@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Upload, BookOpen, LoaderCircle } from 'lucide-react';
 import http from '../../api/http';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -16,6 +17,24 @@ export default function StoryEditPage() {
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [isMature, setIsMature] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  const handleUploadCover = async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    setIsUploadingCover(true);
+    try {
+      const res = await http.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setCoverImageUrl(res.data.url);
+      feedback.success('Cover image uploaded.');
+    } catch (error) {
+      feedback.error(getApiErrorMessage(error, 'Cover upload failed.'));
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
 
   const { data: story, isLoading } = useQuery({
     queryKey: ['story', storyId],
@@ -139,14 +158,49 @@ export default function StoryEditPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cover Image URL</label>
-          <input
-            type="url"
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
-            placeholder="https://example.com/image.jpg"
-            className="w-full p-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            Story Cover Image (Recommended 2:3 ratio)
+          </label>
+          <div className="flex flex-col xs:flex-row items-center gap-4 p-4 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-900/40">
+            <div className="w-24 h-36 rounded-lg bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden shrink-0 flex items-center justify-center text-xs text-gray-400 shadow-xs">
+              {coverImageUrl ? (
+                <img src={coverImageUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-[11px] text-gray-400 p-2 text-center">
+                  <BookOpen className="w-6 h-6 opacity-40" />
+                  <span>No Cover</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-center xs:items-start gap-2.5 w-full min-w-0">
+              <label className="inline-flex w-full xs:w-auto items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 rounded-xl cursor-pointer transition shadow-xs">
+                {isUploadingCover ? <LoaderCircle className="w-4 h-4 animate-spin text-primary" /> : <Upload className="w-4 h-4 text-primary" />}
+                <span>{isUploadingCover ? 'Uploading...' : coverImageUrl ? 'Change Cover' : 'Upload Cover'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isUploadingCover}
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) handleUploadCover(e.target.files[0]);
+                  }}
+                />
+              </label>
+              {coverImageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setCoverImageUrl('')}
+                  className="text-xs text-red-500 hover:underline cursor-pointer"
+                >
+                  Remove Cover
+                </button>
+              )}
+              <p className="text-xs text-gray-400 text-center xs:text-left">
+                PNG, JPG or WebP up to 2MB
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
