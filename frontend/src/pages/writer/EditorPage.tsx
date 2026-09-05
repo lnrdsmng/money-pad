@@ -1,7 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
-import Image from '@tiptap/extension-image';
+import ImageResize from 'tiptap-extension-resize-image';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,9 +21,9 @@ import {
   Image as LucideImage,
 } from 'lucide-react';
 import http from '../../api/http';
-import { ActionDialog } from '../../components/feedback/ActionDialog';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { formatChapterHtml } from '../../utils/formatHtml';
 
 export default function EditorPage() {
   const { storyId, partId } = useParams();
@@ -34,8 +34,8 @@ export default function EditorPage() {
   const [title, setTitle] = useState('');
   const [headerImageUrl, setHeaderImageUrl] = useState('');
   const [pendingAction, setPendingAction] = useState<'draft' | 'publish' | null>(null);
-  const [showImageDialog, setShowImageDialog] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
+  const [isUploadingInlineImage, setIsUploadingInlineImage] = useState(false);
+  const inlineImageInputRef = useRef<HTMLInputElement>(null);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isUploadingHeader, setIsUploadingHeader] = useState(false);
@@ -54,7 +54,13 @@ export default function EditorPage() {
   });
 
   const editor = useEditor({
-    extensions: [StarterKit, Highlight, Image],
+    extensions: [
+      StarterKit,
+      Highlight,
+      ImageResize.configure({
+        inline: false,
+      }),
+    ],
     content: '',
     editorProps: {
       attributes: {
@@ -132,6 +138,30 @@ export default function EditorPage() {
     }
   };
 
+  const handleUploadInlineImage = async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    setIsUploadingInlineImage(true);
+    try {
+      const res = await http.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data.url;
+      if (url && editor) {
+        editor.chain().focus().setImage({ src: url }).run();
+        setAutosaveStatus('dirty');
+        feedback.success('Image inserted into chapter.');
+      }
+    } catch (error) {
+      feedback.error(getApiErrorMessage(error, 'Image upload failed.'));
+    } finally {
+      setIsUploadingInlineImage(false);
+      if (inlineImageInputRef.current) {
+        inlineImageInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleSave = async (publish: boolean = false) => {
     if (!editor) return;
     if (pendingAction) return;
@@ -147,6 +177,10 @@ export default function EditorPage() {
 
       await http.put(`/parts/${partId}`, payload);
       await queryClient.invalidateQueries({ queryKey: ['parts', storyId] });
+      if (publish) {
+        await queryClient.invalidateQueries({ queryKey: ['story', storyId] });
+        await queryClient.invalidateQueries({ queryKey: ['stories'] });
+      }
       setAutosaveStatus('saved');
       if (publish) {
         feedback.success('Chapter published successfully!');
@@ -248,44 +282,55 @@ export default function EditorPage() {
         className="w-full p-3 sm:p-4 text-lg sm:text-2xl font-bold border border-gray-200 dark:border-slate-700 rounded-xl dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary shadow-xs"
       />
 
-      {/* Chapter Header Banner Input */}
-      <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex-1 w-full">
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
-            Chapter Header Banner (Optional)
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              placeholder="https://example.com/chapter-banner.jpg"
-              value={headerImageUrl}
-              onChange={(e) => {
-                setHeaderImageUrl(e.target.value);
-                setAutosaveStatus('dirty');
-              }}
-              className="flex-1 text-xs p-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100"
-            />
-            <label className="px-3 py-1.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 text-xs font-medium rounded-lg cursor-pointer transition flex items-center gap-1.5 shrink-0">
-              {isUploadingHeader ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              <span>Upload</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={isUploadingHeader}
-                onChange={(e) => {
-                  if (e.target.files?.[0]) handleUploadHeader(e.target.files[0]);
-                }}
-              />
-            </label>
+      {/* Chapter Header Banner Section */}
+      <div className="bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {headerImageUrl ? (
+            <div className="w-20 h-12 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 shrink-0">
+              <img src={headerImageUrl} alt="Header Preview" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-20 h-12 rounded-lg border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 flex items-center justify-center text-[10px] text-gray-400 shrink-0">
+              No Banner
+            </div>
+          )}
+          <div>
+            <span className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+              Chapter Header Banner (Optional)
+            </span>
+            <span className="block text-[11px] text-gray-400">
+              Displayed at the top of your chapter
+            </span>
           </div>
         </div>
 
-        {headerImageUrl && (
-          <div className="w-20 h-12 rounded-lg overflow-hidden border border-gray-200 shrink-0">
-            <img src={headerImageUrl} alt="Header Preview" className="w-full h-full object-cover" />
-          </div>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="px-3 py-1.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-xs font-medium text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer transition flex items-center gap-1.5">
+            {isUploadingHeader ? <LoaderCircle className="w-3.5 h-3.5 animate-spin text-primary" /> : <Upload className="w-3.5 h-3.5 text-primary" />}
+            <span>{isUploadingHeader ? 'Uploading...' : headerImageUrl ? 'Change Banner' : 'Upload Banner'}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={isUploadingHeader}
+              onChange={(e) => {
+                if (e.target.files?.[0]) handleUploadHeader(e.target.files[0]);
+              }}
+            />
+          </label>
+          {headerImageUrl && (
+            <button
+              type="button"
+              onClick={() => {
+                setHeaderImageUrl('');
+                setAutosaveStatus('dirty');
+              }}
+              className="text-xs text-red-500 hover:underline cursor-pointer px-2 py-1.5"
+            >
+              Remove
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Editor Toolbar & Content */}
@@ -337,13 +382,28 @@ export default function EditorPage() {
           </button>
           <button
             type="button"
-            onClick={() => setShowImageDialog(true)}
-            title="Image"
-            aria-label="Image"
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition cursor-pointer"
+            onClick={() => inlineImageInputRef.current?.click()}
+            disabled={isUploadingInlineImage}
+            title="Insert Image from Gallery / Device"
+            aria-label="Insert Image from Gallery / Device"
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 transition cursor-pointer disabled:opacity-50"
           >
-            <LucideImage className="w-4 h-4" />
+            {isUploadingInlineImage ? (
+              <LoaderCircle className="w-4 h-4 animate-spin text-primary" />
+            ) : (
+              <LucideImage className="w-4 h-4" />
+            )}
           </button>
+          <input
+            type="file"
+            ref={inlineImageInputRef}
+            accept="image/*"
+            className="hidden"
+            disabled={isUploadingInlineImage}
+            onChange={(e) => {
+              if (e.target.files?.[0]) handleUploadInlineImage(e.target.files[0]);
+            }}
+          />
 
           <div className="ml-auto text-[11px] text-gray-400 flex items-center gap-3 pr-2">
             <span>{stats.words} words</span>
@@ -422,38 +482,12 @@ export default function EditorPage() {
               </h1>
               <div
                 className="prose prose-base sm:prose-lg max-w-none prose-p:leading-relaxed sm:prose-p:leading-loose"
-                dangerouslySetInnerHTML={{ __html: editor?.getHTML() || '' }}
+                dangerouslySetInnerHTML={{ __html: formatChapterHtml(editor?.getHTML() || '') }}
               />
             </div>
           </div>
         </div>
       )}
-
-      {/* INSERT IMAGE DIALOG */}
-      <ActionDialog
-        open={showImageDialog}
-        title="Insert image"
-        description="Enter a public image URL to insert it at the current cursor position."
-        confirmLabel="Insert image"
-        input={{
-          label: 'Image URL',
-          value: imageUrl,
-          onChange: setImageUrl,
-          placeholder: 'https://example.com/image.jpg',
-          required: true,
-          type: 'url',
-        }}
-        onCancel={() => {
-          setShowImageDialog(false);
-          setImageUrl('');
-        }}
-        onConfirm={() => {
-          editor?.chain().focus().setImage({ src: imageUrl.trim() }).run();
-          setShowImageDialog(false);
-          setImageUrl('');
-          feedback.info('Image inserted into chapter.');
-        }}
-      />
     </div>
   );
 }
