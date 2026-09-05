@@ -24,6 +24,7 @@ export type WithdrawalStatus =
 
 export interface WithdrawalAccountSnapshot {
   payment_method?: string;
+  payment_account_name?: string | null;
   payment_account_info?: string;
   bank_name?: string | null;
   username?: string;

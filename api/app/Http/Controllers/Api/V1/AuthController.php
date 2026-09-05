@@ -118,7 +118,9 @@ class AuthController extends Controller
             $accessToken->delete();
         }
 
-        Auth::logout();
+        if (Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
+        }
 
         if ($request->hasSession()) {
             $request->session()->invalidate();

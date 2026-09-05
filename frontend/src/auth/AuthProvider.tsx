@@ -27,6 +27,7 @@ export interface User {
   followers?: number;
   following?: number;
   payment_method?: string;
+  payment_account_name?: string;
   payment_account_info?: string;
   bank_name?: string;
 }

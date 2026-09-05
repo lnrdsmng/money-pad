@@ -12,6 +12,7 @@ import { WithdrawalTermsCard } from '../components/WithdrawalTermsCard';
 import { CompactDailyRewardCard } from '../components/DailyLoginRewardPanel';
 import { useDailyLoginReward } from '../hooks/useDailyLoginReward';
 import { formatCoins, formatPesoFromCoins } from '../utils/money';
+import { formatPlanName } from '../utils/plan';
 import { useFeedback } from '../components/feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
 import type { WithdrawalPolicy, WithdrawalRequest } from '../types/withdrawals';
@@ -29,6 +30,7 @@ export const EarningsDashboard = () => {
 
   // Form states for payment setup
   const [method, setMethod] = useState(user?.payment_method || 'GCash');
+  const [accountName, setAccountName] = useState(user?.payment_account_name || '');
   const [account, setAccount] = useState(user?.payment_account_info || '');
   const [bankName, setBankName] = useState(user?.bank_name || '');
   const [isEditingPayment, setIsEditingPayment] = useState(!user?.payment_method);
@@ -55,6 +57,7 @@ export const EarningsDashboard = () => {
     mutationFn: async () => {
       const res = await http.put(`/users/${user?.id}/profile`, {
         payment_method: method,
+        payment_account_name: (method === 'GCash' || method === 'Maya') ? accountName : null,
         payment_account_info: account,
         bank_name: method === 'Bank Transfer' ? bankName : null,
       });
@@ -79,7 +82,8 @@ export const EarningsDashboard = () => {
   const hasPaymentDetails = Boolean(
     user?.payment_method &&
       user?.payment_account_info &&
-      (user?.payment_method !== 'Bank Transfer' || user?.bank_name)
+      (user?.payment_method !== 'Bank Transfer' || user?.bank_name) &&
+      (!['GCash', 'Maya'].includes(user?.payment_method) || user?.payment_account_name)
   );
 
   return (
@@ -96,51 +100,53 @@ export const EarningsDashboard = () => {
           onClick={() => setShowUpgradeModal(true)}
           className="flex items-center px-4 py-2.5 bg-primary text-white rounded-xl shadow-xs hover:bg-primary-hover active:scale-98 transition-all text-xs sm:text-sm font-bold cursor-pointer shrink-0"
         >
-          {user?.plan === 'free' ? 'Upgrade Plan' : `Manage ${user?.plan} Plan`}
+          {!user?.plan || user?.plan === 'free' ? 'Upgrade Plan' : `Manage ${formatPlanName(user.plan)} Plan`}
         </button>
       </div>
 
       {/* 3-Tab Segmented Navigation */}
-      <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-slate-800 rounded-2xl mb-6 sm:mb-8 max-w-xl">
+      <div className="flex gap-1 sm:gap-2 p-1 sm:p-1.5 bg-gray-100 dark:bg-slate-800 rounded-2xl mb-6 sm:mb-8 max-w-xl w-full overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === 'overview'
               ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
           }`}
         >
-          <Wallet className="w-4 h-4 text-primary" />
-          <span>Overview & Payouts</span>
+          <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
+          <span className="hidden sm:inline">Overview & Payouts</span>
+          <span className="sm:hidden">Overview</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('tasks')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer relative ${
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer relative ${
             activeTab === 'tasks'
               ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
           }`}
         >
-          <CheckCircle2 className="w-4 h-4 text-primary" />
-          <span>Daily Earning Tasks</span>
+          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
+          <span className="hidden sm:inline">Daily Earning Tasks</span>
+          <span className="sm:hidden">Tasks</span>
           {hasAvailableReward && (
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0" />
           )}
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('referrals')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === 'referrals'
               ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
           }`}
         >
-          <Users className="w-4 h-4 text-primary" />
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
           <span>Referrals</span>
         </button>
       </div>
@@ -325,6 +331,23 @@ export const EarningsDashboard = () => {
                         </div>
                       )}
 
+                      {(method === 'GCash' || method === 'Maya') && (
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Account Name
+                          </label>
+                          <input
+                            type="text"
+                            disabled={savePaymentMutation.isPending}
+                            value={accountName}
+                            onChange={(e) => setAccountName(e.target.value)}
+                            required
+                            className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-gray-100 p-2.5 text-xs sm:text-sm disabled:opacity-60"
+                            placeholder="e.g. Juan Dela Cruz"
+                          />
+                        </div>
+                      )}
+
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                           Account Number / Mobile Number
@@ -366,6 +389,12 @@ export const EarningsDashboard = () => {
                         <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Method</p>
                         <p className="font-semibold text-gray-900 dark:text-gray-100 mt-0.5">{user?.payment_method}</p>
                       </div>
+                      {(user?.payment_method === 'GCash' || user?.payment_method === 'Maya') && (
+                        <div>
+                          <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Account Name</p>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100 mt-0.5">{user?.payment_account_name || 'Not set'}</p>
+                        </div>
+                      )}
                       {user?.payment_method === 'Bank Transfer' && (
                         <div>
                           <p className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Bank Name</p>
