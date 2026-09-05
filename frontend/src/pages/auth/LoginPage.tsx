@@ -3,18 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { LoaderCircle } from 'lucide-react';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { useFeedback } from '../../components/feedback/feedback';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const feedback = useFeedback();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsSubmitting(true);
     try {
       const loggedUser = await login({ username, password });
@@ -24,7 +24,7 @@ export default function LoginPage() {
         navigate(loggedUser?.onboardingCompleted ? '/explore' : '/onboarding');
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Unable to sign in. Check your credentials and try again.'));
+      feedback.error(getApiErrorMessage(err, 'Unable to sign in. Check your credentials and try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -33,7 +33,6 @@ export default function LoginPage() {
   return (
     <div className="max-w-md mx-auto mt-6 sm:mt-10 p-4 sm:p-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700">
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-primary">Login to MoneyPad</h2>
-      {error && <div role="alert" className="mb-4 text-accent text-center">{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Username</label>

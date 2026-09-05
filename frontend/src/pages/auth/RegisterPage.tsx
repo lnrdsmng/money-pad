@@ -3,16 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { BookOpen } from 'lucide-react';
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator';
+import { useFeedback } from '../../components/feedback/feedback';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const feedback = useFeedback();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -36,17 +38,16 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (getPasswordStrength(password) === 'Weak') {
-      setError('Password is too weak');
+      feedback.warning('Password is too weak');
       return;
     }
-    setError('');
     setLoading(true);
 
     try {
       await signup({ username, email, password });
       navigate('/onboarding');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to register');
+      feedback.error(getApiErrorMessage(err, 'Failed to register'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +65,6 @@ export default function RegisterPage() {
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && <div className="text-red-500 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-950/50 border border-transparent dark:border-red-900/50 p-2 rounded">{error}</div>}
           
           <div className="rounded-md shadow-sm space-y-4">
             <div>
