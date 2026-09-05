@@ -49,9 +49,8 @@ class PlanPurchaseTest extends TestCase
         $this->actingAs($user)->withHeader('Accept', 'application/json')->post('/api/v1/plan-purchases', [
             'plan_type' => PlanType::Standard->value,
             'payment_method' => 'gcash',
-            'payment_reference' => '',
             'payment_proof' => UploadedFile::fake()->create('receipt.pdf', 100, 'application/pdf'),
-        ])->assertUnprocessable()->assertJsonValidationErrors(['payment_reference', 'payment_proof']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['payment_proof']);
 
         PlanPurchase::factory()->create(['userId' => $user->id]);
 

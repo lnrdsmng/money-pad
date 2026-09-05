@@ -42,7 +42,7 @@ class StorePlanPurchaseRequest extends FormRequest
                 Rule::exists('payment_method_settings', 'id')->where('is_active', true),
             ],
             'payment_reference' => [
-                'required',
+                'nullable',
                 'string',
                 'max:150',
             ],
