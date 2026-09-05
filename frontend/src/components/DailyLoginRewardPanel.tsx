@@ -78,7 +78,9 @@ export function DailyLoginRewardPanel({ isDismissible = true, onDismiss }: Daily
               }`}
             >
               <p className="font-semibold text-[11px] sm:text-xs">Day {day.day}</p>
-              <p className="mt-0.5 sm:mt-1 font-bold text-[11px] sm:text-xs text-stone-900 dark:text-stone-100">{Number(day.amount)} coins</p>
+              {day.status !== 'upcoming' && (
+                <p className="mt-0.5 sm:mt-1 font-bold text-[11px] sm:text-xs text-stone-900 dark:text-stone-100">{Number(day.amount)} coins</p>
+              )}
               {day.status === 'claimed' && <Check className="mx-auto mt-1 h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />}
               {day.status === 'missed' && <span className="mt-1 block text-[10px] sm:text-xs text-stone-400">Missed</span>}
               {day.status === 'upcoming' && <LockKeyhole className="mx-auto mt-1 h-3 w-3 sm:h-3.5 sm:w-3.5 text-stone-400" />}
@@ -99,8 +101,9 @@ export function DailyLoginRewardPanel({ isDismissible = true, onDismiss }: Daily
         )}
 
         {claimedToday && (
-          <p className="w-full sm:w-auto shrink-0 rounded-xl bg-primary/10 border border-primary/20 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-primary text-center">
-            ✓ Today's reward claimed
+          <p className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary/10 border border-primary/20 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-primary text-center">
+            <Check className="h-4 w-4 shrink-0" />
+            Today's reward claimed
           </p>
         )}
       </div>
