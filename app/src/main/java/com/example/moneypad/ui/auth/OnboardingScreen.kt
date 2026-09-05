@@ -142,7 +142,7 @@ fun GenderSelectionStep(
     onGenderSelect: (String) -> Unit
 ) {
     Text(
-        text = "What is your gender?",
+        text = "What is your sex?",
         fontSize = 24.sp,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.fillMaxWidth(),

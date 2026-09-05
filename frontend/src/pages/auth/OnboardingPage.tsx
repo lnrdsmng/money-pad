@@ -135,7 +135,7 @@ export default function OnboardingPage() {
       {step === 3 && (
         <form onSubmit={handleGenresSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">Select your favorite genres (up to 8)</label>
+            <label className="block text-sm font-medium mb-2">Select your preferred genres (up to 8)</label>
             <div className="flex flex-wrap gap-2">
               {STORY_GENRES.map((g) => (
                 <button
