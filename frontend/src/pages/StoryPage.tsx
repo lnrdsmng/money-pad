@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, BookOpen, ArrowRight } from 'lucide-react';
+import { Heart, BookOpen, ArrowRight, Eye } from 'lucide-react';
 import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
@@ -123,7 +123,10 @@ export default function StoryPage() {
             </div>
             
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-5">
-              <span className="px-2.5 py-1 bg-gray-100 dark:bg-slate-800 rounded-full font-medium">👁 {story.readCount} Reads</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-slate-800 rounded-full font-medium">
+                <Eye className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                {story.readCount} Reads
+              </span>
               <button
                 type="button"
                 onClick={handleLikeClick}
@@ -180,7 +183,10 @@ export default function StoryPage() {
                       className="flex justify-between items-center gap-2 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition border border-gray-100 dark:border-slate-800"
                     >
                       <span className="text-sm sm:text-base font-medium min-w-0 truncate text-gray-900 dark:text-gray-100">Part {index + 1}: {part.title}</span>
-                      <span className="text-gray-400 text-xs sm:text-sm shrink-0 whitespace-nowrap">👁 {part.readCount}</span>
+                      <span className="inline-flex items-center gap-1 text-gray-400 text-xs sm:text-sm shrink-0 whitespace-nowrap">
+                        <Eye className="w-3.5 h-3.5" />
+                        {part.readCount}
+                      </span>
                     </Link>
                   </li>
                 ))}

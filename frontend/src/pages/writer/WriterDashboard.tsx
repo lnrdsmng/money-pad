@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, BookOpen, ArrowRight, Trash2 } from 'lucide-react';
+import { ShieldCheck, BookOpen, ArrowRight, Trash2, Eye, Star } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { CreateStoryModal } from '../../components/writer/CreateStoryModal';
@@ -130,8 +130,16 @@ export default function WriterDashboard() {
                 <div>
                   <h3 className="font-bold text-base mb-1 line-clamp-1 text-gray-900 dark:text-gray-100">{story.title}</h3>
                   <p className="text-xs text-gray-500 line-clamp-2 mb-2">{story.overview}</p>
-                  <div className="text-[11px] text-gray-400">
-                    👁 {story.readCount} Reads • ⭐ {story.likes} Likes
+                  <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                    <span className="inline-flex items-center gap-1">
+                      <Eye className="w-3 h-3" />
+                      {story.readCount} Reads
+                    </span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                      {story.likes} Likes
+                    </span>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">

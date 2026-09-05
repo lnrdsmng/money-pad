@@ -77,7 +77,7 @@ export const ReferralProgramSection = () => {
       return res.data;
     },
     onSuccess: (data) => {
-      feedback.success('🎉 10 Reader Coins added to your balance!');
+      feedback.success('10 Reader Coins added to your balance!');
       if (data.user) updateUser(data.user);
       setWelcomeCode('');
       localStorage.removeItem('pending_referral_code');
@@ -308,8 +308,8 @@ export const ReferralProgramSection = () => {
                     </td>
                     <td className="py-3.5 px-3 text-right">
                       {tier.isClaimed ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400">
-                          Claimed ✓
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400">
+                          Claimed <Check className="w-3 h-3" />
                         </span>
                       ) : tier.canClaim ? (
                         <button

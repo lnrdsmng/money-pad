@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import http from '../api/http';
-import { X, Play, FastForward, CheckCircle, LoaderCircle, Sparkles } from 'lucide-react';
+import { X, Play, FastForward, CheckCircle, LoaderCircle, Sparkles, PartyPopper } from 'lucide-react';
 import { MockRewardedAd } from './MockRewardedAd';
 import { useFeedback } from './feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -120,8 +120,9 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
           {/* Task Waiver Progress */}
           {isWaived ? (
             <div className="text-center space-y-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-4 rounded-lg">
-              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-                🎉 Platform fee waived!
+              <p className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                <PartyPopper className="w-4 h-4" />
+                Platform fee waived!
               </p>
               <p className="text-xs text-emerald-700 dark:text-emerald-400">
                 You completed 10 in-app tasks. Your full payout of ₱{netAmount.toFixed(2)} is pending admin review.

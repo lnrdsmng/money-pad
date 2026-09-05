@@ -88,7 +88,10 @@ export const StoryReviewsSection = ({ storyId, storyTitle }: StoryReviewsSection
         <div className="sm:col-span-2 space-y-1.5">
           {distribution.map(({ star, count, percentage }) => (
             <div key={star} className="flex items-center gap-2 text-xs">
-              <span className="w-8 text-right font-medium text-gray-600 dark:text-gray-400">{star} ★</span>
+              <span className="inline-flex items-center justify-end gap-0.5 w-8 text-right font-medium text-gray-600 dark:text-gray-400">
+                {star}
+                <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+              </span>
               <div className="flex-1 h-2.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-400 rounded-full transition-all duration-500"

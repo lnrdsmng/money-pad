@@ -85,7 +85,7 @@ export const TextAnnotationBar = ({
         content: noteContent || null,
       });
 
-      feedback.success(type === 'LIKE' ? 'Passage liked! ❤️' : 'Annotation comment posted!');
+      feedback.success(type === 'LIKE' ? 'Passage liked!' : 'Annotation comment posted!');
       setPosition(null);
       setShowCommentInput(false);
       setComment('');

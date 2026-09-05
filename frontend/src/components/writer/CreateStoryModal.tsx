@@ -258,8 +258,8 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                   }`}
                 >
                   <span>Mature Content</span>
-                  <span className={`w-4 h-4 rounded-full border flex items-center justify-center text-[10px] ${isMature ? 'bg-accent text-white border-accent' : 'border-gray-400'}`}>
-                    {isMature ? '✓' : ''}
+                  <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${isMature ? 'bg-accent text-white border-accent' : 'border-gray-400'}`}>
+                    {isMature && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                   </span>
                 </button>
               </div>
