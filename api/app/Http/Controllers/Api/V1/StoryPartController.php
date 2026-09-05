@@ -76,8 +76,16 @@ class StoryPartController extends Controller
             'isPublished' => 'boolean',
         ]);
 
-        if (isset($validated['isPublished']) && $validated['isPublished'] && ! $part->isPublished) {
-            $validated['publishedAt'] = time() * 1000;
+        if (isset($validated['isPublished']) && $validated['isPublished']) {
+            if (! $part->isPublished) {
+                $validated['publishedAt'] = time() * 1000;
+            }
+            if (! $story->isPublished) {
+                $story->update([
+                    'isPublished' => true,
+                    'lastUpdatedAt' => time() * 1000,
+                ]);
+            }
         }
 
         $part->update($validated);

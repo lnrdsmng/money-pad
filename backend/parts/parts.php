@@ -94,10 +94,14 @@ switch ($action) {
                 $stmt->execute([$id, $storyId, $title, $content, $order, $publishedAt, $isPublished, $headerImageUrl]);
 
                 if ($isPublished === 1) {
-                    $stmtStory = $pdo->prepare("SELECT authorId, title FROM stories WHERE id = ?");
+                    $stmtStory = $pdo->prepare("SELECT authorId, title, isPublished FROM stories WHERE id = ?");
                     $stmtStory->execute([$storyId]);
                     $story = $stmtStory->fetch();
                     if ($story) {
+                        if ((int)$story['isPublished'] === 0) {
+                            $stmtPubStory = $pdo->prepare("UPDATE stories SET isPublished = 1, lastUpdatedAt = ? WHERE id = ?");
+                            $stmtPubStory->execute([$publishedAt ?: round(microtime(true) * 1000), $storyId]);
+                        }
                         notifyFollowersServer($pdo, $story['authorId'], 'NEW_PART', $storyId, $story['title'], $id, $title, $publishedAt);
                     }
                 }
@@ -136,13 +140,19 @@ switch ($action) {
             $stmt = $pdo->prepare("UPDATE story_parts SET title = ?, content = ?, `order` = ?, publishedAt = ?, isPublished = ?, headerImageUrl = ? WHERE id = ?");
             $stmt->execute([$title, $content, $order, $publishedAt, $isPublished, $headerImageUrl, $id]);
 
-            if ($isPublished === 1 && $currentPart && (int)$currentPart['isPublished'] === 0) {
+            if ($isPublished === 1) {
                 $storyId = $currentPart['storyId'];
-                $stmtStory = $pdo->prepare("SELECT authorId, title FROM stories WHERE id = ?");
+                $stmtStory = $pdo->prepare("SELECT authorId, title, isPublished FROM stories WHERE id = ?");
                 $stmtStory->execute([$storyId]);
                 $story = $stmtStory->fetch();
                 if ($story) {
-                    notifyFollowersServer($pdo, $story['authorId'], 'NEW_PART', $storyId, $story['title'], $id, $title, $publishedAt);
+                    if ((int)$story['isPublished'] === 0) {
+                        $stmtPubStory = $pdo->prepare("UPDATE stories SET isPublished = 1, lastUpdatedAt = ? WHERE id = ?");
+                        $stmtPubStory->execute([$publishedAt ?: round(microtime(true) * 1000), $storyId]);
+                    }
+                    if ($currentPart && (int)$currentPart['isPublished'] === 0) {
+                        notifyFollowersServer($pdo, $story['authorId'], 'NEW_PART', $storyId, $story['title'], $id, $title, $publishedAt);
+                    }
                 }
             }
 
