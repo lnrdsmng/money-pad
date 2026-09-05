@@ -81,28 +81,31 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2.5 sm:p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-4 sm:p-6 relative max-h-[92vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-full transition-colors"
+          className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-full transition-colors cursor-pointer"
+          aria-label="Close modal"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-2 mb-1">
-          <BookOpen className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-            Create New Story (Step {step} of 2)
-          </h2>
+        <div className="pr-8 sm:pr-0">
+          <div className="flex items-center gap-2 mb-1">
+            <BookOpen className="w-5 h-5 text-primary shrink-0" />
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
+              Create New Story (Step {step} of 2)
+            </h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-4 sm:mb-6">
+            {step === 1 ? 'Start with the basic story details and book cover' : 'Categorize your novel and target audience'}
+          </p>
         </div>
-        <p className="text-xs text-gray-500 mb-6">
-          {step === 1 ? 'Start with the basic story details and book cover' : 'Categorize your novel and target audience'}
-        </p>
 
         {/* STEP 1 */}
         {step === 1 && (
-          <div className="space-y-4">
+          <div className="space-y-3.5 sm:space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                 Story Title *
@@ -113,7 +116,7 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                 placeholder="e.g. The Alpha's Forbidden Luna"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-sm p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary"
+                className="w-full text-xs sm:text-sm p-2.5 sm:p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary"
               />
             </div>
 
@@ -122,39 +125,35 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                 Synopsis / Overview *
               </label>
               <textarea
-                rows={4}
+                rows={3}
                 required
                 placeholder="Write a compelling blurb to hook your readers..."
                 value={overview}
                 onChange={(e) => setOverview(e.target.value)}
-                className="w-full text-sm p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary"
+                className="w-full text-xs sm:text-sm p-2.5 sm:p-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 Cover Image (Recommended 2:3 ratio)
               </label>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-24 rounded-lg bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden shrink-0 flex items-center justify-center text-xs text-gray-400">
+              <div className="flex flex-col xs:flex-row items-center gap-3 p-3 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-900/40">
+                <div className="w-20 h-28 rounded-lg bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 overflow-hidden shrink-0 flex items-center justify-center text-xs text-gray-400">
                   {coverImageUrl ? (
                     <img src={coverImageUrl} alt="Cover" className="w-full h-full object-cover" />
                   ) : (
-                    'No Cover'
+                    <div className="flex flex-col items-center gap-1 text-[10px] text-gray-400 p-1 text-center">
+                      <BookOpen className="w-5 h-5 opacity-40" />
+                      <span>No Cover</span>
+                    </div>
                   )}
                 </div>
 
-                <div className="flex-1 space-y-2">
-                  <input
-                    type="url"
-                    placeholder="https://example.com/cover.jpg"
-                    value={coverImageUrl}
-                    onChange={(e) => setCoverImageUrl(e.target.value)}
-                    className="w-full text-xs p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
-                  />
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 text-xs font-medium text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer transition">
-                    {isUploadingCover ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    {isUploadingCover ? 'Uploading...' : 'Upload Image'}
+                <div className="flex flex-col items-center xs:items-start gap-2 w-full min-w-0">
+                  <label className="inline-flex w-full xs:w-auto items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs font-medium text-gray-700 dark:text-gray-200 rounded-xl cursor-pointer transition shadow-xs">
+                    {isUploadingCover ? <LoaderCircle className="w-4 h-4 animate-spin text-primary" /> : <Upload className="w-4 h-4 text-primary" />}
+                    <span>{isUploadingCover ? 'Uploading...' : coverImageUrl ? 'Change Cover' : 'Upload Cover'}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -165,11 +164,23 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                       }}
                     />
                   </label>
+                  {coverImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setCoverImageUrl('')}
+                      className="text-[11px] text-red-500 hover:underline cursor-pointer"
+                    >
+                      Remove Cover
+                    </button>
+                  )}
+                  <p className="text-[11px] text-gray-400 text-center xs:text-left">
+                    PNG, JPG or WebP up to 5MB
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-700">
+            <div className="flex justify-end pt-3 sm:pt-4 border-t border-gray-100 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => {
@@ -179,9 +190,9 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                   }
                   setStep(2);
                 }}
-                className="px-5 py-2.5 bg-primary text-white text-xs sm:text-sm font-semibold rounded-xl hover:bg-green-600 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white text-xs sm:text-sm font-semibold rounded-xl hover:bg-green-600 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
               >
-                Next: Genres & Details
+                <span>Next: Genres & Details</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -190,12 +201,12 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
 
         {/* STEP 2 */}
         {step === 2 && (
-          <div className="space-y-5">
+          <div className="space-y-4 sm:space-y-5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                 Select Genres (Up to 5)
               </label>
-              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1 border border-gray-100 dark:border-slate-700 rounded-xl">
+              <div className="flex flex-wrap gap-1.5 max-h-40 sm:max-h-48 overflow-y-auto p-1.5 border border-gray-100 dark:border-slate-700 rounded-xl">
                 {STORY_GENRES.map((genre) => {
                   const selected = selectedGenres.includes(genre);
                   return (
@@ -203,21 +214,21 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                       key={genre}
                       type="button"
                       onClick={() => handleToggleGenre(genre)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition flex items-center gap-1 cursor-pointer ${
+                      className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium transition flex items-center gap-1 cursor-pointer ${
                         selected
                           ? 'bg-primary text-white shadow-xs'
                           : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
                       }`}
                     >
                       {selected && <Check className="w-3 h-3" />}
-                      {genre}
+                      <span>{genre}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
                   Language
@@ -225,7 +236,7 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary"
+                  className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary"
                 >
                   <option value="en">English</option>
                   <option value="fil">Filipino / Tagalog</option>
@@ -240,7 +251,7 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
                 <button
                   type="button"
                   onClick={() => setIsMature(!isMature)}
-                  className={`w-full p-2.5 rounded-xl border text-xs font-medium transition flex items-center justify-between cursor-pointer ${
+                  className={`w-full p-2.5 rounded-xl border text-xs sm:text-sm font-medium transition flex items-center justify-between cursor-pointer ${
                     isMature
                       ? 'border-accent bg-accent/5 text-accent font-bold'
                       : 'border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400'
@@ -254,24 +265,24 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-slate-700">
+            <div className="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-100 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition flex items-center gap-1.5"
+                className="w-full sm:w-auto px-4 py-2.5 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Back
+                <span>Back</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleCreate}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-primary text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-green-600 transition flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-60"
+                className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-green-600 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-60"
               >
                 {isSubmitting && <LoaderCircle className="w-4 h-4 animate-spin" />}
-                {isSubmitting ? 'Creating Story...' : 'Publish Story Project'}
+                <span>{isSubmitting ? 'Creating Story...' : 'Publish Story Project'}</span>
               </button>
             </div>
           </div>
