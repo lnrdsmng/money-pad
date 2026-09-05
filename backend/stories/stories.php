@@ -150,12 +150,25 @@ switch ($action) {
 
     case 'delete':
         $storyId = $input['storyId'] ?? '';
+        $authorId = $input['authorId'] ?? '';
         if (empty($storyId)) {
             respondError("Missing story ID");
         }
 
         try {
             $pdo->beginTransaction();
+
+            $stmtCheck = $pdo->prepare("SELECT authorId FROM stories WHERE id = ?");
+            $stmtCheck->execute([$storyId]);
+            $owner = $stmtCheck->fetchColumn();
+
+            if (!$owner) {
+                respondError("Story not found", 404);
+            }
+
+            if (!empty($authorId) && $owner !== $authorId) {
+                respondError("Unauthorized to delete this story", 403);
+            }
 
             $stmt = $pdo->prepare("DELETE FROM stories WHERE id = ?");
             $stmt->execute([$storyId]);
