@@ -29,9 +29,56 @@ class UserController extends Controller
             'profileImageUrl' => 'nullable|url',
             'coverImageUrl' => 'nullable|url',
             'payment_method' => 'nullable|string|in:GCash,Maya,Bank Transfer',
+            'payment_account_name' => 'nullable|string|max:100',
             'payment_account_info' => 'nullable|string',
             'bank_name' => 'nullable|string',
         ]);
+
+        if (!empty($validated['payment_account_info'])) {
+            $digits = preg_replace('/\D+/', '', $validated['payment_account_info']);
+            if (strlen($digits) === 12 && str_starts_with($digits, '639')) {
+                $normalizedDigits = '0'.substr($digits, 2);
+            } elseif (strlen($digits) === 10 && str_starts_with($digits, '9')) {
+                $normalizedDigits = '0'.$digits;
+            } else {
+                $normalizedDigits = $digits;
+            }
+
+            $otherUsers = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereNotNull('payment_account_info')
+                ->where('payment_account_info', '!=', '')
+                ->get(['id', 'payment_account_info']);
+
+            $isDuplicate = false;
+            foreach ($otherUsers as $otherUser) {
+                if ($otherUser->payment_account_info === $validated['payment_account_info']) {
+                    $isDuplicate = true;
+                    break;
+                }
+                $otherDigits = preg_replace('/\D+/', '', $otherUser->payment_account_info);
+                if (strlen($otherDigits) === 12 && str_starts_with($otherDigits, '639')) {
+                    $otherNormalized = '0'.substr($otherDigits, 2);
+                } elseif (strlen($otherDigits) === 10 && str_starts_with($otherDigits, '9')) {
+                    $otherNormalized = '0'.$otherDigits;
+                } else {
+                    $otherNormalized = $otherDigits;
+                }
+                if (!empty($normalizedDigits) && $normalizedDigits === $otherNormalized) {
+                    $isDuplicate = true;
+                    break;
+                }
+            }
+
+            if ($isDuplicate) {
+                return response()->json([
+                    'message' => 'This account number / mobile number is already in use by another account.',
+                    'errors' => [
+                        'payment_account_info' => ['This account number / mobile number has already been used.'],
+                    ],
+                ], 422);
+            }
+        }
 
         $user->update($validated);
 

@@ -53,6 +53,7 @@ class User extends Authenticatable
         'role',
         'plan',
         'payment_method',
+        'payment_account_name',
         'payment_account_info',
         'bank_name',
         'onboardingStep',

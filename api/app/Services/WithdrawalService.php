@@ -163,6 +163,7 @@ class WithdrawalService
 
             $accountSnapshot = [
                 'payment_method' => $lockedUser->payment_method,
+                'payment_account_name' => $lockedUser->payment_account_name,
                 'payment_account_info' => $lockedUser->payment_account_info,
                 'bank_name' => $lockedUser->bank_name,
                 'username' => $lockedUser->username,
