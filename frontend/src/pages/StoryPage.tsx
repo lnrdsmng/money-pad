@@ -119,7 +119,7 @@ export default function StoryPage() {
               <Link to={`/profile/${story.authorName}`} className="font-medium hover:underline text-primary">
                 {story.authorName}
               </Link>
-              {story.isAuthorVerified && <VerifiedBadge size={16} showText />}
+              {story.isAuthorVerified && <VerifiedBadge size={16} />}
             </div>
             
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-5">

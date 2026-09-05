@@ -29,8 +29,11 @@ export default function SettingsPage() {
 
   // Appearance / Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    return document.documentElement.classList.contains('dark') ||
-      localStorage.getItem('theme') === 'dark';
+    try {
+      return localStorage.getItem('theme') === 'dark';
+    } catch {
+      return document.documentElement.classList.contains('dark');
+    }
   });
 
   const toggleDarkMode = () => {
@@ -38,10 +41,14 @@ export default function SettingsPage() {
     setIsDarkMode(nextMode);
     if (nextMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      try {
+        localStorage.setItem('theme', 'dark');
+      } catch {}
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      try {
+        localStorage.setItem('theme', 'light');
+      } catch {}
     }
   };
 
@@ -250,6 +257,9 @@ export default function SettingsPage() {
 
           <button
             type="button"
+            role="switch"
+            aria-checked={isDarkMode}
+            aria-label="Toggle dark mode"
             onClick={toggleDarkMode}
             className={`w-14 h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
               isDarkMode ? 'bg-primary justify-end' : 'bg-gray-300 justify-start'

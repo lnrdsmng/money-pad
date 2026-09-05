@@ -98,17 +98,10 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
                   </div>
                 )}
               </div>
-              <div className="flex-1 space-y-2">
-                <input
-                  type="url"
-                  placeholder="https://example.com/avatar.jpg"
-                  value={profileImageUrl}
-                  onChange={(e) => setProfileImageUrl(e.target.value)}
-                  className="w-full text-xs p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
-                />
-                <label className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-xs font-medium text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer transition">
+              <div className="flex-1">
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-xs font-medium text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer transition">
                   {isUploadingAvatar ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  {isUploadingAvatar ? 'Uploading...' : 'Upload File'}
+                  {isUploadingAvatar ? 'Uploading...' : 'Upload Photo'}
                   <input
                     type="file"
                     accept="image/*"
@@ -134,26 +127,21 @@ export const EditProfileModal = ({ onClose, onProfileUpdated }: EditProfileModal
                   <img src={coverImageUrl} alt="Cover preview" className="w-full h-full object-cover" />
                 </div>
               )}
-              <input
-                type="url"
-                placeholder="https://example.com/cover.jpg"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                className="w-full text-xs p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
-              />
-              <label className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-xs font-medium text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer transition">
-                {isUploadingCover ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                {isUploadingCover ? 'Uploading...' : 'Upload Banner'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={isUploadingCover}
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) handleFileUpload(e.target.files[0], 'cover');
-                  }}
-                />
-              </label>
+              <div>
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-xs font-medium text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer transition">
+                  {isUploadingCover ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  {isUploadingCover ? 'Uploading...' : 'Upload Banner'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isUploadingCover}
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleFileUpload(e.target.files[0], 'cover');
+                    }}
+                  />
+                </label>
+              </div>
             </div>
           </div>
 

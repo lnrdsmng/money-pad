@@ -212,7 +212,7 @@ export default function AuthorVerificationPage() {
           <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100 mb-1">
               <VerifiedBadge size={16} />
-              Blue Verified Checkmark
+              Green Verified Checkmark
             </div>
             <p className="text-xs text-gray-500">
               Instant social proof across reader pages, story covers, reviews, and profile boards.

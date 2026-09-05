@@ -11,6 +11,7 @@ export default function AppLayout() {
   const { hasAvailableReward } = useDailyLoginReward();
   
   const isImmersivePage = location.pathname.includes('/read/') || location.pathname.includes('/edit');
+  const isOnboarding = location.pathname.startsWith('/onboarding');
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FAF9F6] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -22,7 +23,7 @@ export default function AppLayout() {
                 MoneyPad
               </Link>
               
-              {user && (
+              {user && !isOnboarding && (
                 <nav className="hidden md:flex ml-10 space-x-8">
                   <Link
                     to="/explore"
@@ -90,23 +91,25 @@ export default function AppLayout() {
               )}
             </div>
             
-            <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-              {!user ? (
-                <>
-                  <Link to="/login" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium text-xs sm:text-sm px-2 py-1">
-                    Login
-                  </Link>
-                  <Link to="/register" className="bg-primary hover:bg-primary-hover text-white font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm transition shadow-xs whitespace-nowrap">
-                    Sign up
-                  </Link>
-                </>
-              ) : (
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <NotificationBell />
-                  <UserMenu />
-                </div>
-              )}
-            </div>
+            {!isOnboarding && (
+              <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+                {!user ? (
+                  <>
+                    <Link to="/login" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium text-xs sm:text-sm px-2 py-1">
+                      Login
+                    </Link>
+                    <Link to="/register" className="bg-primary hover:bg-primary-hover text-white font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm transition shadow-xs whitespace-nowrap">
+                      Sign up
+                    </Link>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <NotificationBell />
+                    <UserMenu />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>

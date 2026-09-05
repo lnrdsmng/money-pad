@@ -14,11 +14,11 @@ export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
 }) => {
   return (
     <span
-      className={`inline-flex items-center gap-1 text-blue-500 align-middle ${className}`}
+      className={`inline-flex items-center gap-1 text-primary align-middle ${className}`}
       title="Verified Author"
     >
-      <CheckCircle2 size={size} className="fill-blue-500 text-white shrink-0" />
-      {showText && <span className="text-xs font-medium text-blue-600">Verified</span>}
+      <CheckCircle2 size={size} className="fill-primary text-white shrink-0" />
+      {showText && <span className="text-xs font-medium text-primary">Verified</span>}
     </span>
   );
 };

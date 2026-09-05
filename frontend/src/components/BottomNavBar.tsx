@@ -10,11 +10,12 @@ export default function BottomNavBar() {
 
   if (!user) return null;
 
-  // Hide bottom nav on reader, editor, and admin pages
+  // Hide bottom nav on reader, editor, admin, and onboarding pages
   if (
     location.pathname.includes('/read/') || 
     location.pathname.includes('/edit') ||
-    location.pathname.startsWith('/admin')
+    location.pathname.startsWith('/admin') ||
+    location.pathname.startsWith('/onboarding')
   ) {
     return null;
   }

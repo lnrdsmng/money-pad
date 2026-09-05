@@ -123,9 +123,8 @@ export default function ProfilePage() {
             </div>
             <div className="mt-3 md:mt-0 md:ml-6 text-center md:text-left pb-2">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 flex flex-wrap items-center justify-center md:justify-start gap-1.5">
-                @{profile.username}
-                {profile.isVerified && <VerifiedBadge size={20} showText />}
-                {profile.role === 'admin' && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-medium">Admin</span>}
+                {profile.username}
+                {profile.isVerified && <VerifiedBadge size={20} />}
               </h1>
 
               {/* Followers & Following Counts */}
@@ -145,8 +144,6 @@ export default function ProfilePage() {
                 >
                   <strong className="text-gray-900 dark:text-gray-100">{profile.following || 0}</strong> Following
                 </button>
-                <span>•</span>
-                <span className="text-[11px] text-gray-400 dark:text-gray-500">Coming soon</span>
               </div>
 
               {profile.bio && <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 max-w-lg">{profile.bio}</p>}
