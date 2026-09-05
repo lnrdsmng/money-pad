@@ -112,39 +112,39 @@ export function ReadingIncomeSection() {
           </div>
 
           {createClaim.isError && (
-            <div className="flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <div className="flex gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               Your available income could not be claimed. Refresh and try again.
             </div>
           )}
 
-          {incomeQuery.isLoading && <p className="py-8 text-center text-sm text-slate-500">Loading income…</p>}
-          {incomeQuery.isError && <p className="py-8 text-center text-sm text-red-600">Income could not be loaded.</p>}
+          {incomeQuery.isLoading && <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading income…</p>}
+          {incomeQuery.isError && <p className="py-8 text-center text-sm text-red-600 dark:text-red-400">Income could not be loaded.</p>}
           {!incomeQuery.isLoading && !incomeQuery.isError && Object.keys(groupedRewards).length === 0 && (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 sm:p-8 text-center">
-              <Coins className="mx-auto h-8 w-8 text-slate-400" />
-              <p className="mt-2 text-xs sm:text-sm text-slate-500">Complete a full minute of active reading to earn income.</p>
+            <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-6 sm:p-8 text-center">
+              <Coins className="mx-auto h-8 w-8 text-slate-400 dark:text-slate-500" />
+              <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400">Complete a full minute of active reading to earn income.</p>
             </div>
           )}
 
           {Object.entries(groupedRewards).map(([date, rewards]) => (
             <div key={date} className="space-y-2">
-              <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500">{date}</p>
+              <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{date}</p>
               {rewards.map((reward) => (
-                <article key={reward.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4">
+                <article key={reward.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 p-3.5 sm:p-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{reward.story?.title ?? 'Reading reward'}</p>
-                    <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{reward.story?.title ?? 'Reading reward'}</p>
+                    <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
                       {reward.story_part?.title ? `${reward.story_part.title} · ` : ''}
                       {new Date(reward.earned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
-                  <div className="flex sm:flex-col justify-between sm:justify-start sm:text-right border-t sm:border-t-0 border-slate-100 pt-1.5 sm:pt-0 shrink-0">
+                  <div className="flex sm:flex-col justify-between sm:justify-start sm:text-right border-t sm:border-t-0 border-slate-100 dark:border-slate-800 pt-1.5 sm:pt-0 shrink-0">
                     <div>
-                      <p className="text-xs sm:text-sm font-semibold text-emerald-700">+{formatCoins(reward.amount)}</p>
-                      <p className="text-[10px] sm:text-xs text-slate-500">{formatPesoFromCoins(reward.amount)}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-400">+{formatCoins(reward.amount)}</p>
+                      <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">{formatPesoFromCoins(reward.amount)}</p>
                     </div>
-                    <p className="text-[10px] sm:text-xs text-amber-700">Expires in {formatTimeRemaining(reward.expires_at, currentTime)}</p>
+                    <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400">Expires in {formatTimeRemaining(reward.expires_at, currentTime)}</p>
                   </div>
                 </article>
               ))}
