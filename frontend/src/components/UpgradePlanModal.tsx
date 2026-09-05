@@ -83,19 +83,19 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
               const Icon = planStyles[plan.id].icon;
               const isCurrent = user?.plan === plan.id;
               return (
-                <article key={plan.id} className={`rounded-xl border-2 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm ${isCurrent ? 'border-emerald-500' : selectedPlan?.id === plan.id ? 'border-blue-500' : 'border-transparent dark:border-slate-800'}`}>
+                <article key={plan.id} className={`rounded-xl border-2 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm flex flex-col ${isCurrent ? 'border-emerald-500' : selectedPlan?.id === plan.id ? 'border-blue-500' : 'border-transparent dark:border-slate-800'}`}>
                   <Icon className="h-6 w-6 sm:h-8 sm:w-8 text-slate-700 dark:text-slate-300" />
                   <h3 className="mt-3 sm:mt-4 text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">{plan.name}</h3>
                   <p className="mt-1.5 sm:mt-2 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100">₱{Number(plan.price).toFixed(0)}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">Lifetime access</p>
-                  <ul className="my-4 sm:my-5 space-y-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                  <ul className="my-4 sm:my-5 space-y-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 flex-1">
                     <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />{Number(plan.rate_per_minute)} coins/min</li>
                     <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />{plan.ads ? 'Ad required when claiming' : '100% ad-free reading & claiming'}</li>
                     {plan.id === 'ultimate_premium' && (
                       <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />Optional withdrawal fee-waiver tasks</li>
                     )}
                   </ul>
-                  <button type="button" disabled={isCurrent || plan.id === 'free' || Boolean(pendingPurchase) || submitMutation.isPending} onClick={() => setSelectedPlan(plan)} className={`w-full rounded-lg py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white disabled:bg-slate-200 disabled:text-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 ${planStyles[plan.id].buttonClass}`}>
+                  <button type="button" disabled={isCurrent || plan.id === 'free' || Boolean(pendingPurchase) || submitMutation.isPending} onClick={() => setSelectedPlan(plan)} className={`mt-auto w-full rounded-lg py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white disabled:bg-slate-200 disabled:text-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 ${planStyles[plan.id].buttonClass}`}>
                     {isCurrent ? 'Active plan' : plan.id === 'free' ? 'Included' : 'Select plan'}
                   </button>
                 </article>
