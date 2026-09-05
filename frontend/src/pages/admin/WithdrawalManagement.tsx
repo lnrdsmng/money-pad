@@ -81,60 +81,60 @@ export const WithdrawalManagement = () => {
       new Date(req.earliest_review_at).getDate() !== new Date(req.triggered_at).getDate();
 
     return (
-      <tr key={req.id} className="hover:bg-gray-50 transition-colors">
+      <tr key={req.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
         {/* User */}
-        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
           <div>{req.user?.username || 'User'}</div>
-          <span className="text-xs text-gray-400 font-normal">{req.user?.email || req.userId.substring(0, 8)}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">{req.user?.email || req.userId.substring(0, 8)}</span>
         </td>
 
         {/* Amount & Net Payout */}
         <td className="px-6 py-4 whitespace-nowrap text-sm">
-          <div className="font-bold text-gray-900">Net: ₱{net}</div>
-          <div className="text-xs text-gray-500">Gross: ₱{gross}</div>
+          <div className="font-bold text-gray-900 dark:text-gray-100">Net: ₱{net}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Gross: ₱{gross}</div>
         </td>
 
         {/* Method & Destination Snapshot */}
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
           <div className="font-medium">{req.payment_method}</div>
-          <div className="font-mono text-xs text-gray-500">{req.payment_account_info}</div>
-          {req.bank_name && <div className="text-xs text-purple-600 font-medium">Bank: {req.bank_name}</div>}
+          <div className="font-mono text-xs text-gray-500 dark:text-gray-400">{req.payment_account_info}</div>
+          {req.bank_name && <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">Bank: {req.bank_name}</div>}
         </td>
 
         {/* Fees & Waiver Status */}
         <td className="px-6 py-4 whitespace-nowrap text-sm">
           {req.fee_waived ? (
-            <span className="text-emerald-600 font-medium flex items-center text-xs">
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center text-xs">
               <CheckCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
               ₱{req.platform_fee} Platform Waived ({req.ads_watched_count}/10)
             </span>
           ) : (
-            <span className="text-red-500 font-medium flex items-center text-xs">
+            <span className="text-red-500 dark:text-red-400 font-medium flex items-center text-xs">
               <XCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
               -₱{req.platform_fee} Platform Fee
             </span>
           )}
           {Number(req.bank_fee) > 0 && (
-            <span className="text-purple-600 font-medium block text-xs mt-0.5">
+            <span className="text-purple-600 dark:text-purple-400 font-medium block text-xs mt-0.5">
               -₱{req.bank_fee} Bank Fee
             </span>
           )}
         </td>
 
         {/* Schedule & Timing */}
-        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 space-y-1">
-          <div className="flex items-center text-gray-600">
-            <Clock className="w-3.5 h-3.5 mr-1 text-gray-400" />
+        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 space-y-1">
+          <div className="flex items-center text-gray-600 dark:text-gray-300">
+            <Clock className="w-3.5 h-3.5 mr-1 text-gray-400 dark:text-gray-500" />
             Queued: {new Date(req.created_at).toLocaleDateString()}
           </div>
           {isSundayDeferred && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300">
               <Calendar className="w-3 h-3 mr-0.5" />
               Sunday Deferral
             </span>
           )}
           {req.estimated_deadline_at && (
-            <div className="text-gray-400 text-[11px]">
+            <div className="text-gray-400 dark:text-gray-500 text-[11px]">
               Deadline: {new Date(req.estimated_deadline_at).toLocaleDateString()}
             </div>
           )}
@@ -189,10 +189,10 @@ export const WithdrawalManagement = () => {
             <span
               className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                 req.status === 'completed'
-                  ? 'bg-emerald-100 text-emerald-800'
+                  ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
                   : req.status === 'rejected'
-                  ? 'bg-red-100 text-red-800'
-                  : 'bg-gray-100 text-gray-800'
+                  ? 'bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300'
+                  : 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300'
               }`}
             >
               {req.status.toUpperCase()}
@@ -205,9 +205,9 @@ export const WithdrawalManagement = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900">Withdrawal Management</h1>
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900 dark:text-gray-100">Withdrawal Management</h1>
 
-      <div className="flex overflow-x-auto space-x-2 sm:space-x-4 mb-6 border-b border-gray-200">
+      <div className="flex overflow-x-auto space-x-2 sm:space-x-4 mb-6 border-b border-gray-200 dark:border-slate-800">
         <button
           type="button"
           aria-pressed={activeTab === 'pending'}
@@ -215,7 +215,7 @@ export const WithdrawalManagement = () => {
           className={`py-2 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
             activeTab === 'pending'
               ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
           }`}
         >
           Pending Review ({pending?.length || 0})
@@ -228,7 +228,7 @@ export const WithdrawalManagement = () => {
           className={`py-2 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
             activeTab === 'approved'
               ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
           }`}
         >
           Approved / In Processing ({approved?.length || 0})
@@ -241,36 +241,36 @@ export const WithdrawalManagement = () => {
           className={`py-2 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
             activeTab === 'history'
               ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
           }`}
         >
           History ({history?.length || 0})
         </button>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
+      <div className="bg-white dark:bg-slate-900 shadow rounded-lg overflow-hidden border border-gray-200 dark:border-slate-800">
         {activeTab === 'pending' && (
           <div>
-            {isLoadingPending && <p role="status" className="p-8 text-center text-gray-500">Loading pending review queue...</p>}
-            {isPendingError && <p role="alert" className="p-8 text-center text-red-600">Pending withdrawals could not be loaded.</p>}
+            {isLoadingPending && <p role="status" className="p-8 text-center text-gray-500 dark:text-gray-400">Loading pending review queue...</p>}
+            {isPendingError && <p role="alert" className="p-8 text-center text-red-600 dark:text-red-400">Pending withdrawals could not be loaded.</p>}
             {!isLoadingPending && !isPendingError && (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+                  <thead className="bg-gray-50 dark:bg-slate-800/80">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees & Waiver</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Destination</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fees & Waiver</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Schedule</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                     {pending?.map((req) => renderWithdrawalRow(req, 'pending'))}
                     {(!pending || pending.length === 0) && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
                           No pending payouts for review.
                         </td>
                       </tr>
@@ -284,26 +284,26 @@ export const WithdrawalManagement = () => {
 
         {activeTab === 'approved' && (
           <div>
-            {isLoadingApproved && <p role="status" className="p-8 text-center text-gray-500">Loading approved queue...</p>}
-            {isApprovedError && <p role="alert" className="p-8 text-center text-red-600">Approved withdrawals could not be loaded.</p>}
+            {isLoadingApproved && <p role="status" className="p-8 text-center text-gray-500 dark:text-gray-400">Loading approved queue...</p>}
+            {isApprovedError && <p role="alert" className="p-8 text-center text-red-600 dark:text-red-400">Approved withdrawals could not be loaded.</p>}
             {!isLoadingApproved && !isApprovedError && (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+                  <thead className="bg-gray-50 dark:bg-slate-800/80">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Disbursement</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Destination</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fees</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Schedule</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Disbursement</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                     {approved?.map((req) => renderWithdrawalRow(req, 'approved'))}
                     {(!approved || approved.length === 0) && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
                           No payouts currently in processing.
                         </td>
                       </tr>
@@ -317,26 +317,26 @@ export const WithdrawalManagement = () => {
 
         {activeTab === 'history' && (
           <div>
-            {isLoadingHistory && <p role="status" className="p-8 text-center text-gray-500">Loading history...</p>}
-            {isHistoryError && <p role="alert" className="p-8 text-center text-red-600">Withdrawal history could not be loaded.</p>}
+            {isLoadingHistory && <p role="status" className="p-8 text-center text-gray-500 dark:text-gray-400">Loading history...</p>}
+            {isHistoryError && <p role="alert" className="p-8 text-center text-red-600 dark:text-red-400">Withdrawal history could not be loaded.</p>}
             {!isLoadingHistory && !isHistoryError && (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+                  <thead className="bg-gray-50 dark:bg-slate-800/80">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fees</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Dates</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Final Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Destination</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fees</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dates</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Final Status</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                     {history?.map((req) => renderWithdrawalRow(req, 'none'))}
                     {(!history || history.length === 0) && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
                           No completed or rejected payouts yet.
                         </td>
                       </tr>

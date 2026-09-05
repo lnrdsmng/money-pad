@@ -47,16 +47,16 @@ export const MessagingPanel = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
-      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900">System Messaging</h1>
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-900 dark:text-gray-100">System Messaging</h1>
       
-      <div className="bg-white shadow rounded-lg p-4 sm:p-6 border border-gray-100">
+      <div className="bg-white dark:bg-slate-900 shadow rounded-lg p-4 sm:p-6 border border-gray-100 dark:border-slate-800">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Target</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
             <select
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary"
+              className="w-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary"
             >
               <option value="all">Broadcast to All Users</option>
               {users?.map((u: any) => (
@@ -66,23 +66,23 @@ export const MessagingPanel = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary"
+              className="w-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Message Content</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message Content</label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={5}
-              className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary"
+              className="w-full border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary"
               required
             />
           </div>
@@ -94,9 +94,9 @@ export const MessagingPanel = () => {
                 type="checkbox"
                 checked={isPinned}
                 onChange={(e) => setIsPinned(e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 dark:border-slate-600 rounded"
               />
-              <label htmlFor="pin" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="pin" className="ml-2 block text-sm text-gray-900 dark:text-gray-200">
                 Pin message to top of user's inbox
               </label>
             </div>
@@ -107,7 +107,7 @@ export const MessagingPanel = () => {
               type="submit"
               disabled={sendMutation.isPending}
               aria-busy={sendMutation.isPending}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 cursor-pointer"
             >
               {sendMutation.isPending ? 'Sending...' : 'Send Message'}
             </button>
