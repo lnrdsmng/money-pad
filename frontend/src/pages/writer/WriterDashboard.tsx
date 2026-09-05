@@ -1,17 +1,22 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShieldCheck, BookOpen, ArrowRight } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { ShieldCheck, BookOpen, ArrowRight, Trash2 } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { CreateStoryModal } from '../../components/writer/CreateStoryModal';
 import { VerifiedBadge } from '../../components/common/VerifiedBadge';
+import { ActionDialog } from '../../components/feedback/ActionDialog';
+import { useFeedback } from '../../components/feedback/feedback';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export default function WriterDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const feedback = useFeedback();
   const [activeTab, setActiveTab] = useState<'published' | 'drafts'>('published');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [storyToDelete, setStoryToDelete] = useState<any | null>(null);
 
   const { data: stories, isLoading } = useQuery({
     queryKey: ['stories', 'author', user?.id, activeTab],
@@ -22,17 +27,20 @@ export default function WriterDashboard() {
     enabled: !!user,
   });
 
-  const handleCreateNew = async () => {
-    try {
-      const response = await http.post('/stories', {
-        title: 'Untitled Story',
-        overview: 'Write your synopsis here...',
-        isMature: false,
-      });
-      navigate(`/writer/story/${response.data.id}`);
-    } catch {
-      setShowCreateModal(true);
-    }
+  const deleteStoryMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      await http.delete(`/stories/${storyId}`);
+    },
+    onSuccess: () => {
+      setStoryToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ['stories'] });
+      feedback.success('Story deleted.');
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The story could not be deleted.')),
+  });
+
+  const handleCreateNew = () => {
+    setShowCreateModal(true);
   };
 
   if (!user) return <div className="p-8 text-center">Please login</div>;
@@ -105,13 +113,7 @@ export default function WriterDashboard() {
       ) : stories?.length === 0 ? (
         <div className="text-center p-8 sm:p-12 bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700">
           <BookOpen className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm mb-4">You have no {activeTab} stories yet.</p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-green-600 transition"
-          >
-            Create Your First Story
-          </button>
+          <p className="text-gray-500 text-sm">You have no {activeTab} stories yet.</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
@@ -132,7 +134,7 @@ export default function WriterDashboard() {
                     👁 {story.readCount} Reads • ⭐ {story.likes} Likes
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-3 text-xs">
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
                   <Link to={`/writer/story/${story.id}`} className="text-primary font-semibold hover:underline">
                     Edit Details
                   </Link>
@@ -140,6 +142,15 @@ export default function WriterDashboard() {
                   <Link to={`/writer/story/${story.id}/parts`} className="text-primary font-semibold hover:underline">
                     Manage Chapters
                   </Link>
+                  <span className="text-gray-300 dark:text-slate-700">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setStoryToDelete(story)}
+                    className="inline-flex items-center gap-1 text-red-500 font-semibold hover:underline cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -150,6 +161,22 @@ export default function WriterDashboard() {
       {showCreateModal && (
         <CreateStoryModal onClose={() => setShowCreateModal(false)} />
       )}
+
+      <ActionDialog
+        open={Boolean(storyToDelete)}
+        title="Delete story?"
+        description={`“${storyToDelete?.title ?? 'This story'}” and all its chapters will be permanently deleted. This action cannot be undone.`}
+        confirmLabel="Delete story"
+        pendingLabel="Deleting..."
+        tone="danger"
+        isPending={deleteStoryMutation.isPending}
+        onCancel={() => {
+          if (!deleteStoryMutation.isPending) setStoryToDelete(null);
+        }}
+        onConfirm={() => {
+          if (storyToDelete) deleteStoryMutation.mutate(storyToDelete.id);
+        }}
+      />
     </div>
   );
 }
