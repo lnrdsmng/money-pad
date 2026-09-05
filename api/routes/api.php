@@ -87,6 +87,7 @@ Route::prefix('v1')->group(function () {
         // Chat
         Route::get('/chat/messages', [ChatController::class, 'index']);
         Route::post('/chat/messages', [ChatController::class, 'store']);
+        Route::post('/chat/messages/{id}/react', [ChatController::class, 'toggleReaction']);
 
         // Reading Sessions
         Route::post('/reading/start', [ReadingSessionController::class, 'start']);
