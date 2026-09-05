@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (data: any) => {
+    await http.get('/sanctum/csrf-cookie', { baseURL: '' });
     const response = await http.post('/auth/signup', data);
     if (response.data.token) {
       localStorage.setItem('auth_token', response.data.token);
