@@ -36,7 +36,7 @@ export default function StoryPartsPage() {
     mutationFn: async () => {
       const res = await http.post(`/stories/${storyId}/parts`, {
         title: 'Untitled Chapter',
-        content: '<p>Start writing here...</p>',
+        content: '',
         isPublished: false
       });
       return res.data;

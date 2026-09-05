@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { BookOpen } from 'lucide-react';
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator';
+import { PasswordInput } from '../../components/common/PasswordInput';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -91,8 +92,7 @@ export default function RegisterPage() {
             </div>
             <div>
               <label className="sr-only">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 placeholder="Password"

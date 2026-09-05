@@ -41,7 +41,7 @@ class StoryPartController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string',
-            'content' => 'required|string',
+            'content' => 'nullable|string',
             'order' => 'nullable|integer',
             'headerImageUrl' => 'nullable|url',
         ]);
@@ -51,6 +51,7 @@ class StoryPartController extends Controller
         $part = StoryPart::create(array_merge($validated, [
             'id' => Str::uuid()->toString(),
             'storyId' => $storyId,
+            'content' => $validated['content'] ?? '',
             'order' => $order,
             'publishedAt' => 0,
             'isPublished' => false,
@@ -70,11 +71,15 @@ class StoryPartController extends Controller
 
         $validated = $request->validate([
             'title' => 'string',
-            'content' => 'string',
+            'content' => 'nullable|string',
             'order' => 'integer',
             'headerImageUrl' => 'nullable|url',
             'isPublished' => 'boolean',
         ]);
+
+        if (array_key_exists('content', $validated) && $validated['content'] === null) {
+            $validated['content'] = '';
+        }
 
         if (isset($validated['isPublished']) && $validated['isPublished']) {
             if (! $part->isPublished) {

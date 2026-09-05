@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { LoaderCircle } from 'lucide-react';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { useFeedback } from '../../components/feedback/feedback';
+import { PasswordInput } from '../../components/common/PasswordInput';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -47,10 +48,9 @@ export default function LoginPage() {
         </div>
         <div className="mb-6">
           <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Password</label>
-          <input
-            type="password"
+          <PasswordInput
             placeholder="Password"
-            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
+            className="p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

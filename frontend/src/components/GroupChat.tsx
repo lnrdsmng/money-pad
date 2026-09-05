@@ -9,7 +9,7 @@ import { getApiErrorMessage } from '../utils/apiError';
 export const GroupChat = () => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const feedback = useFeedback();
 
   const { data: messages, refetch } = useQuery({
@@ -33,7 +33,9 @@ export const GroupChat = () => {
   });
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -55,7 +57,7 @@ export const GroupChat = () => {
         </span>
       </div>
       
-      <div className="flex-1 p-3 sm:p-5 overflow-y-auto bg-[#FAF9F6]/50 dark:bg-slate-950/40 space-y-3 sm:space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 p-3 sm:p-5 overflow-y-auto bg-[#FAF9F6]/50 dark:bg-slate-950/40 space-y-3 sm:space-y-4">
         {messages?.map((msg: any) => {
           const isMe = msg.userId === user?.id;
           return (
@@ -87,7 +89,6 @@ export const GroupChat = () => {
             </div>
           );
         })}
-        <div ref={messagesEndRef} />
       </div>
 
       <div className="border-t border-gray-200 dark:border-slate-800 p-3 sm:p-4 bg-white dark:bg-slate-900">

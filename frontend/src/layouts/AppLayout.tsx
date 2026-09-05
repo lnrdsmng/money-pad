@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import BottomNavBar from '../components/BottomNavBar';
@@ -9,6 +10,10 @@ export default function AppLayout() {
   const { user } = useAuth();
   const location = useLocation();
   const { hasAvailableReward } = useDailyLoginReward();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
   
   const isImmersivePage = location.pathname.includes('/read/') || location.pathname.includes('/edit');
   const isOnboarding = location.pathname.startsWith('/onboarding');

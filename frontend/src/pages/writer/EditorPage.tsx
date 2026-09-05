@@ -2,6 +2,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
 import ImageResize from 'tiptap-extension-resize-image';
+import { Placeholder } from '@tiptap/extensions/placeholder';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -60,6 +61,10 @@ export default function EditorPage() {
       ImageResize.configure({
         inline: false,
       }),
+      Placeholder.configure({
+        placeholder: 'Start writing here...',
+        emptyEditorClass: 'is-editor-empty',
+      }),
     ],
     content: '',
     editorProps: {
@@ -84,7 +89,14 @@ export default function EditorPage() {
   // Load content into editor once fetched
   useEffect(() => {
     if (part && editor && !editor.isDestroyed) {
-      editor.commands.setContent(part.content || '');
+      const rawContent = part.content || '';
+      const cleanContent =
+        rawContent.trim() === '<p>Start writing here...</p>' ||
+        rawContent.trim() === 'Start writing here...' ||
+        rawContent.trim() === '<p></p>'
+          ? ''
+          : rawContent;
+      editor.commands.setContent(cleanContent);
       const text = editor.getText();
       const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
       const characters = text.length;
