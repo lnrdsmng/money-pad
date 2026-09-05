@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -50,6 +51,9 @@ class AuthController extends Controller
 
         // Authenticate for SPA (Session)
         Auth::login($user);
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
         $user = $planExpirationService->synchronize($user);
 
         // Generate token for mobile app if needed
@@ -95,6 +99,9 @@ class AuthController extends Controller
         }, 3);
 
         Auth::login($user);
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -105,8 +112,10 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        if ($request->user() && method_exists($request->user(), 'currentAccessToken') && $request->user()->currentAccessToken()) {
-            $request->user()->currentAccessToken()->delete();
+        $accessToken = $request->user()?->currentAccessToken();
+
+        if ($accessToken instanceof PersonalAccessToken) {
+            $accessToken->delete();
         }
 
         Auth::logout();
