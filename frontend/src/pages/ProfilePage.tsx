@@ -110,9 +110,9 @@ export default function ProfilePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="relative -mt-14 sm:-mt-24 mb-6 sm:mb-8 flex flex-col md:flex-row items-center md:items-end justify-between gap-4">
-          <div className="flex flex-col md:flex-row items-center md:items-end">
-            <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-full border-4 border-white dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-800 shadow-md shrink-0">
+        <div className="relative mb-6 sm:mb-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-center md:items-start min-w-0">
+            <div className="relative z-10 -mt-12 sm:-mt-16 md:-mt-20 w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-full border-4 border-white dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-800 shadow-md shrink-0">
               {profile.profileImageUrl ? (
                 <img src={profile.profileImageUrl} alt={profile.username} className="w-full h-full object-cover" />
               ) : (
@@ -121,7 +121,7 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
-            <div className="mt-3 md:mt-0 md:ml-6 text-center md:text-left pb-2">
+            <div className="mt-3 md:mt-0 md:ml-6 text-center md:text-left md:pt-3 min-w-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 flex flex-wrap items-center justify-center md:justify-start gap-1.5">
                 {profile.username}
                 {profile.isVerified && <VerifiedBadge size={20} />}
@@ -150,7 +150,7 @@ export default function ProfilePage() {
             </div>
           </div>
           
-          <div className="mt-2 md:mt-0 pb-2 flex justify-center">
+          <div className="mt-2 md:mt-0 md:pt-3.5 flex justify-center shrink-0">
             {!isOwnProfile && (
               <button
                 type="button"
