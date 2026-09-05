@@ -8,6 +8,7 @@ import { ChapterSlider } from '../components/ChapterSlider';
 import { ActionDialog } from '../components/feedback/ActionDialog';
 import { TextAnnotationBar } from '../components/reader/TextAnnotationBar';
 import { ChapterAnnotationsDrawer } from '../components/reader/ChapterAnnotationsDrawer';
+import { formatChapterHtml } from '../utils/formatHtml';
 
 export default function ReaderPage() {
   const { storyId, partId } = useParams();
@@ -153,7 +154,7 @@ export default function ReaderPage() {
         <div 
           ref={contentRef}
           className="prose dark:prose-invert prose-base sm:prose-lg max-w-none prose-p:leading-relaxed sm:prose-p:leading-loose text-gray-800 dark:text-gray-200 font-serif"
-          dangerouslySetInnerHTML={{ __html: part.content }}
+          dangerouslySetInnerHTML={{ __html: formatChapterHtml(part.content) }}
         />
         
         <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200 dark:border-slate-800 pt-6 sm:pt-8 pb-16 text-sm sm:text-base">

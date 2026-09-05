@@ -16,3 +16,33 @@
 body {
   @apply bg-[#FAF9F6] text-slate-900 dark:bg-slate-950 dark:text-slate-100;
 }
+
+/* Chapter Content & Typography */
+.prose {
+  line-height: 1.8;
+}
+
+.prose p {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+/* Ensure empty lines and double-enter paragraph gaps retain full height and never collapse */
+.prose p:empty,
+.prose p:has(> br:only-child) {
+  min-height: 1.5em;
+}
+
+.prose p:empty::before {
+  content: '\00a0';
+  display: inline-block;
+}
+
+/* Chapter Images inside Reader and Editor Preview */
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1.5rem auto;
+  display: block;
+}
