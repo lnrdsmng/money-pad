@@ -15,7 +15,8 @@ interface KeyedValue<T> {
 export function useReadingTimer(storyId: string, partId: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const readingKey = `${storyId}:${partId}`;
+  const userId = user?.id;
+  const readingKey = `${userId ?? ''}:${storyId}:${partId}`;
   const [pendingState, setPendingState] = useState<KeyedValue<number>>({ key: readingKey, value: 0 });
   const [pausedState, setPausedState] = useState<KeyedValue<boolean>>({ key: readingKey, value: false });
   const [sessionState, setSessionState] = useState<KeyedValue<string | null>>({ key: readingKey, value: null });
@@ -27,7 +28,7 @@ export function useReadingTimer(storyId: string, partId: string) {
   const error = errorState.key === readingKey ? errorState.value : null;
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     let activeSessionId: string | null = null;
     let disposed = false;
@@ -37,6 +38,7 @@ export function useReadingTimer(storyId: string, partId: string) {
       .then((response) => {
         activeSessionId = response.data.id;
         if (!disposed) setSessionState({ key: readingKey, value: activeSessionId });
+        else void http.post('/reading/stop', { sessionId: activeSessionId }).catch(() => undefined);
       })
       .catch(() => {
         if (!disposed) setErrorState({ key: readingKey, value: 'Reading income tracking could not be started.' });
@@ -44,7 +46,7 @@ export function useReadingTimer(storyId: string, partId: string) {
 
     const resetActivity = () => {
       lastActivity.current = Date.now();
-      setPausedState({ key: readingKey, value: false });
+      setPausedState(previous => previous.key === readingKey && !previous.value ? previous : { key: readingKey, value: false });
     };
     const handleVisibility = () => document.hidden
       ? setPausedState({ key: readingKey, value: true })
@@ -63,19 +65,24 @@ export function useReadingTimer(storyId: string, partId: string) {
       document.removeEventListener('visibilitychange', handleVisibility);
       if (activeSessionId) void http.post('/reading/stop', { sessionId: activeSessionId }).catch(() => undefined);
     };
-  }, [user, storyId, partId, readingKey]);
+  }, [userId, storyId, partId, readingKey]);
 
   useEffect(() => {
     if (!sessionId || isPaused) return;
 
+    let disposed = false;
+    let inFlight = false;
     const heartbeat = async () => {
+      if (inFlight) return;
       if (Date.now() - lastActivity.current > 120_000 || document.hidden) {
         setPausedState({ key: readingKey, value: true });
         return;
       }
 
       try {
+        inFlight = true;
         const response = await http.post<HeartbeatResponse>('/reading/heartbeat', { sessionId });
+        if (disposed) return;
         const awarded = Number(response.data.amount_awarded);
         if (awarded > 0) {
           setPendingState((previous) => ({
@@ -86,12 +93,13 @@ export function useReadingTimer(storyId: string, partId: string) {
         }
         setErrorState({ key: readingKey, value: null });
       } catch {
+        if (disposed) return;
         setErrorState({ key: readingKey, value: 'Reading income tracking is temporarily unavailable.' });
-      }
+      } finally { inFlight = false; }
     };
 
     const heartbeatInterval = window.setInterval(heartbeat, 60_000);
-    return () => window.clearInterval(heartbeatInterval);
+    return () => { disposed = true; window.clearInterval(heartbeatInterval); };
   }, [sessionId, isPaused, queryClient, readingKey]);
 
   return { pendingEarned, isPaused, error };

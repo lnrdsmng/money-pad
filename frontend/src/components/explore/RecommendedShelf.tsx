@@ -9,7 +9,7 @@ export const RecommendedShelf = () => {
   const { user } = useAuth();
 
   const { data: stories = [], isLoading } = useQuery({
-    queryKey: ['stories', 'recommended'],
+    queryKey: ['stories', 'recommended', user?.id],
     queryFn: async () => {
       const res = await http.get('/stories/recommended');
       return res.data;

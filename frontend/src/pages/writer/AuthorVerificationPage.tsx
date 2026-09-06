@@ -30,7 +30,7 @@ export default function AuthorVerificationPage() {
   const [proofPreview, setProofPreview] = useState<string | null>(null);
 
   const { data: statusData, isLoading } = useQuery({
-    queryKey: ['authorVerificationStatus'],
+    queryKey: ['authorVerificationStatus', user?.id],
     queryFn: async () => {
       const res = await http.get('/authors/verification-status');
       return res.data;
@@ -83,7 +83,7 @@ export default function AuthorVerificationPage() {
       } else {
         feedback.success('Verification application submitted for review.');
       }
-      queryClient.invalidateQueries({ queryKey: ['authorVerificationStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['authorVerificationStatus', user?.id] });
     },
     onError: (error) => {
       feedback.error(getApiErrorMessage(error, 'Verification application failed.'));

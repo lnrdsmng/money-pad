@@ -10,12 +10,8 @@ const http = axios.create({
   },
 });
 
-// Interceptor for handling CSRF token and Bearer token
+// Axios sends the same-origin CSRF cookie header; browser authentication uses HttpOnly sessions.
 http.interceptors.request.use(async (config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
   if (config.data instanceof FormData) {
     config.headers.delete('Content-Type');
   }

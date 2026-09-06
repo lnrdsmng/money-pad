@@ -4,6 +4,7 @@ export interface WithdrawalPolicy {
   platform_fee: number;
   bank_fee: number;
   ads_to_waive_fee: number;
+  rewarded_ads_available: boolean;
   coin_to_php_rate: number;
   timezone: string;
   processing_days: string[];

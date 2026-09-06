@@ -30,7 +30,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
     queryFn: async () => (await http.get('/payment-methods')).data.data,
   });
   const purchasesQuery = useQuery<PlanPurchase[]>({
-    queryKey: ['plan-purchases'],
+    queryKey: ['plan-purchases', user?.id],
     queryFn: async () => (await http.get('/plan-purchases')).data.data,
   });
   const pendingPurchase = purchasesQuery.data?.find((purchase) => purchase.status === 'pending_review');
@@ -51,7 +51,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
     onSuccess: async () => {
       setSelectedPlan(null);
       setPaymentProof(null);
-      await queryClient.invalidateQueries({ queryKey: ['plan-purchases'] });
+      await queryClient.invalidateQueries({ queryKey: ['plan-purchases', user?.id] });
       feedback.success('Payment proof submitted for admin review.');
     },
   });

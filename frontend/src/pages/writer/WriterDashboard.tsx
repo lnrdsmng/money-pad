@@ -1,5 +1,8 @@
+import { usePagedList } from '../../hooks/usePagedList';
+import { LoadMoreButton } from '../../components/common/LoadMoreButton';
+import type { Story } from '../../types/content';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, BookOpen, ArrowRight, Trash2, Eye, Star } from 'lucide-react';
 import http from '../../api/http';
@@ -18,14 +21,8 @@ export default function WriterDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [storyToDelete, setStoryToDelete] = useState<any | null>(null);
 
-  const { data: stories, isLoading } = useQuery({
-    queryKey: ['stories', 'author', user?.id, activeTab],
-    queryFn: async () => {
-      const response = await http.get(`/authors/${user?.id}/stories/${activeTab}`);
-      return response.data;
-    },
-    enabled: !!user,
-  });
+  const storyPages = usePagedList<Story>(['stories', 'author', user?.id, activeTab], `/authors/${user?.id}/stories/${activeTab}`, !!user);
+  const { data: stories, isLoading } = storyPages;
 
   const deleteStoryMutation = useMutation({
     mutationFn: async (storyId: string) => {
@@ -185,6 +182,7 @@ export default function WriterDashboard() {
           if (storyToDelete) deleteStoryMutation.mutate(storyToDelete.id);
         }}
       />
+      <LoadMoreButton {...storyPages} />
     </div>
   );
 }

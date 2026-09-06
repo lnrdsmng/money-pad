@@ -1,3 +1,4 @@
+import { useAuth } from '../auth/AuthProvider';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Clock3 } from 'lucide-react';
 import { useState } from 'react';
@@ -6,10 +7,11 @@ import type { PaginatedClaims } from '../types/earnings';
 import { formatCoins, formatPesoFromCoins } from '../utils/money';
 
 export function ClaimedEarningsSection() {
+  const { user } = useAuth();
   const [range, setRange] = useState<'7d' | '30d'>('7d');
   const [page, setPage] = useState(1);
   const { data, isLoading, isError } = useQuery<PaginatedClaims>({
-    queryKey: ['earnings', 'claimed', range, page],
+    queryKey: ['earnings', 'claimed', range, page, user?.id],
     queryFn: async () => (await http.get('/earnings/claimed', { params: { range, page } })).data,
   });
 

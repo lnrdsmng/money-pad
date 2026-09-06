@@ -30,6 +30,8 @@ export default function UserMenu() {
       setIsOpen(false);
       navigate('/login');
       feedback.success('Signed out successfully.');
+    } catch {
+      feedback.error('Could not sign out. Check your connection and try again.');
     } finally {
       setIsLoggingOut(false);
     }

@@ -8,7 +8,7 @@ export const ContinueReadingShelf = () => {
   const { user } = useAuth();
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['stories', 'continueReading'],
+    queryKey: ['stories', 'continueReading', user?.id],
     queryFn: async () => {
       const res = await http.get('/stories/continue-reading');
       return res.data;

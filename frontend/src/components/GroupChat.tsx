@@ -28,7 +28,7 @@ export const GroupChat = () => {
   const feedback = useFeedback();
 
   const { data: messages, refetch } = useQuery({
-    queryKey: ['groupChat'],
+    queryKey: ['groupChat', user?.id],
     queryFn: async () => {
       const res = await http.get('/chat/messages');
       return res.data;

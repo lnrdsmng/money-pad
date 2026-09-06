@@ -1,30 +1,31 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import { useAuth } from './auth/AuthProvider';
 import { ProtectedRoute } from './auth/ProtectedRoute';
-import LoginPage from './pages/auth/LoginPage';
-import RegisterPage from './pages/auth/RegisterPage';
-import OnboardingPage from './pages/auth/OnboardingPage';
-import ExplorePage from './pages/ExplorePage';
-import StoryPage from './pages/StoryPage';
-import ReaderPage from './pages/ReaderPage';
-import WriterDashboard from './pages/writer/WriterDashboard';
-import EditorPage from './pages/writer/EditorPage';
-import StoryEditPage from './pages/writer/StoryEditPage';
-import StoryPartsPage from './pages/writer/StoryPartsPage';
-import ProfilePage from './pages/ProfilePage';
-import EarningsDashboard from './pages/EarningsDashboard';
-import SettingsPage from './pages/SettingsPage';
-import AuthorVerificationPage from './pages/writer/AuthorVerificationPage';
-import LandingPage from './pages/LandingPage';
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage'));
+const ExplorePage = lazy(() => import('./pages/ExplorePage'));
+const StoryPage = lazy(() => import('./pages/StoryPage'));
+const ReaderPage = lazy(() => import('./pages/ReaderPage'));
+const WriterDashboard = lazy(() => import('./pages/writer/WriterDashboard'));
+const EditorPage = lazy(() => import('./pages/writer/EditorPage'));
+const StoryEditPage = lazy(() => import('./pages/writer/StoryEditPage'));
+const StoryPartsPage = lazy(() => import('./pages/writer/StoryPartsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const EarningsDashboard = lazy(() => import('./pages/EarningsDashboard'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AuthorVerificationPage = lazy(() => import('./pages/writer/AuthorVerificationPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 import AdminRoute from './auth/AdminRoute';
-import AdminLayout from './pages/admin/AdminLayout';
-import { WithdrawalManagement } from './pages/admin/WithdrawalManagement';
-import { UserManagement } from './pages/admin/UserManagement';
-import { MessagingPanel } from './pages/admin/MessagingPanel';
-import { PlanPaymentManagement } from './pages/admin/PlanPaymentManagement';
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const WithdrawalManagement = lazy(() => import('./pages/admin/WithdrawalManagement').then(module => ({ default: module.WithdrawalManagement })));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement').then(module => ({ default: module.UserManagement })));
+const MessagingPanel = lazy(() => import('./pages/admin/MessagingPanel').then(module => ({ default: module.MessagingPanel })));
+const PlanPaymentManagement = lazy(() => import('./pages/admin/PlanPaymentManagement').then(module => ({ default: module.PlanPaymentManagement })));
 
-import CommunityPage from './pages/CommunityPage';
+const CommunityPage = lazy(() => import('./pages/CommunityPage'));
 
 function ProfileRedirect() {
   const { user } = useAuth();
@@ -52,6 +53,7 @@ export default function AppRouter() {
 
   return (
     <BrowserRouter>
+      <Suspense fallback={<div role="status" className="p-8 text-center">Loading...</div>}>
       <Routes>
         {/* Standalone Admin Interface completely decoupled from AppLayout */}
         <Route element={<AdminRoute />}>
@@ -91,6 +93,7 @@ export default function AppRouter() {
           <Route path="onboarding" element={<OnboardingPage />} />
         </Route>
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

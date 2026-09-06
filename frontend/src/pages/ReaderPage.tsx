@@ -8,13 +8,15 @@ import { ChapterSlider } from '../components/ChapterSlider';
 import { ActionDialog } from '../components/feedback/ActionDialog';
 import { TextAnnotationBar } from '../components/reader/TextAnnotationBar';
 import { ChapterAnnotationsDrawer } from '../components/reader/ChapterAnnotationsDrawer';
+import type { Chapter, ChapterSummary } from '../types/content';
+import { formatCoins, formatPesoFromCoins } from '../utils/money';
 import { formatChapterHtml } from '../utils/formatHtml';
 
 export default function ReaderPage() {
   const { storyId, partId } = useParams();
   const navigate = useNavigate();
-  const [part, setPart] = useState<any>(null);
-  const [allParts, setAllParts] = useState<any[]>([]);
+  const [part, setPart] = useState<Chapter | null>(null);
+  const [allParts, setAllParts] = useState<ChapterSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [dismissedResumePartId, setDismissedResumePartId] = useState<string | null>(null);
   const [isAnnotationsDrawerOpen, setIsAnnotationsDrawerOpen] = useState(false);
@@ -61,22 +63,25 @@ export default function ReaderPage() {
 
   // Load data
   useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
       try {
         setLoading(true);
         const [partRes, partsRes] = await Promise.all([
-          http.get(`/parts/${partId}`),
-          http.get(`/stories/${storyId}/parts`)
+          http.get<Chapter>(`/parts/${partId}`, { signal: controller.signal }),
+          http.get<ChapterSummary[]>(`/stories/${storyId}/parts?onlyPublished=true`, { signal: controller.signal })
         ]);
+        if (partRes.data.storyId !== storyId) { setPart(null); return; }
         setPart(partRes.data);
         setAllParts(partsRes.data);
       } catch (err) {
-        console.error("Failed to load reading data", err);
+        if (!controller.signal.aborted) { setPart(null); console.error("Failed to load reading data", err); }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-    if (storyId && partId) fetchData();
+    if (storyId && partId) void fetchData();
+    return () => controller.abort();
   }, [storyId, partId]);
 
   const handleSelectPassage = (selectedText: string) => {
@@ -107,7 +112,7 @@ export default function ReaderPage() {
         {/* Floating Coins Indicator */}
         <div className={`bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 backdrop-blur shadow-md sm:shadow-lg rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm transition-opacity ${isPaused ? 'opacity-60' : 'opacity-100'}`}>
           <Coins className="text-yellow-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-          <span className="font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Pending ₱{pendingEarned.toFixed(3)} (+{pendingEarned.toFixed(2)})</span>
+          <span className="font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Pending {formatCoins(pendingEarned)} ({formatPesoFromCoins(pendingEarned)})</span>
           {isPaused && <span className="text-[10px] sm:text-xs text-red-500 ml-1 sm:ml-2">(Paused)</span>}
         </div>
 

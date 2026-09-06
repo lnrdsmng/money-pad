@@ -17,7 +17,7 @@ function formatTimeRemaining(expiresAt: string, now: number) {
 }
 
 export function ReadingIncomeSection() {
-  const { updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'income' | 'claimed'>('income');
   const [claim, setClaim] = useState<CreateClaimResponse | null>(null);
@@ -29,7 +29,7 @@ export function ReadingIncomeSection() {
   }, []);
 
   const incomeQuery = useQuery<ReadingIncomeResponse>({
-    queryKey: ['earnings', 'income'],
+    queryKey: ['earnings', 'income', user?.id],
     queryFn: async () => (await http.get('/earnings/income')).data,
     enabled: activeTab === 'income',
     refetchInterval: 60_000,
@@ -40,7 +40,7 @@ export function ReadingIncomeSection() {
     onSuccess: async (result) => {
       if (result.completed) {
         if (result.user) updateUser(result.user);
-        await queryClient.invalidateQueries({ queryKey: ['earnings'] });
+        await queryClient.invalidateQueries({ queryKey: ['earnings', user?.id] });
         return;
       }
 

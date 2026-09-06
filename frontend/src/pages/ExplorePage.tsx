@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { usePagedList } from '../hooks/usePagedList';
+import { LoadMoreButton } from '../components/common/LoadMoreButton';
+import type { Story } from '../types/content';
+import type { User } from '../auth/AuthProvider';
 import { Link } from 'react-router-dom';
 import { Search, X, User as UserIcon, BookOpen, Eye, Heart } from 'lucide-react';
-import http from '../api/http';
 import { STORY_GENRES } from '../constants/genres';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { ContinueReadingShelf } from '../components/explore/ContinueReadingShelf';
@@ -24,39 +26,12 @@ export default function ExplorePage() {
 
   const isSearching = debouncedQuery.length > 0;
 
-  // Search stories
-  const { data: searchStories = [], isLoading: loadingSearchStories } = useQuery({
-    queryKey: ['search', 'stories', debouncedQuery],
-    queryFn: async () => {
-      const res = await http.get(`/stories/search?query=${encodeURIComponent(debouncedQuery)}`);
-      return Array.isArray(res.data) ? res.data : res.data.data || [];
-    },
-    enabled: isSearching,
-  });
-
-  // Search authors
-  const { data: searchAuthors = [], isLoading: loadingSearchAuthors } = useQuery({
-    queryKey: ['search', 'authors', debouncedQuery],
-    queryFn: async () => {
-      const res = await http.get(`/users/search?query=${encodeURIComponent(debouncedQuery)}`);
-      return Array.isArray(res.data) ? res.data : res.data.data || [];
-    },
-    enabled: isSearching,
-  });
-
-  // Regular explore stories (filtered by genre if not 'All')
-  const { data: exploreStories = [], isLoading: loadingExplore } = useQuery({
-    queryKey: ['stories', 'explore', selectedGenre],
-    queryFn: async () => {
-      if (selectedGenre === 'All') {
-        const res = await http.get('/stories');
-        return Array.isArray(res.data) ? res.data : res.data.data || [];
-      }
-      const res = await http.get(`/stories/search?genre=${encodeURIComponent(selectedGenre)}`);
-      return Array.isArray(res.data) ? res.data : res.data.data || [];
-    },
-    enabled: !isSearching,
-  });
+  const storySearch = usePagedList<Story>(['search', 'stories', debouncedQuery], `/stories/search?query=${encodeURIComponent(debouncedQuery)}`, isSearching);
+  const authorSearch = usePagedList<User>(['search', 'authors', debouncedQuery], `/users/search?query=${encodeURIComponent(debouncedQuery)}`, isSearching);
+  const explore = usePagedList<Story>(['stories', 'explore', selectedGenre], selectedGenre === 'All' ? '/stories' : `/stories/search?genre=${encodeURIComponent(selectedGenre)}`, !isSearching);
+  const { data: searchStories, isLoading: loadingSearchStories } = storySearch;
+  const { data: searchAuthors, isLoading: loadingSearchAuthors } = authorSearch;
+  const { data: exploreStories, isLoading: loadingExplore } = explore;
 
   const allGenres = ['All', ...STORY_GENRES];
 
@@ -107,7 +82,7 @@ export default function ExplorePage() {
                     Authors ({searchAuthors.length})
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                    {searchAuthors.map((author: any) => (
+                    {searchAuthors.map((author: User) => (
                       <Link
                         key={author.id}
                         to={`/profile/${author.username}`}
@@ -150,7 +125,7 @@ export default function ExplorePage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
-                    {searchStories.map((story: any) => (
+                    {searchStories.map((story: Story) => (
                       <StoryCard key={story.id} story={story} />
                     ))}
                   </div>
@@ -199,18 +174,19 @@ export default function ExplorePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
-              {exploreStories.map((story: any) => (
+              {exploreStories.map((story: Story) => (
                 <StoryCard key={story.id} story={story} />
               ))}
             </div>
           )}
         </>
       )}
+        {isSearching ? <><LoadMoreButton {...storySearch} /><LoadMoreButton {...authorSearch} /></> : <LoadMoreButton {...explore} />}
     </div>
   );
 }
 
-function StoryCard({ story }: { story: any }) {
+function StoryCard({ story }: { story: Story }) {
   return (
     <Link to={`/story/${story.id}`} className="group flex flex-col">
       <div className="aspect-[2/3] bg-gray-200 dark:bg-slate-700 rounded-xl overflow-hidden mb-2 relative shadow-xs group-hover:scale-[1.02] transition-transform">
@@ -233,12 +209,12 @@ function StoryCard({ story }: { story: any }) {
       </h3>
       <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 truncate">
         <span>{story.authorName}</span>
-        {(story.isAuthorVerified || story.author_is_verified) && <VerifiedBadge size={12} />}
+        {(story.isAuthorVerified) && <VerifiedBadge size={12} />}
       </div>
       <div className="flex items-center gap-3 text-[10px] text-gray-400 mt-1">
         <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" /> {story.readCount || 0}</span>
         <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" /> {story.likes || 0}</span>
-      </div>
+    </div>
     </Link>
   );
 }

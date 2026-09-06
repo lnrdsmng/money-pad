@@ -60,7 +60,7 @@ export const ReferralProgramSection = () => {
 
   // Fetch milestones progress
   const { data: milestonesData, isLoading: loadingMilestones } = useQuery({
-    queryKey: ['referralMilestones'],
+    queryKey: ['referralMilestones', user?.id],
     queryFn: async () => {
       const res = await http.get('/referrals/milestones');
       return res.data;
@@ -81,7 +81,7 @@ export const ReferralProgramSection = () => {
       if (data.user) updateUser(data.user);
       setWelcomeCode('');
       localStorage.removeItem('pending_referral_code');
-      queryClient.invalidateQueries({ queryKey: ['referralMilestones'] });
+      queryClient.invalidateQueries({ queryKey: ['referralMilestones', user?.id] });
     },
     onError: (error) => {
       feedback.error(getApiErrorMessage(error, 'Could not claim welcome bonus.'));
@@ -98,7 +98,7 @@ export const ReferralProgramSection = () => {
     },
     onSuccess: (data) => {
       feedback.success(data.message || 'Milestone reward claimed!');
-      queryClient.invalidateQueries({ queryKey: ['referralMilestones'] });
+      queryClient.invalidateQueries({ queryKey: ['referralMilestones', user?.id] });
       // Update reader coins in auth state
       if (data.readerCoins !== undefined && user) {
         updateUser({ ...user, readerCoins: data.readerCoins });

@@ -5,9 +5,11 @@ import { X, Play, FastForward, CheckCircle, LoaderCircle, Sparkles, PartyPopper 
 import { MockRewardedAd } from './MockRewardedAd';
 import { useFeedback } from './feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
-import type { WithdrawalRequest } from '../types/withdrawals';
+import type { WithdrawalPolicy, WithdrawalRequest } from '../types/withdrawals';
 
 export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string; onClose: () => void }) => {
+  const [adEventId, setAdEventId] = useState<string | null>(null);
+  const [startingAd, setStartingAd] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const feedback = useFeedback();
 
@@ -20,8 +22,24 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
     },
   });
 
+  const { data: policy } = useQuery<WithdrawalPolicy>({
+    queryKey: ['withdrawalPolicy'], queryFn: async () => (await http.get('/withdrawals/policy')).data,
+  });
+  const startAd = async () => {
+    setStartingAd(true);
+    try {
+      const response = await http.post<{ id: string }>('/rewarded-ads', { purpose: 'withdrawal', target_id: requestId });
+      setAdEventId(response.data.id); setShowAd(true);
+    } catch (error) { feedback.error(getApiErrorMessage(error, 'Rewarded ads are currently unavailable.')); }
+    finally { setStartingAd(false); }
+  };
+
   const watchAdMutation = useMutation({
-    mutationFn: () => http.post(`/withdrawal-requests/${requestId}/watch-ad`),
+    mutationFn: async () => {
+      if (!adEventId) throw new Error('Start an ad before claiming.');
+      await http.post(`/rewarded-ads/${adEventId}/mock-verify`);
+      return http.post(`/withdrawal-requests/${requestId}/watch-ad`, { ad_event_id: adEventId });
+    },
     onSuccess: async () => {
       setShowAd(false);
       await refetch();
@@ -149,12 +167,12 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
 
               <div className="space-y-3">
                 <button
-                  onClick={() => setShowAd(true)}
-                  disabled={skipAdsMutation.isPending || watchAdMutation.isPending}
+                  onClick={() => void startAd()}
+                  disabled={startingAd || !policy?.rewarded_ads_available || skipAdsMutation.isPending || watchAdMutation.isPending}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-bold text-white text-sm hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
                 >
                   <Play className="w-4 h-4" />
-                  <span>Complete In-App Task (Ad)</span>
+                  <span>{policy?.rewarded_ads_available ? 'Complete In-App Task (Ad)' : 'Rewarded ads unavailable'}</span>
                 </button>
                 <button
                   onClick={() => skipAdsMutation.mutate()}

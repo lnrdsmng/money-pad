@@ -3,7 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
 import ImageResize from 'tiptap-extension-resize-image';
 import { Placeholder } from '@tiptap/extensions/placeholder';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -24,9 +24,16 @@ import {
 import http from '../../api/http';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
+import type { Chapter, ChapterSaveResponse } from '../../types/content';
+import { createChapterAutosave, type SaveStatus } from '../../utils/chapterAutosave';
 import { formatChapterHtml } from '../../utils/formatHtml';
 
 export default function EditorPage() {
+  const { partId } = useParams();
+  return <ChapterEditor key={partId} />;
+}
+
+function ChapterEditor() {
   const { storyId, partId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -40,15 +47,21 @@ export default function EditorPage() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isUploadingHeader, setIsUploadingHeader] = useState(false);
-  const [autosaveStatus, setAutosaveStatus] = useState<'saved' | 'saving' | 'dirty'>('saved');
-  const autosaveTimerRef = useRef<any>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<SaveStatus>('saved');
+  const loaded = useRef(false);
+  const alive = useRef(true);
+  const reportStatus = useCallback((value: SaveStatus) => { if (alive.current) setAutosaveStatus(value); }, []);
+  const reportError = useCallback((error: unknown) => { if (alive.current) feedback.error(getApiErrorMessage(error, 'Changes could not be saved. Please retry.')); }, [feedback]);
+  const saver = useMemo(() => createChapterAutosave(
+    async data => (await http.put<ChapterSaveResponse>(`/parts/${partId}`, data)).data,
+    reportStatus,
+    reportError,
+  ), [partId, reportStatus, reportError]);
 
-  const { data: part, isLoading } = useQuery({
+  const { data: part, isLoading } = useQuery<Chapter>({
     queryKey: ['part', partId],
     queryFn: async () => {
-      const res = await http.get(`/parts/${partId}`);
-      setTitle(res.data.title || '');
-      setHeaderImageUrl(res.data.headerImageUrl || '');
+      const res = await http.get<Chapter>(`/parts/${partId}`);
       return res.data;
     },
     enabled: !!partId,
@@ -74,7 +87,7 @@ export default function EditorPage() {
       },
     },
     onUpdate: ({ editor: ed }) => {
-      setAutosaveStatus('dirty');
+      if (loaded.current) setAutosaveStatus('dirty');
       const text = ed.getText();
       const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
       const characters = text.length;
@@ -88,7 +101,11 @@ export default function EditorPage() {
 
   // Load content into editor once fetched
   useEffect(() => {
-    if (part && editor && !editor.isDestroyed) {
+    if (part && editor && !editor.isDestroyed && !loaded.current) {
+      setTitle(part.title);
+      setHeaderImageUrl(part.headerImageUrl || '');
+      saver.initialize(part.revision);
+      loaded.current = true;
       const rawContent = part.content || '';
       const cleanContent =
         rawContent.trim() === '<p>Start writing here...</p>' ||
@@ -96,7 +113,7 @@ export default function EditorPage() {
         rawContent.trim() === '<p></p>'
           ? ''
           : rawContent;
-      editor.commands.setContent(cleanContent);
+      editor.commands.setContent(formatChapterHtml(cleanContent), { emitUpdate: false });
       const text = editor.getText();
       const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
       const characters = text.length;
@@ -104,33 +121,29 @@ export default function EditorPage() {
       const readingTime = Math.max(1, Math.ceil(words / 200));
       setStats({ words, characters, paragraphs, readingTime });
     }
-  }, [part, editor]);
+  }, [part, editor, saver]);
 
-  // Autosave listener (debounced 2000ms)
+  const content = editor?.getHTML() ?? '';
   useEffect(() => {
-    if (autosaveStatus !== 'dirty' || !editor) return;
+    if (!loaded.current || autosaveStatus !== 'dirty' || !editor) return;
+    saver.update({ title: title.trim() || 'Untitled Chapter', content: editor.getHTML(), headerImageUrl: headerImageUrl || null });
+  }, [title, headerImageUrl, content, editor, saver, autosaveStatus]);
 
-    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-
-    autosaveTimerRef.current = setTimeout(async () => {
-      try {
-        setAutosaveStatus('saving');
-        await http.put(`/parts/${partId}`, {
-          title,
-          content: editor.getHTML(),
-          headerImageUrl: headerImageUrl || null,
-          isPublished: part?.isPublished ?? false,
-        });
-        setAutosaveStatus('saved');
-      } catch {
-        setAutosaveStatus('dirty');
-      }
-    }, 2000);
-
-    return () => {
-      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+  useEffect(() => {
+    alive.current = true;
+    const warnUnsaved = (event: BeforeUnloadEvent) => {
+      if (saver.isDirty()) { event.preventDefault(); event.returnValue = ''; }
     };
-  }, [autosaveStatus, editor, title, headerImageUrl, partId, part?.isPublished]);
+    window.addEventListener('beforeunload', warnUnsaved);
+    return () => {
+      alive.current = false;
+      window.removeEventListener('beforeunload', warnUnsaved);
+      saver.cancelTimer();
+      if (saver.isDirty()) void saver.flush().catch(() => undefined);
+    };
+  }, [saver]);
+
+  useEffect(() => { editor?.setEditable(pendingAction === null); }, [editor, pendingAction]);
 
   const handleUploadHeader = async (file: File) => {
     const formData = new FormData();
@@ -179,21 +192,13 @@ export default function EditorPage() {
     if (pendingAction) return;
     setPendingAction(publish ? 'publish' : 'draft');
     try {
-      const html = editor.getHTML();
-      const payload = {
-        title: title.trim() || 'Untitled Chapter',
-        content: html,
-        headerImageUrl: headerImageUrl.trim() || null,
-        isPublished: publish,
-      };
-
-      await http.put(`/parts/${partId}`, payload);
+      saver.update({ title: title.trim() || 'Untitled Chapter', content: editor.getHTML(), headerImageUrl: headerImageUrl.trim() || null });
+      await saver.flush(publish);
       await queryClient.invalidateQueries({ queryKey: ['parts', storyId] });
       if (publish) {
         await queryClient.invalidateQueries({ queryKey: ['story', storyId] });
         await queryClient.invalidateQueries({ queryKey: ['stories'] });
       }
-      setAutosaveStatus('saved');
       if (publish) {
         feedback.success('Chapter published successfully!');
         navigate(`/writer/story/${storyId}/parts`);
@@ -226,7 +231,7 @@ export default function EditorPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Chapter Editor</h1>
             <div className="flex items-center gap-2 text-[11px] text-gray-400">
-              {autosaveStatus === 'saving' ? (
+              {autosaveStatus === 'error' ? <span role="alert" className="text-red-600">Save failed ? use Save Draft to retry</span> : autosaveStatus === 'saving' ? (
                 <span className="flex items-center gap-1 text-amber-500">
                   <LoaderCircle className="w-3 h-3 animate-spin" /> Autosaving...
                 </span>

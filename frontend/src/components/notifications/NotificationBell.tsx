@@ -45,7 +45,7 @@ export const NotificationBell = () => {
 
   // Activity Unread count
   const { data: countData } = useQuery({
-    queryKey: ['notifications', 'unread-count'],
+    queryKey: ['notifications', 'unread-count', user?.id],
     queryFn: async () => {
       const res = await http.get('/notifications/unread-count');
       return res.data;
@@ -56,7 +56,7 @@ export const NotificationBell = () => {
 
   // Activity Notifications list
   const { data: notifications = [], isLoading: loadingActivity, refetch: refetchActivity } = useQuery({
-    queryKey: ['notifications', 'list'],
+    queryKey: ['notifications', 'list', user?.id],
     queryFn: async () => {
       const res = await http.get('/notifications');
       return res.data;
@@ -84,7 +84,7 @@ export const NotificationBell = () => {
       await http.put(`/notifications/${notificationId}/read`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
     },
   });
 
@@ -93,7 +93,7 @@ export const NotificationBell = () => {
       await http.post('/notifications/read-all');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
       refetchActivity();
     },
   });

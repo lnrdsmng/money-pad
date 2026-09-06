@@ -12,6 +12,7 @@ interface AdWatchStatus {
   cooldown_seconds: number;
   cooldown_remaining: number;
   can_watch: boolean;
+  available: boolean;
 }
 
 export function WatchAdsTaskSection() {
@@ -19,11 +20,13 @@ export function WatchAdsTaskSection() {
   const queryClient = useQueryClient();
   const feedback = useFeedback();
 
+  const [adEventId, setAdEventId] = useState<string | null>(null);
+  const [startingAd, setStartingAd] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState<number | null>(null);
 
   const { data: status, isLoading } = useQuery<AdWatchStatus>({
-    queryKey: ['ad-watch-status'],
+    queryKey: ['ad-watch-status', user?.id],
     queryFn: async () => (await http.get('/transactions/ad-watch/status')).data,
     enabled: !!user,
   });
@@ -37,22 +40,20 @@ export function WatchAdsTaskSection() {
         const current = (prev ?? (status?.cooldown_remaining ?? 0)) - 1;
         if (current <= 0) {
           clearInterval(interval);
-          queryClient.invalidateQueries({ queryKey: ['ad-watch-status'] });
+          queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
           return 0;
         }
         return current;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [cooldown, queryClient, status?.cooldown_remaining]);
+  }, [cooldown, queryClient, status?.cooldown_remaining, user?.id]);
 
   const watchAdMutation = useMutation({
     mutationFn: async () => {
-      const res = await http.post('/transactions/ad-watch', {
-        id: `ad_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        userId: user?.id,
-        watchedAt: Date.now(),
-      });
+      if (!adEventId) throw new Error('Start an ad before claiming.');
+      await http.post(`/rewarded-ads/${adEventId}/mock-verify`);
+      const res = await http.post('/transactions/ad-watch', { ad_event_id: adEventId });
       return res.data;
     },
     onSuccess: (data) => {
@@ -61,16 +62,26 @@ export function WatchAdsTaskSection() {
       if (data.user) {
         updateUser(data.user);
       }
-      queryClient.invalidateQueries({ queryKey: ['ad-watch-status'] });
+      queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['withdrawals', user?.id] });
       feedback.success(`You earned ${data.rewardCoins || 2} Reader Coins!`);
     },
     onError: (error) => {
       setShowAd(false);
       feedback.error(getApiErrorMessage(error, 'Could not complete ad task. Please try again.'));
-      queryClient.invalidateQueries({ queryKey: ['ad-watch-status'] });
+      queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
     },
   });
+
+  const startAd = async () => {
+    setStartingAd(true);
+    try {
+      const response = await http.post<{ id: string }>('/rewarded-ads', { purpose: 'coins' });
+      setAdEventId(response.data.id);
+      setShowAd(true);
+    } catch (error) { feedback.error(getApiErrorMessage(error, 'Rewarded ads are currently unavailable.')); }
+    finally { setStartingAd(false); }
+  };
 
   return (
     <section className="mb-6 rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-xs">
@@ -106,8 +117,8 @@ export function WatchAdsTaskSection() {
           ) : (
             <button
               type="button"
-              onClick={() => setShowAd(true)}
-              disabled={isLoading || watchAdMutation.isPending}
+              onClick={() => void startAd()}
+              disabled={isLoading || startingAd || watchAdMutation.isPending || !status?.can_watch}
               className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-primary-hover active:scale-98 transition-all disabled:opacity-50 cursor-pointer"
             >
               {watchAdMutation.isPending ? (
@@ -118,7 +129,7 @@ export function WatchAdsTaskSection() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  <span>Watch Ad (+2 Coins)</span>
+                  <span>{!status?.available ? 'Rewarded ads unavailable' : 'Watch Ad (+2 Coins)'}</span>
                 </>
               )}
             </button>

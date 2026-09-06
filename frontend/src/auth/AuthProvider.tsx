@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
 import type { PlanId } from '../types/earnings';
 
@@ -32,14 +33,18 @@ export interface User {
   bank_name?: string;
 }
 
+export interface LoginRequest { username: string; password: string }
+export interface SignupRequest extends LoginRequest { email: string }
+export interface AuthResponse { user: User; token?: string | null }
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (data: any) => Promise<User>;
-  signup: (data: any) => Promise<any>;
+  login: (data: LoginRequest) => Promise<User>;
+  signup: (data: SignupRequest) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  updateUser: (data: any) => void;
+  updateUser: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,72 +52,72 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const generation = useRef(0);
+  const userId = useRef<string | null>(null);
+
+  const replaceUser = useCallback((next: User | null) => {
+    if (userId.current !== (next?.id ?? null)) {
+      void queryClient.cancelQueries();
+      queryClient.clear();
+    }
+    userId.current = next?.id ?? null;
+    setUser(next);
+  }, [queryClient]);
 
   const checkAuth = useCallback(async () => {
+    const current = generation.current;
     try {
-      const response = await http.get('/auth/me');
-      setUser(response.data);
-    } catch (error) {
-      setUser(null);
+      const response = await http.get<User>('/auth/me');
+      if (current === generation.current) replaceUser(response.data);
+    } catch {
+      // A temporary network failure must not discard an established session.
+      if (current === generation.current && !userId.current) replaceUser(null);
     } finally {
-      setIsLoading(false);
+      if (current === generation.current) setIsLoading(false);
     }
-  }, []);
+  }, [replaceUser]);
 
   useEffect(() => {
-    checkAuth();
-
-    const handleUnauthorized = () => setUser(null);
+    localStorage.removeItem('auth_token');
+    void checkAuth();
+    const handleUnauthorized = () => {
+      generation.current++;
+      replaceUser(null);
+      setIsLoading(false);
+    };
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
-  }, [checkAuth]);
+  }, [checkAuth, replaceUser]);
 
-  const login = async (data: any) => {
+  const authenticate = useCallback(async (path: string, data: LoginRequest | SignupRequest) => {
+    const current = ++generation.current;
     await http.get('/sanctum/csrf-cookie', { baseURL: '' });
-    const response = await http.post('/auth/login', data);
-    if (response.data.token) {
-      localStorage.setItem('auth_token', response.data.token);
-    }
-    setUser(response.data.user);
-    return response.data.user;
-  };
-
-  const signup = async (data: any) => {
-    await http.get('/sanctum/csrf-cookie', { baseURL: '' });
-    const response = await http.post('/auth/signup', data);
-    if (response.data.token) {
-      localStorage.setItem('auth_token', response.data.token);
-    }
-    setUser(response.data.user);
+    const response = await http.post<AuthResponse>(path, data);
+    if (current === generation.current) replaceUser(response.data.user);
     return response.data;
-  };
+  }, [replaceUser]);
 
-  const logout = async () => {
-    try {
-      await http.post('/auth/logout');
-    } catch {
-      // ignore
-    } finally {
-      localStorage.removeItem('auth_token');
-      setUser(null);
-    }
-  };
+  const login = useCallback(async (data: LoginRequest) => (await authenticate('/auth/login', data)).user, [authenticate]);
+  const signup = useCallback((data: SignupRequest) => authenticate('/auth/signup', data), [authenticate]);
+  const logout = useCallback(async () => {
+    generation.current++;
+    // Keep the user signed in if the server could not invalidate the session.
+    await http.post('/auth/logout');
+    replaceUser(null);
+  }, [replaceUser]);
 
-  const updateUser = (data: any) => {
-    setUser((prev: any) => ({ ...prev, ...data }));
-  };
+  const updateUser = useCallback((data: Partial<User>) => {
+    setUser(previous => previous && (!data.id || data.id === previous.id) ? { ...previous, ...data } : previous);
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, checkAuth, updateUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = useMemo(() => ({ user, isLoading, login, signup, logout, checkAuth, updateUser }),
+    [user, isLoading, login, signup, logout, checkAuth, updateUser]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }

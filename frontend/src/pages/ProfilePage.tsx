@@ -1,3 +1,6 @@
+import { usePagedList } from '../hooks/usePagedList';
+import { LoadMoreButton } from '../components/common/LoadMoreButton';
+import type { Story } from '../types/content';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import http from '../api/http';
@@ -14,7 +17,8 @@ export default function ProfilePage() {
   const { username } = useParams();
   const { user: currentUser } = useAuth();
   const [profile, setProfile] = useState<any>(null);
-  const [stories, setStories] = useState<any[]>([]);
+  const storyPages = usePagedList<Story>(['stories', 'profile', username, profile?.id], `/authors/${profile?.id}/stories/published`, !!profile?.id);
+  const stories = storyPages.data;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [isFollowing, setIsFollowing] = useState(false);
@@ -46,9 +50,6 @@ export default function ProfilePage() {
         if (foundUser) {
           setProfile(foundUser);
 
-          const storiesRes = await http.get(`/authors/${foundUser.id}/stories/published`);
-          setStories(Array.isArray(storiesRes.data) ? storiesRes.data : storiesRes.data.data || []);
-          
           if (currentUser?.id && currentUser.id !== foundUser.id) {
             try {
               const followingRes = await http.get(`/users/${currentUser.id}/is-following/${foundUser.id}`);
@@ -227,9 +228,9 @@ export default function ProfilePage() {
                     </div>
                     <h3 className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 line-clamp-1 group-hover:text-primary transition-colors">{story.title}</h3>
                     <div className="flex items-center text-[10px] sm:text-xs text-gray-500 mt-1">
-                      <span className="bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded mr-1.5">{story.genre || 'General'}</span>
+                      <span className="bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded mr-1.5">{story.genres || 'General'}</span>
                       <Clock className="w-3 h-3 mr-1" />
-                      <span>{new Date(story.created_at || story.createdAt).toLocaleDateString()}</span>
+                      <span>{new Date(story.lastUpdatedAt).toLocaleDateString()}</span>
                     </div>
                   </Link>
                 ))}
@@ -247,6 +248,7 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {activeTab === 'works' && <LoadMoreButton {...storyPages} />}
       {/* Followers / Following List Modal */}
       {userListModal && (
         <UserListModal
