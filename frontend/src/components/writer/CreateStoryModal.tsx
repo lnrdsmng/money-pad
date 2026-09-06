@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, ArrowRight, ArrowLeft, Upload, Check, LoaderCircle, BookOpen } from 'lucide-react';
 import http from '../../api/http';
 import { STORY_GENRES } from '../../constants/genres';
@@ -12,6 +13,7 @@ interface CreateStoryModalProps {
 
 export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const feedback = useFeedback();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -61,18 +63,20 @@ export const CreateStoryModal = ({ onClose }: CreateStoryModalProps) => {
 
     setIsSubmitting(true);
     try {
-      const res = await http.post('/stories', {
+      const res = await http.post<{ id: string; initialPartId: string }>('/stories', {
         title: title.trim(),
         overview: overview.trim(),
         coverImageUrl: coverImageUrl.trim() || null,
         genres: selectedGenres.join(','),
         language,
         isMature,
+        createInitialChapter: true,
       });
 
       feedback.success('Story created successfully!');
+      void queryClient.invalidateQueries({ queryKey: ['stories'] });
       onClose();
-      navigate(`/writer/story/${res.data.id}/parts`);
+      navigate(`/writer/story/${res.data.id}/read/${res.data.initialPartId}/edit`);
     } catch (error) {
       feedback.error(getApiErrorMessage(error, 'Could not create story.'));
     } finally {

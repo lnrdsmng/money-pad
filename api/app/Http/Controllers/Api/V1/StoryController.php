@@ -9,6 +9,7 @@ use App\Models\UserReadingProgress;
 use App\Models\UserReadPart;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -37,19 +38,43 @@ class StoryController extends Controller
             'language' => 'nullable|string',
             'coverImageUrl' => 'nullable|url',
             'isMature' => 'boolean',
+            'createInitialChapter' => 'sometimes|boolean',
         ]);
 
-        $storyId = Str::uuid()->toString();
+        $createInitialChapter = (bool) ($validated['createInitialChapter'] ?? false);
+        unset($validated['createInitialChapter']);
 
-        $story = Story::create(array_merge($validated, [
-            'id' => $storyId,
-            'authorId' => $request->user()->id,
-            'authorName' => $request->user()->username,
-            'isAuthorVerified' => (bool) $request->user()->isVerified,
-            'lastUpdatedAt' => time() * 1000,
-        ]));
+        $author = $request->user();
+        [$story, $initialPartId] = DB::transaction(function () use ($validated, $author, $createInitialChapter) {
+            $story = Story::create(array_merge($validated, [
+                'id' => Str::uuid()->toString(),
+                'authorId' => $author->id,
+                'authorName' => $author->username,
+                'isAuthorVerified' => (bool) $author->isVerified,
+                'lastUpdatedAt' => time() * 1000,
+            ]));
 
-        return response()->json(['id' => $story->id], 201);
+            $initialPartId = null;
+            if ($createInitialChapter) {
+                $initialPartId = Str::uuid()->toString();
+                StoryPart::create([
+                    'id' => $initialPartId,
+                    'storyId' => $story->id,
+                    'title' => 'Untitled Chapter',
+                    'content' => '',
+                    'order' => 1,
+                    'publishedAt' => 0,
+                    'isPublished' => false,
+                ]);
+            }
+
+            return [$story, $initialPartId];
+        });
+
+        return response()->json(array_filter([
+            'id' => $story->id,
+            'initialPartId' => $initialPartId,
+        ]), 201);
     }
 
     public function update(Request $request, $storyId)
