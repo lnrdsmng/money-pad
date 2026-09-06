@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = process.env.MONEYPAD_TEST_API_URL;
+if (!API_BASE) throw new Error('Set MONEYPAD_TEST_API_URL to a disposable test API.');
 
 async function testAll() {
   console.log('=====================================================');
@@ -15,8 +16,6 @@ async function testAll() {
   let userId = null;
   let storyId = null;
   let partId = null;
-  let listId = null;
-  let withdrawalId = null;
 
   const testReport = [];
 
@@ -446,6 +445,7 @@ async function testAll() {
   console.log('📊 END-TO-END API & FLOW MATRIX');
   console.log('=====================================================');
   console.table(testReport);
+  if (testReport.some(result => Object.values(result).includes('FAIL'))) process.exitCode = 1;
 }
 
-testAll().catch(console.error);
+testAll().catch(error => { console.error(error); process.exitCode = 1; });

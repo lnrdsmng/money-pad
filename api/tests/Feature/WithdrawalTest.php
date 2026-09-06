@@ -2,21 +2,29 @@
 
 namespace Tests\Feature;
 
-use App\Models\ReadingReward;
-use App\Models\ReadingRewardClaim;
+use App\Models\RewardedAdEvent;
 use App\Models\User;
-use App\Models\WithdrawalRequest;
-use App\ReadingRewardClaimStatus;
-use App\ReadingRewardStatus;
 use App\Services\WithdrawalService;
-use App\WithdrawalStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class WithdrawalTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function verifiedAd(User $user, string $purpose, ?string $target = null): string
+    {
+        config(['moneypad.rewarded_ads.provider' => 'mock', 'moneypad.rewarded_ads.mock_enabled' => true]);
+        $event = RewardedAdEvent::create([
+            'id' => (string) Str::uuid(), 'user_id' => $user->id,
+            'purpose' => $purpose, 'target_id' => $target, 'provider' => 'mock',
+            'verified_at' => now(), 'expires_at' => now()->addMinutes(10),
+        ]);
+
+        return $event->id;
+    }
 
     public function test_can_fetch_withdrawal_policy(): void
     {
@@ -128,9 +136,7 @@ class WithdrawalTest extends TestCase
         ]);
 
         $this->actingAs($user)->postJson('/api/v1/transactions/ad-watch', [
-            'id' => 'ad_event_1',
-            'userId' => $user->id,
-            'watchedAt' => time() * 1000,
+            'ad_event_id' => $this->verifiedAd($user, 'coins'),
         ])->assertOk();
 
         // 1048 + 2 = 1050 coins -> triggers ₱10.50 withdrawal
@@ -156,13 +162,13 @@ class WithdrawalTest extends TestCase
         $this->assertFalse($req->fee_waived);
 
         for ($i = 1; $i <= 9; $i++) {
-            $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/watch-ad")
+            $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/watch-ad", ['ad_event_id' => $this->verifiedAd($user, 'withdrawal', $req->id)])
                 ->assertOk()
                 ->assertJson(['count' => $i, 'fee_waived' => false]);
         }
 
         // 10th ad waives fee
-        $res = $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/watch-ad")
+        $res = $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/watch-ad", ['ad_event_id' => $this->verifiedAd($user, 'withdrawal', $req->id)])
             ->assertOk()
             ->assertJson([
                 'count' => 10,
@@ -189,7 +195,7 @@ class WithdrawalTest extends TestCase
 
         // Watch 10 ads to waive platform fee
         for ($i = 1; $i <= 10; $i++) {
-            $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/watch-ad");
+            $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/watch-ad", ['ad_event_id' => $this->verifiedAd($user, 'withdrawal', $req->id)]);
         }
 
         $fresh = $req->fresh();

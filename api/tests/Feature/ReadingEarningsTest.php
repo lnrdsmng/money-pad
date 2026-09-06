@@ -12,11 +12,18 @@ use App\PlanType;
 use App\ReadingRewardClaimStatus;
 use App\ReadingRewardStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ReadingEarningsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['moneypad.rewarded_ads.provider' => 'mock', 'moneypad.rewarded_ads.mock_enabled' => true]);
+    }
 
     public function test_a_completed_minute_creates_pending_income_without_crediting_the_balance(): void
     {
@@ -173,6 +180,8 @@ class ReadingEarningsTest extends TestCase
             'partId' => $part->id,
             'last_active_at' => $lastActiveAt ?? now(),
         ]);
+
+        DB::table('active_reading_sessions')->insert(['user_id' => $reader->id, 'session_id' => $session->id]);
 
         return [$reader, $session];
     }

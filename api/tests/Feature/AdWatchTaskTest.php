@@ -10,6 +10,12 @@ class AdWatchTaskTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['moneypad.rewarded_ads.provider' => 'mock', 'moneypad.rewarded_ads.mock_enabled' => true]);
+    }
+
     public function test_can_fetch_ad_watch_status(): void
     {
         $user = User::factory()->create();
@@ -29,9 +35,12 @@ class AdWatchTaskTest extends TestCase
     {
         $user = User::factory()->create(['readerCoins' => 5.0]);
 
+        $event = $this->actingAs($user)->postJson('/api/v1/rewarded-ads', ['purpose' => 'coins'])->assertCreated()->json('id');
+        $this->travel(6)->seconds();
+        $this->postJson("/api/v1/rewarded-ads/{$event}/mock-verify")->assertOk();
         $response = $this->actingAs($user)
             ->postJson('/api/v1/transactions/ad-watch', [
-                'watchedAt' => time() * 1000,
+                'ad_event_id' => $event,
             ]);
 
         $response->assertOk()
@@ -44,12 +53,7 @@ class AdWatchTaskTest extends TestCase
 
         $this->assertEquals(7.0, (float) $user->fresh()->readerCoins);
 
-        // Immediate second call should be throttled by 60s cooldown
-        $this->actingAs($user)
-            ->postJson('/api/v1/transactions/ad-watch', [
-                'watchedAt' => time() * 1000,
-            ])
-            ->assertStatus(429)
-            ->assertJsonStructure(['message', 'cooldown_remaining']);
+        // A second reward cannot start during the cooldown.
+        $this->postJson('/api/v1/rewarded-ads', ['purpose' => 'coins'])->assertStatus(429);
     }
 }

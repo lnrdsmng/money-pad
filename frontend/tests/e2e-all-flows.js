@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 
-const BASE_URL = 'http://localhost:5173';
-const API_URL = 'http://localhost:8000/api/v1';
+const BASE_URL = process.env.MONEYPAD_TEST_BASE_URL;
+if (!BASE_URL) throw new Error('Set MONEYPAD_TEST_BASE_URL to a disposable test app.');
 
 const results = [];
 
@@ -420,6 +420,7 @@ async function runE2ETests() {
   console.log('📊 TEST SUMMARY & RESULTS MATRIX');
   console.log('====================================================');
   console.table(results);
+  if (results.some(result => Object.values(result).includes('FAIL'))) process.exitCode = 1;
 }
 
-runE2ETests().catch(console.error);
+runE2ETests().catch(error => { console.error(error); process.exitCode = 1; });
