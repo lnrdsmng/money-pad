@@ -86,7 +86,7 @@ export default function ProfilePage() {
         ...prev,
         followers: Math.max(0, (prev?.followers || 0) + (previousValue ? -1 : 1)),
       }));
-      feedback.success(previousValue ? `Unfollowed @${profile.username}.` : `Following @${profile.username}.`);
+      feedback.success(previousValue ? `Unfollowed ${profile.username}.` : `Following ${profile.username}.`);
     } catch (error) {
       setIsFollowing(previousValue);
       feedback.error(getApiErrorMessage(error, 'Your follow preference could not be updated.'));

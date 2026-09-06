@@ -43,10 +43,10 @@ export const UserListModal = ({ userId, type, onClose }: UserListModalProps) => 
 
       if (isCurrentlyFollowing) {
         await http.post(`/users/${currentUser.id}/unfollow`, { followedId: targetUser.id });
-        feedback.success(`Unfollowed @${targetUser.username}`);
+        feedback.success(`Unfollowed ${targetUser.username}`);
       } else {
         await http.post(`/users/${currentUser.id}/follow`, { followedId: targetUser.id });
-        feedback.success(`Following @${targetUser.username}`);
+        feedback.success(`Following ${targetUser.username}`);
       }
 
       queryClient.invalidateQueries({ queryKey: ['users', userId, type] });
@@ -98,7 +98,7 @@ export const UserListModal = ({ userId, type, onClose }: UserListModalProps) => 
                   <div className="min-w-0">
                     <div className="flex items-center gap-1">
                       <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
-                        @{u.username}
+                        {u.username}
                       </span>
                       {u.isVerified && <VerifiedBadge size={14} />}
                     </div>

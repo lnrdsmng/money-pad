@@ -218,7 +218,7 @@ export const GroupChat = () => {
                   >
                     <div className={`flex items-center gap-1 text-[11px] font-bold ${isMe ? 'text-white' : 'text-primary'}`}>
                       <Reply className="w-3 h-3 scale-x-[-1]" />
-                      <span>@{msg.reply_to.username}</span>
+                      <span>{msg.reply_to.username}</span>
                     </div>
                     <p
                       className={`text-[11px] truncate mt-0.5 opacity-90 line-clamp-1 ${
@@ -238,7 +238,7 @@ export const GroupChat = () => {
                     }`}
                   >
                     {msg.is_system && <Shield className="w-3.5 h-3.5" />}
-                    {msg.is_system ? 'Admin Notice' : `@${msg.username}`}
+                    {msg.is_system ? 'Admin Notice' : msg.username}
                   </p>
                 )}
 
@@ -296,7 +296,7 @@ export const GroupChat = () => {
                             : 'text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-slate-700'
                         }`}
                         title="Reply to message"
-                        aria-label={`Reply to @${msg.username}`}
+                        aria-label={`Reply to ${msg.username}`}
                       >
                         <Reply className="w-3 h-3" />
                         <span className="hidden sm:inline">Reply</span>
@@ -328,7 +328,7 @@ export const GroupChat = () => {
               <Reply className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="text-gray-600 dark:text-gray-300 shrink-0">Replying to</span>
               <span className="font-semibold text-primary bg-primary/15 px-1.5 py-0.5 rounded-full shrink-0">
-                @{replyingTo.username}
+                {replyingTo.username}
               </span>
               <span className="text-gray-500 dark:text-gray-400 truncate">
                 {replyingTo.message}

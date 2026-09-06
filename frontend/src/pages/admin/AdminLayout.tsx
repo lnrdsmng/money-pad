@@ -88,7 +88,7 @@ const AdminLayout = () => {
           </Link>
           {user && (
             <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-1">
-              <span className="truncate">@{user.username}</span>
+              <span className="truncate">{user.username}</span>
               <button
                 type="button"
                 onClick={logout}

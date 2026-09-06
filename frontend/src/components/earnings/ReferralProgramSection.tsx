@@ -210,7 +210,7 @@ export const ReferralProgramSection = () => {
           </div>
 
           <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-100 dark:border-slate-700">
-            <span>Referral Code: <strong className="text-gray-900 dark:text-gray-100">@{user?.username}</strong></span>
+            <span>Referral Code: <strong className="text-gray-900 dark:text-gray-100">{user?.username}</strong></span>
             <span>Total Referrals: <strong className="text-primary">{user?.referralCount || 0}</strong></span>
           </div>
         </div>

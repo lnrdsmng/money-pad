@@ -72,7 +72,7 @@ export const ChapterAnnotationsDrawer = ({
                 <div className="flex justify-between items-center text-[11px] text-gray-500">
                   <div className="flex items-center gap-1.5">
                     <span className="font-semibold text-gray-800 dark:text-gray-200">
-                      @{ann.username}
+                      {ann.username}
                     </span>
                     {ann.isUserVerified && <VerifiedBadge size={12} />}
                     {ann.type === 'LIKE' ? (

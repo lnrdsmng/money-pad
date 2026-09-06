@@ -133,7 +133,7 @@ export const AuthorWall = ({ authorId, authorUsername }: AuthorWallProps) => {
             <MessageSquare className="w-5 h-5 text-primary" />
             Author Wall
           </h3>
-          <p className="text-xs text-gray-500">Leave a note, feedback, or say hi to @{authorUsername}</p>
+          <p className="text-xs text-gray-500">Leave a note, feedback, or say hi to {authorUsername}</p>
         </div>
       </div>
 
@@ -145,7 +145,7 @@ export const AuthorWall = ({ authorId, authorUsername }: AuthorWallProps) => {
             rows={3}
             value={message}
             onChange={handleTextChange}
-            placeholder={`Leave a message for @${authorUsername}... Type @ to mention a user`}
+            placeholder={`Leave a message for ${authorUsername}... Type @ to mention a user`}
             className="w-full text-sm bg-transparent border-none focus:outline-none resize-none text-gray-900 dark:text-gray-100"
           />
 
@@ -159,7 +159,7 @@ export const AuthorWall = ({ authorId, authorUsername }: AuthorWallProps) => {
                   onClick={() => handleSelectMention(u.username)}
                   className="w-full px-3 py-1.5 text-left text-xs hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-between"
                 >
-                  <span className="font-medium text-gray-800 dark:text-gray-200">@{u.username}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{u.username}</span>
                   {u.isVerified && <VerifiedBadge size={12} />}
                 </button>
               ))}
@@ -180,7 +180,7 @@ export const AuthorWall = ({ authorId, authorUsername }: AuthorWallProps) => {
         </div>
       ) : (
         <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl text-center text-sm text-gray-500 border border-gray-200 dark:border-slate-700">
-          <Link to="/login" className="text-primary font-medium hover:underline">Log in</Link> to post on @{authorUsername}'s wall.
+          <Link to="/login" className="text-primary font-medium hover:underline">Log in</Link> to post on {authorUsername}'s wall.
         </div>
       )}
 
@@ -267,7 +267,7 @@ const ConversationItem = ({
                 to={`/profile/${conversation.senderName}`}
                 className="font-bold text-sm text-gray-900 dark:text-gray-100 hover:underline"
               >
-                @{conversation.senderName}
+                {conversation.senderName}
               </Link>
               {conversation.isSenderVerified && <VerifiedBadge size={13} />}
             </div>
@@ -322,7 +322,7 @@ const ConversationItem = ({
                 type="text"
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                placeholder={`Reply to @${conversation.senderName}...`}
+                placeholder={`Reply to ${conversation.senderName}...`}
                 className="flex-1 text-xs p-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary"
               />
               <button
@@ -346,7 +346,7 @@ const ConversationItem = ({
                 <div key={rep.id} className="text-xs">
                   <div className="flex items-center gap-1 mb-0.5">
                     <Link to={`/profile/${rep.senderName}`} className="font-semibold hover:underline text-gray-900 dark:text-gray-100">
-                      @{rep.senderName}
+                      {rep.senderName}
                     </Link>
                     {rep.isSenderVerified && <VerifiedBadge size={11} />}
                     <span className="text-gray-400 text-[10px] ml-1">

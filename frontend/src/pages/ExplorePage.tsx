@@ -98,7 +98,7 @@ export default function ExplorePage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">
-                              @{author.username}
+                              {author.username}
                             </span>
                             {author.isVerified && <VerifiedBadge size={13} />}
                           </div>
