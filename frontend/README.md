@@ -92,3 +92,14 @@ References: [Vite server options](https://vite.dev/config/server-options),
 [Laravel Sanctum](https://laravel.com/docs/13.x/sanctum),
 [ngrok CLI](https://ngrok.com/docs/agent/cli),
 [Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).
+
+
+## Development checks and implementation notes
+
+Use Node 22.12+ (or a supported newer LTS), then `npm ci`, `npm run build`, `npm test` and `npm run lint`. Browser regression tests use Edge on Windows and Playwright Chromium elsewhere (`npx playwright install chromium`). Tests cover HTML sanitization, serialized autosave/retries and proxy forwarding without modifying application data.
+
+Pages load lazily. Private query keys include account identity and the query cache is cleared when authentication changes. The web app uses HttpOnly session cookies, not local-storage bearer tokens. Chapter saves are serialized with server revision checks; a conflict requires reconciling/reloading the latest chapter rather than overwriting it.
+
+Production ad rewards are unavailable for the current Monetag standard website placement. The development mock is gated by Laravel environment and configuration; browser completion callbacks alone never authorize rewards.
+
+The older `tests/flow-test-suite.js` and `tests/e2e-all-flows.js` are manual integration scripts with historical flow assumptions. They create data and require explicit `MONEYPAD_TEST_API_URL` or `MONEYPAD_TEST_BASE_URL` pointing to a disposable test installation. Recorded failures now produce a nonzero exit status. They are not part of `npm test`.
