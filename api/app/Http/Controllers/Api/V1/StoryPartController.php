@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\ReadingSession;
 use App\Models\Story;
 use App\Models\StoryPart;
+use App\Models\User;
 use App\Models\UserReadPart;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,8 +35,13 @@ class StoryPartController extends Controller
     public function show(Request $request, $partId)
     {
         $part = StoryPart::findOrFail($partId);
+        $viewer = $request->user('sanctum');
 
-        abort_unless(Gate::forUser($request->user('sanctum'))->allows('view', $part), 404);
+        abort_unless(Gate::forUser($viewer)->allows('view', $part), 404);
+
+        $part->setAttribute('isCompletedByCurrentUser', $viewer
+            ? UserReadPart::query()->where('userId', $viewer->id)->where('partId', $part->id)->exists()
+            : false);
 
         return response()->json($part);
     }
@@ -119,20 +126,44 @@ class StoryPartController extends Controller
 
     public function recordPartRead(Request $request, $partId)
     {
-        $part = StoryPart::findOrFail($partId);
         $userId = $request->user()->id;
 
-        Gate::authorize('view', $part);
-        $read = UserReadPart::firstOrCreate(
-            ['userId' => $userId, 'partId' => $partId],
-            ['storyId' => $part->storyId, 'readAt' => time() * 1000]
-        );
+        return DB::transaction(function () use ($partId, $userId) {
+            User::query()->whereKey($userId)->lockForUpdate()->firstOrFail();
+            $part = StoryPart::query()->whereKey($partId)->lockForUpdate()->firstOrFail();
+            Gate::authorize('view', $part);
 
-        if ($read->wasRecentlyCreated) {
-            $part->increment('readCount');
-        }
+            $read = UserReadPart::firstOrCreate(
+                ['userId' => $userId, 'partId' => $partId],
+                ['storyId' => $part->storyId, 'readAt' => time() * 1000]
+            );
 
-        return response()->json(['success' => true]);
+            if ($read->wasRecentlyCreated) {
+                $part->increment('readCount');
+            }
+
+            $sessionIds = ReadingSession::query()
+                ->where('userId', $userId)
+                ->where('partId', $partId)
+                ->where('is_active', true)
+                ->pluck('id');
+
+            if ($sessionIds->isNotEmpty()) {
+                ReadingSession::query()->whereKey($sessionIds)->update([
+                    'is_active' => false,
+                    'ended_at' => now(),
+                ]);
+                DB::table('active_reading_sessions')
+                    ->where('user_id', $userId)
+                    ->whereIn('session_id', $sessionIds)
+                    ->delete();
+            }
+
+            return response()->json([
+                'success' => true,
+                'alreadyCompleted' => ! $read->wasRecentlyCreated,
+            ]);
+        }, 3);
     }
 
     public function recordPartView(Request $request, $partId)

@@ -8,6 +8,7 @@ use App\Http\Requests\StartReadingSessionRequest;
 use App\Models\ReadingSession;
 use App\Models\User;
 use App\Models\UserReadingProgress;
+use App\Models\UserReadPart;
 use App\Services\ReadingRewardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,16 @@ class ReadingSessionController extends Controller
 
         return DB::transaction(function () use ($user, $validated) {
             User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if (UserReadPart::query()
+                ->where('userId', $user->id)
+                ->where('partId', $validated['partId'])
+                ->exists()) {
+                return response()->json([
+                    'message' => 'This chapter has already been completed.',
+                    'completed' => true,
+                ], 409);
+            }
+
             ReadingSession::query()
                 ->where('userId', $user->id)
                 ->where('is_active', true)

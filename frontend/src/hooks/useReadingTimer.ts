@@ -67,7 +67,7 @@ export function useReadingTimer(
 
   // Lifecycle: start and stop reading session
   useEffect(() => {
-    if (!userId || !enabled) return;
+    if (!userId || !enabled || isEndOfChapter) return;
 
     let activeSessionId: string | null = null;
     let disposed = false;
@@ -131,14 +131,13 @@ export function useReadingTimer(
       if (awardTimer.current) window.clearTimeout(awardTimer.current);
       if (errorTimer.current) window.clearTimeout(errorTimer.current);
     };
-  }, [userId, storyId, partId, readingKey, enabled]);
+  }, [userId, storyId, partId, readingKey, enabled, isEndOfChapter]);
 
   // Active reading ticker: increments progress per second, handles idle & heartbeat
   useEffect(() => {
     if (!session) return;
 
     if (isEndOfChapter) {
-      void http.post('/reading/stop', { sessionId: session.id }).catch(() => undefined);
       return;
     }
 

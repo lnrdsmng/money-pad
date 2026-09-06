@@ -26,7 +26,10 @@ export interface ChapterSummary {
   revision: number;
 }
 
-export interface Chapter extends ChapterSummary { content: string }
+export interface Chapter extends ChapterSummary {
+  content: string;
+  isCompletedByCurrentUser?: boolean;
+}
 export interface ChapterSave {
   title: string;
   content: string;

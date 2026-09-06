@@ -18,15 +18,9 @@ export default function ReaderPage() {
   const [part, setPart] = useState<Chapter | null>(null);
   const [allParts, setAllParts] = useState<ChapterSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dismissedResumePartId, setDismissedResumePartId] = useState<string | null>(null);
   const [isAnnotationsDrawerOpen, setIsAnnotationsDrawerOpen] = useState(false);
-  
   const [isEndOfChapter, setIsEndOfChapter] = useState(false);
-
-  // Reset isEndOfChapter when partId changes
-  useEffect(() => {
-    setIsEndOfChapter(false);
-  }, [partId]);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   // Strict validation: stop when bottom of any chapter is reached
   useEffect(() => {
@@ -51,43 +45,99 @@ export default function ReaderPage() {
     storyId!,
     partId!,
     isEndOfChapter,
-    !loading && part !== null && part.id === partId && part.storyId === storyId,
+    !isEndOfChapter && !loading && part !== null && part.id === partId && part.storyId === storyId,
   );
   const { savedPartId, savedScrollPosition, saveProgress, loaded: progressLoaded } = useReadingProgress(storyId!);
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const completedPartRequests = useRef(new Set<string>());
+  const pendingNavigationPartId = useRef<string | null>(null);
+  const restoredPartId = useRef<string | null>(null);
 
   const resumePartId = progressLoaded
     && savedPartId
     && savedPartId !== partId
-    && savedPartId !== dismissedResumePartId
     ? savedPartId
     : null;
 
+  // Persist completion once the reader reaches the bottom. The endpoint is idempotent,
+  // and retries cover brief connection interruptions without restarting the timer.
+  useEffect(() => {
+    if (!isEndOfChapter || !partId || part?.id !== partId || part.isCompletedByCurrentUser) return;
+    if (completedPartRequests.current.has(partId)) return;
+
+    completedPartRequests.current.add(partId);
+    if (pendingNavigationPartId.current === null) {
+      void saveProgress(partId, 1);
+    }
+
+    let disposed = false;
+    const persistCompletion = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await http.post(`/parts/${partId}/read`);
+          if (!disposed) {
+            setPart(current => current?.id === partId
+              ? { ...current, isCompletedByCurrentUser: true }
+              : current);
+            setCompletionError(null);
+          }
+          return;
+        } catch {
+          if (attempt < 2) {
+            await new Promise(resolve => window.setTimeout(resolve, 1000 * (attempt + 1)));
+          }
+        }
+      }
+
+      if (!disposed) {
+        completedPartRequests.current.delete(partId);
+        setCompletionError('Chapter completion could not be saved. Check your connection before leaving.');
+      }
+    };
+
+    void persistCompletion();
+    return () => { disposed = true; };
+  }, [isEndOfChapter, part, partId, saveProgress]);
+
+  useEffect(() => {
+    restoredPartId.current = null;
+  }, [partId]);
+
   // Handle restoring scroll position when part loads
   useEffect(() => {
-    if (part && progressLoaded && savedPartId === partId && savedScrollPosition > 0) {
+    if (!part || !progressLoaded || savedPartId !== partId || savedScrollPosition <= 0) return;
+    if (restoredPartId.current === partId) return;
+
+    restoredPartId.current = partId!;
+    const frame = window.requestAnimationFrame(() => {
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       window.scrollTo(0, scrollHeight * savedScrollPosition);
-    }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [part, progressLoaded, savedPartId, partId, savedScrollPosition]);
 
   // Periodic progress saving
   useEffect(() => {
     const saveInterval = setInterval(() => {
+      if (!partId || loading || part?.id !== partId) return;
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       const scrollPosition = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
-      saveProgress(partId!, scrollPosition);
+      void saveProgress(partId, scrollPosition);
     }, 30000); // 30s
     return () => clearInterval(saveInterval);
-  }, [partId, saveProgress]);
+  }, [partId, part, loading, saveProgress]);
 
-  // Save progress on unmount
+  // Save when leaving the reader, but do not let the previous chapter overwrite
+  // progress during deliberate in-reader navigation.
   useEffect(() => {
+    const currentPartId = partId;
     return () => {
+      if (!currentPartId) return;
+      if (pendingNavigationPartId.current !== null) return;
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       const scrollPosition = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
-      saveProgress(partId!, scrollPosition);
+      void saveProgress(currentPartId, scrollPosition);
     };
   }, [partId, saveProgress]);
 
@@ -97,13 +147,18 @@ export default function ReaderPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setCompletionError(null);
         const [partRes, partsRes] = await Promise.all([
           http.get<Chapter>(`/parts/${partId}`, { signal: controller.signal }),
           http.get<ChapterSummary[]>(`/stories/${storyId}/parts?onlyPublished=true`, { signal: controller.signal })
         ]);
         if (partRes.data.storyId !== storyId) { setPart(null); return; }
+        setIsEndOfChapter(Boolean(partRes.data.isCompletedByCurrentUser));
         setPart(partRes.data);
         setAllParts(partsRes.data);
+        if (pendingNavigationPartId.current === partRes.data.id) {
+          pendingNavigationPartId.current = null;
+        }
       } catch (err) {
         if (!controller.signal.aborted) { setPart(null); console.error("Failed to load reading data", err); }
       } finally {
@@ -113,6 +168,13 @@ export default function ReaderPage() {
     if (storyId && partId) void fetchData();
     return () => controller.abort();
   }, [storyId, partId]);
+
+  const navigateToPart = (destinationPartId: string) => {
+    if (!destinationPartId || destinationPartId === partId) return;
+    pendingNavigationPartId.current = destinationPartId;
+    void saveProgress(destinationPartId, 0);
+    navigate(`/story/${storyId}/read/${destinationPartId}`);
+  };
 
   const handleSelectPassage = (selectedText: string) => {
     setIsAnnotationsDrawerOpen(false);
@@ -160,9 +222,9 @@ export default function ReaderPage() {
         </button>
       </div>
 
-      {earningsError && (
+      {(earningsError || completionError) && (
         <div className="fixed right-2 sm:right-8 top-28 sm:top-36 z-40 max-w-[calc(100vw-1rem)] sm:max-w-xs rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300 shadow">
-          {earningsError}
+          {completionError || earningsError}
         </div>
       )}
 
@@ -197,13 +259,21 @@ export default function ReaderPage() {
         
         <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200 dark:border-slate-800 pt-6 sm:pt-8 pb-16 text-sm sm:text-base">
           {prevPart ? (
-            <Link to={`/story/${storyId}/read/${prevPart.id}`} className="text-primary hover:underline font-medium">
+            <Link
+              to={`/story/${storyId}/read/${prevPart.id}`}
+              onClick={(event) => { event.preventDefault(); navigateToPart(prevPart.id); }}
+              className="text-primary hover:underline font-medium"
+            >
               &larr; Previous Chapter
             </Link>
           ) : <div className="hidden sm:block"></div>}
           
           {nextPart ? (
-            <Link to={`/story/${storyId}/read/${nextPart.id}`} className="text-primary hover:underline font-medium">
+            <Link
+              to={`/story/${storyId}/read/${nextPart.id}`}
+              onClick={(event) => { event.preventDefault(); navigateToPart(nextPart.id); }}
+              className="text-primary hover:underline font-medium"
+            >
               Next Chapter &rarr;
             </Link>
           ) : (
@@ -215,7 +285,7 @@ export default function ReaderPage() {
       <ChapterSlider 
         parts={allParts} 
         currentPartId={partId!} 
-        onPartSelect={(newPartId) => navigate(`/story/${storyId}/read/${newPartId}`)} 
+        onPartSelect={navigateToPart}
       />
 
       <ChapterAnnotationsDrawer
@@ -232,12 +302,17 @@ export default function ReaderPage() {
         confirmLabel="Resume chapter"
         cancelLabel="Continue here"
         onCancel={() => {
-          if (resumePartId) setDismissedResumePartId(resumePartId);
+          if (!partId) return;
+          const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const scrollPosition = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
+          void saveProgress(partId, scrollPosition);
         }}
         onConfirm={() => {
           const destination = resumePartId;
-          if (destination) setDismissedResumePartId(destination);
-          if (destination) navigate(`/story/${storyId}/read/${destination}`);
+          if (destination) {
+            pendingNavigationPartId.current = destination;
+            navigate(`/story/${storyId}/read/${destination}`);
+          }
         }}
       />
     </div>

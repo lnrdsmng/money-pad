@@ -9,6 +9,8 @@ test('reader reaches the first reward heartbeat without continuous input', async
   let heartbeatCount = 0;
   let startCount = 0;
   let failHeartbeat = false;
+  const completedParts = new Set();
+  const progressWrites = [];
   const pageErrors = [];
 
   try {
@@ -44,18 +46,23 @@ test('reader reaches the first reward heartbeat without continuous input', async
           readerCoins: '0.000',
         });
       }
-      if (pathname === '/api/v1/parts/part-1') {
+      if ((pathname === '/api/v1/parts/part-1' || pathname === '/api/v1/parts/part-2') && method === 'GET') {
+        const partId = pathname.endsWith('part-1') ? 'part-1' : 'part-2';
         return json({
-          id: 'part-1',
+          id: partId,
           storyId: 'story-1',
-          title: 'A Long Chapter',
+          title: partId === 'part-1' ? 'A Long Chapter' : 'The Next Chapter',
           content: `<p>${'Reading content '.repeat(2500)}</p>`,
-          order: 1,
+          order: partId === 'part-1' ? 1 : 2,
           isPublished: true,
+          isCompletedByCurrentUser: completedParts.has(partId),
         });
       }
       if (pathname === '/api/v1/stories/story-1/parts') {
-        return json([{ id: 'part-1', title: 'A Long Chapter', order: 1, isPublished: true }]);
+        return json([
+          { id: 'part-1', title: 'A Long Chapter', order: 1, isPublished: true },
+          { id: 'part-2', title: 'The Next Chapter', order: 2, isPublished: true },
+        ]);
       }
       if (pathname === '/api/v1/reading/start' && method === 'POST') {
         startCount += 1;
@@ -70,6 +77,14 @@ test('reader reaches the first reward heartbeat without continuous input', async
           return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
         }
         return json({ amount_awarded: '1.000', pending_total: '1.000', stale: false });
+      }
+      if (pathname.endsWith('/read') && pathname.includes('/parts/') && method === 'POST') {
+        completedParts.add(pathname.split('/').at(-2));
+        return json({ success: true, alreadyCompleted: false });
+      }
+      if (pathname.endsWith('/reading-progress') && method === 'POST') {
+        progressWrites.push(request.postDataJSON());
+        return json({ success: true });
       }
       if (pathname.includes('/reading-progress/') && method === 'GET') return json(null);
       if (pathname === '/api/v1/daily-login-reward') {
@@ -97,11 +112,38 @@ test('reader reaches the first reward heartbeat without continuous input', async
     await page.waitForSelector('text=Reading income tracking is temporarily unavailable.', { timeout: 15_000 });
 
     const startsBeforeChapterEnd = startCount;
+    const completionResponse = page.waitForResponse(response => (
+      response.url().endsWith('/api/v1/parts/part-1/read') && response.request().method() === 'POST'
+    ));
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await page.waitForSelector('text=Done');
-    await page.waitForTimeout(1_000);
+    await completionResponse;
 
     assert.equal(startCount, startsBeforeChapterEnd);
+
+    failHeartbeat = false;
+    await page.locator('a', { hasText: 'Next Chapter' }).click();
+    await page.waitForSelector('h1:has-text("The Next Chapter")');
+    await page.waitForSelector('[title^="Reading active"]');
+    assert.equal(
+      await page.getByRole('dialog').count(),
+      0,
+      `dialog: ${await page.getByRole('dialog').allInnerTexts()} writes: ${JSON.stringify(progressWrites)}`,
+    );
+
+    const startsAfterNextChapter = startCount;
+    await page.locator('a', { hasText: 'Previous Chapter' }).click();
+    await page.waitForSelector('h1:has-text("A Long Chapter")');
+    await page.waitForSelector('text=Done');
+    await page.waitForTimeout(500);
+
+    assert.equal(startCount, startsAfterNextChapter);
+    assert.equal(
+      await page.getByRole('dialog').count(),
+      0,
+      `dialog: ${await page.getByRole('dialog').allInnerTexts()} writes: ${JSON.stringify(progressWrites)}`,
+    );
+    assert.equal(progressWrites.at(-1)?.last_part_id, 'part-1');
   } finally {
     await browser?.close();
     await server.close();
