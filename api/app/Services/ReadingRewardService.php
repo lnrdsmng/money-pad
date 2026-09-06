@@ -32,7 +32,10 @@ class ReadingRewardService
             }
 
             $now = now();
-            $elapsedSeconds = (int) floor($session->last_active_at->diffInSeconds($now));
+            $lastActiveAt = $session->last_active_at->isAfter($now)
+                ? $session->created_at->min($now)
+                : $session->last_active_at;
+            $elapsedSeconds = (int) floor($lastActiveAt->diffInSeconds($now));
             $maximumSeconds = (int) config('moneypad.reading.maximum_heartbeat_seconds');
 
             if ($elapsedSeconds < 30) {

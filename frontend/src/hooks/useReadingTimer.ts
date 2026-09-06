@@ -5,6 +5,22 @@ import { useAuth } from '../auth/AuthProvider';
 
 interface HeartbeatResponse {
   amount_awarded: string;
+  pending_total: string;
+  stale: boolean;
+}
+
+interface ReadingSessionResponse {
+  id: string;
+  reading_policy?: {
+    heartbeat_interval_seconds?: number;
+    idle_timeout_seconds?: number;
+  };
+}
+
+interface ReadingSessionDetails {
+  id: string;
+  heartbeatIntervalSeconds: number;
+  idleTimeoutSeconds: number;
 }
 
 interface KeyedValue<T> {
@@ -15,7 +31,8 @@ interface KeyedValue<T> {
 export function useReadingTimer(
   storyId: string,
   partId: string,
-  isEndOfChapter: boolean = false
+  isEndOfChapter: boolean = false,
+  enabled: boolean = true,
 ) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -23,38 +40,60 @@ export function useReadingTimer(
   const readingKey = `${userId ?? ''}:${storyId}:${partId}`;
   const [pendingState, setPendingState] = useState<KeyedValue<number>>({ key: readingKey, value: 0 });
   const [pausedState, setPausedState] = useState<KeyedValue<boolean>>({ key: readingKey, value: false });
-  const [sessionState, setSessionState] = useState<KeyedValue<string | null>>({ key: readingKey, value: null });
+  const [sessionState, setSessionState] = useState<KeyedValue<ReadingSessionDetails | null>>({
+    key: readingKey,
+    value: null,
+  });
   const [errorState, setErrorState] = useState<KeyedValue<string | null>>({ key: readingKey, value: null });
   const [progressState, setProgressState] = useState<KeyedValue<number>>({ key: readingKey, value: 0 });
-  const [latestAward, setLatestAward] = useState<number | null>(null);
+  const [confirmingState, setConfirmingState] = useState<KeyedValue<boolean>>({ key: readingKey, value: false });
+  const [latestAwardState, setLatestAwardState] = useState<KeyedValue<number | null>>({
+    key: readingKey,
+    value: null,
+  });
 
   const lastActivity = useRef(0);
   const activeSeconds = useRef(0);
   const awardTimer = useRef<number | null>(null);
   const errorTimer = useRef<number | null>(null);
-  const consecutiveFailures = useRef(0);
 
   const pendingEarned = pendingState.key === readingKey ? pendingState.value : 0;
   const isPaused = pausedState.key === readingKey ? pausedState.value : false;
-  const sessionId = sessionState.key === readingKey ? sessionState.value : null;
+  const session = sessionState.key === readingKey ? sessionState.value : null;
   const error = errorState.key === readingKey ? errorState.value : null;
   const progress = progressState.key === readingKey ? progressState.value : 0;
+  const isConfirming = confirmingState.key === readingKey ? confirmingState.value : false;
+  const latestAward = latestAwardState.key === readingKey ? latestAwardState.value : null;
 
   // Lifecycle: start and stop reading session
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !enabled) return;
 
     let activeSessionId: string | null = null;
     let disposed = false;
     lastActivity.current = Date.now();
     activeSeconds.current = 0;
-    consecutiveFailures.current = 0;
 
-    http.post('/reading/start', { storyId, partId })
+    http.post<ReadingSessionResponse>('/reading/start', { storyId, partId })
       .then((response) => {
         activeSessionId = response.data.id;
-        if (!disposed) setSessionState({ key: readingKey, value: activeSessionId });
-        else void http.post('/reading/stop', { sessionId: activeSessionId }).catch(() => undefined);
+        if (!disposed) {
+          const heartbeatIntervalSeconds = Math.max(
+            1,
+            Number(response.data.reading_policy?.heartbeat_interval_seconds) || 60,
+          );
+          const idleTimeoutSeconds = Math.max(
+            1,
+            Number(response.data.reading_policy?.idle_timeout_seconds) || 120,
+          );
+          setSessionState({
+            key: readingKey,
+            value: { id: activeSessionId, heartbeatIntervalSeconds, idleTimeoutSeconds },
+          });
+          setErrorState({ key: readingKey, value: null });
+        } else {
+          void http.post('/reading/stop', { sessionId: activeSessionId }).catch(() => undefined);
+        }
       })
       .catch(() => {
         if (!disposed) setErrorState({ key: readingKey, value: 'Reading income tracking could not be started.' });
@@ -62,9 +101,9 @@ export function useReadingTimer(
 
     const resetActivity = () => {
       lastActivity.current = Date.now();
-      if (!isEndOfChapter) {
-        setPausedState(previous => previous.key === readingKey && !previous.value ? previous : { key: readingKey, value: false });
-      }
+      setPausedState(previous => previous.key === readingKey && !previous.value
+        ? previous
+        : { key: readingKey, value: false });
     };
 
     const handleVisibility = () => {
@@ -92,40 +131,45 @@ export function useReadingTimer(
       if (awardTimer.current) window.clearTimeout(awardTimer.current);
       if (errorTimer.current) window.clearTimeout(errorTimer.current);
     };
-  }, [userId, storyId, partId, readingKey, isEndOfChapter]);
+  }, [userId, storyId, partId, readingKey, enabled]);
 
   // Active reading ticker: increments progress per second, handles idle & heartbeat
   useEffect(() => {
-    if (!sessionId || isEndOfChapter) return;
+    if (!session) return;
+
+    if (isEndOfChapter) {
+      void http.post('/reading/stop', { sessionId: session.id }).catch(() => undefined);
+      return;
+    }
 
     let disposed = false;
     let inFlight = false;
 
-    const ticker = window.setInterval(async () => {
-      if (disposed) return;
+    const ticker = window.setInterval(() => {
+      if (disposed || inFlight) return;
 
-      // Inactivity threshold: 40 seconds without user interaction or tab hidden
-      const isIdle = (Date.now() - lastActivity.current > 40_000) || document.hidden;
+      const isIdle = (Date.now() - lastActivity.current > session.idleTimeoutSeconds * 1000) || document.hidden;
       if (isIdle) {
-        setPausedState(previous => previous.key === readingKey && previous.value ? previous : { key: readingKey, value: true });
+        setPausedState(previous => previous.key === readingKey && previous.value
+          ? previous
+          : { key: readingKey, value: true });
         return;
       }
 
       // Resume from paused if active
-      setPausedState(previous => previous.key === readingKey && !previous.value ? previous : { key: readingKey, value: false });
+      setPausedState(previous => previous.key === readingKey && !previous.value
+        ? previous
+        : { key: readingKey, value: false });
 
       // Advance active reading seconds
       activeSeconds.current += 1;
-      const currentCycleSec = activeSeconds.current % 60;
-      const progressFraction = (currentCycleSec === 0 ? 60 : currentCycleSec) / 60;
+      const progressFraction = Math.min(1, activeSeconds.current / session.heartbeatIntervalSeconds);
       setProgressState({ key: readingKey, value: progressFraction });
 
-      // Every 60 active seconds: fire heartbeat
-      if (activeSeconds.current >= 60) {
-        activeSeconds.current = 0;
-        if (inFlight) return;
-
+      // Confirm each completed reading interval with the authoritative server.
+      if (activeSeconds.current >= session.heartbeatIntervalSeconds) {
         inFlight = true;
+        setConfirmingState({ key: readingKey, value: true });
         const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
         void (async () => {
@@ -137,26 +181,25 @@ export function useReadingTimer(
             if (disposed) break;
 
             try {
-              const response = await http.post<HeartbeatResponse>('/reading/heartbeat', { sessionId });
+              const response = await http.post<HeartbeatResponse>('/reading/heartbeat', { sessionId: session.id });
               if (disposed) break;
 
               succeeded = true;
-              consecutiveFailures.current = 0;
 
               const awarded = Number(response.data.amount_awarded);
+              const pendingTotal = Number(response.data.pending_total);
+              if (Number.isFinite(pendingTotal)) {
+                setPendingState({ key: readingKey, value: pendingTotal });
+              }
               if (awarded > 0) {
-                setPendingState(previous => ({
-                  key: readingKey,
-                  value: (previous.key === readingKey ? previous.value : 0) + awarded,
-                }));
-                setLatestAward(awarded);
+                setLatestAwardState({ key: readingKey, value: awarded });
 
                 if (awardTimer.current) window.clearTimeout(awardTimer.current);
                 awardTimer.current = window.setTimeout(() => {
-                  setLatestAward(null);
+                  setLatestAwardState({ key: readingKey, value: null });
                 }, 3200);
 
-                await queryClient.invalidateQueries({ queryKey: ['earnings', 'income'] });
+                void queryClient.invalidateQueries({ queryKey: ['earnings', 'income'] });
               }
               setErrorState({ key: readingKey, value: null });
               break;
@@ -171,18 +214,19 @@ export function useReadingTimer(
           }
 
           if (!succeeded && !disposed) {
-            consecutiveFailures.current += 1;
-            // Only show error message after consecutive failures (e.g. 2+ failed cycles)
-            if (consecutiveFailures.current >= 2) {
-              setErrorState({ key: readingKey, value: 'Reading income tracking is temporarily unavailable.' });
+            setErrorState({ key: readingKey, value: 'Reading income tracking is temporarily unavailable.' });
 
-              if (errorTimer.current) window.clearTimeout(errorTimer.current);
-              errorTimer.current = window.setTimeout(() => {
-                setErrorState({ key: readingKey, value: null });
-              }, 8000);
-            }
+            if (errorTimer.current) window.clearTimeout(errorTimer.current);
+            errorTimer.current = window.setTimeout(() => {
+              setErrorState({ key: readingKey, value: null });
+            }, 8000);
           }
 
+          activeSeconds.current = 0;
+          if (!disposed) {
+            setProgressState({ key: readingKey, value: 0 });
+            setConfirmingState({ key: readingKey, value: false });
+          }
           inFlight = false;
         })();
       }
@@ -191,9 +235,12 @@ export function useReadingTimer(
     return () => {
       disposed = true;
       window.clearInterval(ticker);
+      setConfirmingState(previous => previous.key === readingKey && !previous.value
+        ? previous
+        : { key: readingKey, value: false });
       if (errorTimer.current) window.clearTimeout(errorTimer.current);
     };
-  }, [sessionId, isEndOfChapter, queryClient, readingKey]);
+  }, [session, isEndOfChapter, queryClient, readingKey]);
 
-  return { pendingEarned, isPaused, progress, latestAward, error };
+  return { pendingEarned, isPaused, isConfirming, progress, latestAward, error };
 }

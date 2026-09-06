@@ -27,7 +27,7 @@ class ReadingEarningsTest extends TestCase
 
     public function test_a_completed_minute_creates_pending_income_without_crediting_the_balance(): void
     {
-        [$reader, $session] = $this->createReadingSession(PlanType::Standard, now()->subSeconds(61));
+        [$reader, $session] = $this->createReadingSession(PlanType::Standard, now()->subSeconds(60));
 
         $response = $this->actingAs($reader)->postJson('/api/v1/reading/heartbeat', [
             'sessionId' => $session->id,
@@ -46,6 +46,43 @@ class ReadingEarningsTest extends TestCase
         $this->assertSame('2.500', $reward->amount);
         $this->assertSame(ReadingRewardStatus::Pending, $reward->status);
         $this->assertSame(24, (int) $reward->earned_at->diffInHours($reward->expires_at));
+    }
+
+    public function test_starting_a_session_includes_the_additive_reading_policy(): void
+    {
+        $this->travelTo(now()->addYear());
+        $reader = User::factory()->create();
+        $story = Story::factory()->create();
+        $part = StoryPart::factory()->create(['storyId' => $story->id]);
+
+        $this->actingAs($reader)->postJson('/api/v1/reading/start', [
+            'storyId' => $story->id,
+            'partId' => $part->id,
+        ])->assertOk()
+            ->assertJsonPath('storyId', $story->id)
+            ->assertJsonPath('partId', $part->id)
+            ->assertJsonPath('reading_policy.heartbeat_interval_seconds', 60)
+            ->assertJsonPath('reading_policy.idle_timeout_seconds', 120);
+
+        $session = ReadingSession::query()->sole();
+        $this->assertTrue($session->started_at->isSameSecond(now()));
+        $this->assertTrue($session->last_active_at->isSameSecond(now()));
+    }
+
+    public function test_a_future_database_timestamp_does_not_block_a_completed_minute(): void
+    {
+        [$reader, $session] = $this->createReadingSession(PlanType::Free, now()->addHours(8));
+        DB::table('reading_sessions')->where('id', $session->id)->update([
+            'created_at' => now()->subSeconds(60),
+        ]);
+
+        $this->actingAs($reader)->postJson('/api/v1/reading/heartbeat', [
+            'sessionId' => $session->id,
+        ])->assertOk()
+            ->assertJsonPath('rewarded_minutes', 1)
+            ->assertJsonPath('amount_awarded', '1.000');
+
+        $this->assertDatabaseCount('reading_rewards', 1);
     }
 
     public function test_reading_claim_triggers_automatic_withdrawal(): void

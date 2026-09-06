@@ -4,6 +4,7 @@ interface ReadingCoinIndicatorProps {
   pendingEarned: number;
   progress: number; // 0 to 1
   isPaused: boolean;
+  isConfirming: boolean;
   isEndOfChapter: boolean;
   latestAward: number | null;
 }
@@ -12,6 +13,7 @@ export function ReadingCoinIndicator({
   pendingEarned,
   progress,
   isPaused,
+  isConfirming,
   isEndOfChapter,
   latestAward,
 }: ReadingCoinIndicatorProps) {
@@ -37,7 +39,7 @@ export function ReadingCoinIndicator({
       : null;
 
   return (
-    <div className="relative flex flex-col items-end select-none">
+    <div className="relative flex flex-col items-end select-none" aria-live="polite">
       {/* Floating Award Fade Notification (+X coin/coins) */}
       {latestAward !== null && latestAward > 0 && (
         <div
@@ -59,7 +61,9 @@ export function ReadingCoinIndicator({
             ? 'End of chapter reached'
             : isPaused
             ? 'Reading timer paused due to inactivity'
-            : `Reading active: ${displayTotal} coins earned`
+            : isConfirming
+            ? 'Confirming pending Reader Coins'
+            : `Reading active: ${displayTotal} pending Reader Coins`
         }
       >
         <svg
@@ -101,7 +105,10 @@ export function ReadingCoinIndicator({
         {/* Center of circle: Total Coins & Icon */}
         <div className="relative z-10 flex flex-col items-center justify-center text-center">
           <Coins className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 mb-0.5" />
-          <span className="text-xs font-bold text-gray-800 dark:text-gray-100 leading-none">
+          <span
+            className="text-xs font-bold text-gray-800 dark:text-gray-100 leading-none"
+            data-testid="reading-coin-total"
+          >
             {displayTotal}
           </span>
         </div>
@@ -111,6 +118,10 @@ export function ReadingCoinIndicator({
       {isEndOfChapter ? (
         <span className="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full border border-gray-200 dark:border-slate-700">
           Done
+        </span>
+      ) : isConfirming ? (
+        <span className="mt-1 text-[10px] font-semibold text-primary bg-green-50 dark:bg-green-950/60 px-1.5 py-0.5 rounded-full border border-green-200 dark:border-green-800">
+          Confirming
         </span>
       ) : isPaused ? (
         <span className="mt-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">

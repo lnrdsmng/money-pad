@@ -30,7 +30,7 @@ export default function ReaderPage() {
 
   // Strict validation: stop when bottom of any chapter is reached
   useEffect(() => {
-    if (isEndOfChapter) return;
+    if (loading || part === null || part.id !== partId || isEndOfChapter) return;
 
     const checkScrollBottom = () => {
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
@@ -44,13 +44,14 @@ export default function ReaderPage() {
     window.addEventListener('scroll', checkScrollBottom, { passive: true });
     checkScrollBottom();
     return () => window.removeEventListener('scroll', checkScrollBottom);
-  }, [partId, isEndOfChapter]);
+  }, [partId, part, loading, isEndOfChapter]);
 
   // Custom hooks for reading timer and progress
-  const { pendingEarned, isPaused, progress, latestAward, error: earningsError } = useReadingTimer(
+  const { pendingEarned, isPaused, isConfirming, progress, latestAward, error: earningsError } = useReadingTimer(
     storyId!,
     partId!,
-    isEndOfChapter
+    isEndOfChapter,
+    !loading && part !== null && part.id === partId && part.storyId === storyId,
   );
   const { savedPartId, savedScrollPosition, saveProgress, loaded: progressLoaded } = useReadingProgress(storyId!);
 
@@ -143,6 +144,7 @@ export default function ReaderPage() {
           pendingEarned={pendingEarned}
           progress={progress}
           isPaused={isPaused}
+          isConfirming={isConfirming}
           isEndOfChapter={isEndOfChapter}
           latestAward={latestAward}
         />

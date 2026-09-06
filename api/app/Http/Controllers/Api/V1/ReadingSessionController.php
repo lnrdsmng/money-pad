@@ -32,16 +32,25 @@ class ReadingSessionController extends Controller
                     'ended_at' => now(),
                 ]);
 
+            $now = now();
             $session = ReadingSession::create([
                 'id' => Str::uuid()->toString(),
                 'userId' => $user->id,
                 'storyId' => $validated['storyId'],
                 'partId' => $validated['partId'],
+                'started_at' => $now,
+                'last_active_at' => $now,
             ]);
 
             DB::table('active_reading_sessions')->updateOrInsert(['user_id' => $user->id], ['session_id' => $session->id]);
 
-            return response()->json($session);
+            return response()->json([
+                ...$session->toArray(),
+                'reading_policy' => [
+                    'heartbeat_interval_seconds' => (int) config('moneypad.reading.heartbeat_interval_seconds'),
+                    'idle_timeout_seconds' => (int) config('moneypad.reading.idle_timeout_seconds'),
+                ],
+            ]);
         }, 3);
     }
 
