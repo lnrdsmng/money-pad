@@ -46,6 +46,29 @@ class UserSettingsTest extends TestCase
         $this->assertTrue(Hash::check('NewPassword456', $user->password));
     }
 
+    public function test_profile_photos_can_be_updated_independently(): void
+    {
+        $user = User::factory()->create([
+            'bio' => 'Keep this bio.',
+            'profileImageUrl' => 'https://example.com/old-profile.jpg',
+            'coverImageUrl' => 'https://example.com/old-cover.jpg',
+        ]);
+
+        $this->actingAs($user)->putJson("/api/v1/users/{$user->id}/profile", [
+            'profileImageUrl' => 'https://example.com/new-profile.jpg',
+        ])->assertOk()
+            ->assertJsonPath('user.profileImageUrl', 'https://example.com/new-profile.jpg')
+            ->assertJsonPath('user.coverImageUrl', 'https://example.com/old-cover.jpg')
+            ->assertJsonPath('user.bio', 'Keep this bio.');
+
+        $this->actingAs($user)->putJson("/api/v1/users/{$user->id}/profile", [
+            'coverImageUrl' => 'https://example.com/new-cover.jpg',
+        ])->assertOk()
+            ->assertJsonPath('user.profileImageUrl', 'https://example.com/new-profile.jpg')
+            ->assertJsonPath('user.coverImageUrl', 'https://example.com/new-cover.jpg')
+            ->assertJsonPath('user.bio', 'Keep this bio.');
+    }
+
     public function test_user_can_save_gcash_payout_with_account_name(): void
     {
         $user = User::factory()->create();

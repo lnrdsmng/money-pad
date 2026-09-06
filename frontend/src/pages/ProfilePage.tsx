@@ -1,21 +1,21 @@
 import { usePagedList } from '../hooks/usePagedList';
 import { LoadMoreButton } from '../components/common/LoadMoreButton';
 import type { Story } from '../types/content';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import http from '../api/http';
 import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle, Edit3, MessageSquare } from 'lucide-react';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth, type User } from '../auth/AuthProvider';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { UserListModal } from '../components/profile/UserListModal';
-import { EditProfileModal } from '../components/profile/EditProfileModal';
+import { EditBioModal } from '../components/profile/EditBioModal';
 import { AuthorWall } from '../components/profile/AuthorWall';
 import { useFeedback } from '../components/feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
 
 export default function ProfilePage() {
   const { username } = useParams();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUser } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const storyPages = usePagedList<Story>(['stories', 'profile', username, profile?.id], `/authors/${profile?.id}/stories/published`, !!profile?.id);
   const stories = storyPages.data;
@@ -27,7 +27,10 @@ export default function ProfilePage() {
 
   // Modals
   const [userListModal, setUserListModal] = useState<'followers' | 'following' | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showBioModal, setShowBioModal] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState<'profile' | 'cover' | null>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
+  const coverPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const feedback = useFeedback();
   const isOwnProfile = currentUser?.username === username;
@@ -95,6 +98,39 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePhotoUpload = async (file: File, type: 'profile' | 'cover') => {
+    if (!currentUser || uploadingPhoto) return;
+
+    if (!file.type.startsWith('image/')) {
+      feedback.error('Please select an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      feedback.error('Profile images must be 2 MB or smaller.');
+      return;
+    }
+
+    setUploadingPhoto(type);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const uploadResponse = await http.post<{ url: string }>('/upload', formData);
+      const field = type === 'profile' ? 'profileImageUrl' : 'coverImageUrl';
+      const profileResponse = await http.put<{ user: User }>(`/users/${currentUser.id}/profile`, {
+        [field]: uploadResponse.data.url,
+      });
+      const updatedUser = profileResponse.data.user;
+
+      updateUser(updatedUser);
+      setProfile((previous: any) => ({ ...previous, ...updatedUser }));
+      feedback.success(type === 'profile' ? 'Profile photo updated.' : 'Cover photo updated.');
+    } catch (error) {
+      feedback.error(getApiErrorMessage(error, 'The photo could not be updated.'));
+    } finally {
+      setUploadingPhoto(null);
+    }
+  };
+
   if (loading) return <div className="text-center p-12">Loading profile...</div>;
   if (loadError) return <div role="alert" className="p-12 text-center text-red-600">{loadError}</div>;
   if (!profile) return <div className="text-center p-12">User not found</div>;
@@ -108,6 +144,31 @@ export default function ProfilePage() {
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-gray-300 to-gray-400 dark:from-slate-700 dark:to-slate-800"></div>
         )}
+        {isOwnProfile && (
+          <>
+            <button
+              type="button"
+              onClick={() => coverPhotoInputRef.current?.click()}
+              disabled={uploadingPhoto !== null}
+              aria-label="Change cover photo"
+              aria-busy={uploadingPhoto === 'cover'}
+              title="Change cover photo"
+              className="absolute inset-0 bg-transparent cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white disabled:cursor-wait"
+            />
+            <input
+              ref={coverPhotoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploadingPhoto !== null}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = '';
+                if (file) void handlePhotoUpload(file, 'cover');
+              }}
+            />
+          </>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -120,6 +181,31 @@ export default function ProfilePage() {
                 <div className="w-full h-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-3xl sm:text-4xl text-gray-500 font-bold">
                   {profile.username[0].toUpperCase()}
                 </div>
+              )}
+              {isOwnProfile && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => profilePhotoInputRef.current?.click()}
+                    disabled={uploadingPhoto !== null}
+                    aria-label="Change profile photo"
+                    aria-busy={uploadingPhoto === 'profile'}
+                    title="Change profile photo"
+                    className="absolute inset-0 bg-transparent cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white disabled:cursor-wait"
+                  />
+                  <input
+                    ref={profilePhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingPhoto !== null}
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+                      event.currentTarget.value = '';
+                      if (file) void handlePhotoUpload(file, 'profile');
+                    }}
+                  />
+                </>
               )}
             </div>
             <div className="mt-3 md:mt-0 md:ml-6 text-center md:text-left md:pt-3 min-w-0">
@@ -171,11 +257,11 @@ export default function ProfilePage() {
             {isOwnProfile && (
               <button
                 type="button"
-                onClick={() => setShowEditModal(true)}
+                onClick={() => setShowBioModal(true)}
                 className="flex items-center gap-2 rounded-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 sm:px-6 py-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 shadow-xs hover:bg-gray-50 dark:hover:bg-slate-700 transition cursor-pointer"
               >
                 <Edit3 className="w-4 h-4" />
-                Edit Profile
+                Edit Bio
               </button>
             )}
           </div>
@@ -258,11 +344,11 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* Edit Profile Modal */}
-      {showEditModal && (
-        <EditProfileModal
-          onClose={() => setShowEditModal(false)}
-          onProfileUpdated={(updated) => setProfile(updated)}
+      {/* Edit Bio Modal */}
+      {showBioModal && (
+        <EditBioModal
+          onClose={() => setShowBioModal(false)}
+          onBioUpdated={(updated) => setProfile((previous: any) => ({ ...previous, ...updated }))}
         />
       )}
     </div>
