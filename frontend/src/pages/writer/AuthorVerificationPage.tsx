@@ -222,7 +222,7 @@ export default function AuthorVerificationPage() {
           <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100 mb-1">
               <DollarSign className="w-4 h-4 text-primary" />
-              $0.05 / 100 Views Tier
+              $0.05 / 50 Views Tier
             </div>
             <p className="text-xs text-gray-500">
               Premium view monetization rates for eligible original serialized stories.

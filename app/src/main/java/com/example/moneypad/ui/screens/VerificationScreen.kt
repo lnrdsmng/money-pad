@@ -136,7 +136,7 @@ fun VerificationScreen(
                     title = "EARN MORE",
                     icon = Icons.Default.MonetizationOn,
                     benefits = listOf(
-                        "Higher earning rate: $0.05 per 100 views",
+                        "Higher earning rate: $0.05 per 50 views",
                         "Lower minimum withdrawal: ₱20.00"
                     )
                 )

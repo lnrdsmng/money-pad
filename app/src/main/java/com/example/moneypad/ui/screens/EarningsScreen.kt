@@ -239,7 +239,7 @@ fun EarningsScreen(viewModel: EarningsViewModel) {
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Earn $0.03 (₱1.80) for every 100 unique views on your published stories.",
+                            text = "Earn $0.03 (₱1.80) for every 50 unique views on your published stories.",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

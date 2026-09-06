@@ -179,7 +179,7 @@ export default function LandingPage() {
                 Author Royalties
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                Publish your stories, get verified, and earn royalties every 100 chapter views. Your words truly have value here!
+                Publish your stories, get verified, and earn royalties every 50 chapter views. Your words truly have value here!
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-gray-100 dark:border-slate-800 flex items-center gap-2 text-xs font-bold text-accent">

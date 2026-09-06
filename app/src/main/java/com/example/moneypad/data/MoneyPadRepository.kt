@@ -1145,7 +1145,7 @@ class MoneyPadRepository(private val context: Context, private val dao: MoneyPad
 
             if (!isAuthor && lastRead == null) {
                 val author = dao.getUser(story.authorId).firstOrNull()
-                val rate = if (author?.isVerified == true) 0.0005 else 0.0003
+                val rate = if (author?.isVerified == true) 0.001 else 0.0006
                 dao.updateAuthorIncome(story.authorId, rate)
             }
         }

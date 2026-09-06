@@ -227,7 +227,7 @@ switch ($action) {
                         $isVerified = 1;
                     }
 
-                    $rate = $isVerified ? 0.0005 : 0.0003;
+                    $rate = $isVerified ? 0.001 : 0.0006;
 
                     $stmtIncome = $pdo->prepare("UPDATE users SET authorIncome = authorIncome + ? WHERE id = ?");
                     $stmtIncome->execute([$rate, $authorId]);
