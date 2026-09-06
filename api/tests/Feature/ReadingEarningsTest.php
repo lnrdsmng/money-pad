@@ -89,42 +89,41 @@ class ReadingEarningsTest extends TestCase
     {
         [$reader, $session] = $this->createReadingSession(PlanType::UltimatePremium);
         $reader->update([
+            'readerCoins' => '995.000',
             'payment_method' => 'GCash',
             'payment_account_info' => '09171234567',
         ]);
+        $reward = $this->createReward($reader, $session, 1, now(), '6.000');
 
-        // Create enough rewards to meet 1000 coins threshold (e.g. 170 rewards * 6 = 1020 coins)
-        for ($i = 1; $i <= 170; $i++) {
-            $this->createReward($reader, $session, $i, now()->subMinutes(180 - $i), '6.000');
-        }
-
-        $this->actingAs($reader)->postJson('/api/v1/earnings/claims')
+        $this->actingAs($reader)->postJson('/api/v1/earnings/claims', ['reward_id' => $reward->id])
             ->assertCreated()
             ->assertJsonPath('completed', true);
 
         $this->assertDatabaseHas('withdrawal_requests', [
             'userId' => $reader->id,
-            'amount' => '10.20',
-            'gross_amount' => '10.20',
+            'amount' => '10.01',
+            'gross_amount' => '10.01',
             'platform_fee' => '3.00',
-            'net_amount' => '7.20',
+            'net_amount' => '7.01',
             'status' => 'pending_review',
         ]);
     }
 
-    public function test_claim_all_requires_the_mock_ad_and_credits_the_batch_once(): void
+    public function test_claiming_one_reward_requires_the_mock_ad_and_credits_only_that_reward_once(): void
     {
         [$reader, $session] = $this->createReadingSession(PlanType::MegaPremium);
-        $this->createReward($reader, $session, 1, now()->subMinutes(2), '4.500');
-        $this->createReward($reader, $session, 2, now()->subMinute(), '4.500');
+        $selectedReward = $this->createReward($reader, $session, 1, now()->subMinutes(2), '4.500');
+        $remainingReward = $this->createReward($reader, $session, 2, now()->subMinute(), '4.500');
 
-        $created = $this->actingAs($reader)->postJson('/api/v1/earnings/claims');
+        $created = $this->actingAs($reader)->postJson('/api/v1/earnings/claims', [
+            'reward_id' => $selectedReward->id,
+        ]);
 
         $created
             ->assertCreated()
             ->assertJsonPath('completed', false)
-            ->assertJsonPath('claim.reward_count', 2)
-            ->assertJsonPath('claim.amount', '9.000')
+            ->assertJsonPath('claim.reward_count', 1)
+            ->assertJsonPath('claim.amount', '4.500')
             ->assertJsonPath('claim.ad_provider', 'mock');
 
         $claimId = $created->json('claim.id');
@@ -141,27 +140,44 @@ class ReadingEarningsTest extends TestCase
         $completed
             ->assertOk()
             ->assertJsonPath('claim.status', ReadingRewardClaimStatus::Completed->value)
-            ->assertJsonPath('user.readerCoins', '9.000');
+            ->assertJsonPath('user.readerCoins', '4.500');
 
         $this->actingAs($reader)
             ->postJson("/api/v1/earnings/claims/{$claimId}/complete", ['mock_ad_token' => $token])
             ->assertOk();
 
-        $this->assertSame('9.000', $reader->fresh()->readerCoins);
-        $this->assertSame(2, ReadingReward::query()->where('status', ReadingRewardStatus::Claimed)->count());
+        $this->assertSame('4.500', $reader->fresh()->readerCoins);
+        $this->assertSame(ReadingRewardStatus::Claimed, $selectedReward->fresh()->status);
+        $this->assertSame(ReadingRewardStatus::Pending, $remainingReward->fresh()->status);
+        $this->assertNull($remainingReward->fresh()->claim_id);
     }
 
     public function test_ultimate_plan_claims_without_an_ad(): void
     {
         [$reader, $session] = $this->createReadingSession(PlanType::UltimatePremium);
-        $this->createReward($reader, $session, 1, now(), '6.000');
+        $reward = $this->createReward($reader, $session, 1, now(), '6.000');
 
         $this->actingAs($reader)
-            ->postJson('/api/v1/earnings/claims')
+            ->postJson('/api/v1/earnings/claims', ['reward_id' => $reward->id])
             ->assertCreated()
             ->assertJsonPath('completed', true)
             ->assertJsonPath('claim.ad_required', false)
             ->assertJsonPath('user.readerCoins', '6.000');
+    }
+
+    public function test_a_reader_cannot_claim_another_users_reward(): void
+    {
+        [$owner, $session] = $this->createReadingSession();
+        $reward = $this->createReward($owner, $session, 1, now(), '1.000');
+        $otherReader = User::factory()->create();
+
+        $this->actingAs($otherReader)->postJson('/api/v1/earnings/claims', [
+            'reward_id' => $reward->id,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('reward_id');
+
+        $this->assertSame(ReadingRewardStatus::Pending, $reward->fresh()->status);
+        $this->assertNull($reward->fresh()->claim_id);
     }
 
     public function test_expired_income_vanishes_and_claim_history_supports_seven_and_thirty_days(): void

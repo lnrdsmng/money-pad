@@ -98,25 +98,25 @@ class ReadingRewardService
     }
 
     /** @return array{claim: ReadingRewardClaim, mock_ad_token: ?string, completed: bool, user: ?User} */
-    public function createClaim(User $user): array
+    public function createClaim(User $user, string $rewardId): array
     {
-        return DB::transaction(function () use ($user): array {
+        return DB::transaction(function () use ($user, $rewardId): array {
             $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             $this->expirePendingRewards($user);
             $this->cancelAwaitingClaims($user);
 
-            $rewards = ReadingReward::query()
+            $reward = ReadingReward::query()
+                ->whereKey($rewardId)
                 ->where('userId', $user->id)
                 ->where('status', ReadingRewardStatus::Pending)
                 ->whereNull('claim_id')
                 ->where('expires_at', '>', now())
-                ->orderBy('earned_at')
                 ->lockForUpdate()
-                ->get();
+                ->first();
 
-            if ($rewards->isEmpty()) {
+            if (! $reward) {
                 throw ValidationException::withMessages([
-                    'income' => 'There is no available income to claim.',
+                    'reward_id' => 'This reading reward is no longer available to claim.',
                 ]);
             }
 
@@ -139,17 +139,15 @@ class ReadingRewardService
             $claim = ReadingRewardClaim::create([
                 'id' => (string) Str::uuid(),
                 'userId' => $user->id,
-                'amount' => $this->formatAmount((float) $rewards->sum('amount')),
-                'reward_count' => $rewards->count(),
+                'amount' => $reward->amount,
+                'reward_count' => 1,
                 'status' => ReadingRewardClaimStatus::AwaitingAd,
                 'ad_required' => $adRequired,
                 'ad_provider' => $adRequired ? config('moneypad.rewarded_ads.provider') : null,
                 'mock_token_hash' => $mockToken ? hash('sha256', $mockToken) : null,
             ]);
 
-            ReadingReward::query()
-                ->whereKey($rewards->modelKeys())
-                ->update(['claim_id' => $claim->id]);
+            $reward->update(['claim_id' => $claim->id]);
 
             if (! $adRequired) {
                 $result = $this->completeLockedClaim($user, $claim);

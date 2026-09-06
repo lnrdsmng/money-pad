@@ -58,9 +58,9 @@ export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
       <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-xl border border-transparent dark:border-slate-800">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">Claim all available income</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">Claim reading reward</h2>
             <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              {claim.claim.reward_count} reward{claim.claim.reward_count === 1 ? '' : 's'} totaling {formatCoins(claim.claim.amount)} ({formatPesoFromCoins(claim.claim.amount)})
+              Claim {formatCoins(claim.claim.amount)} Reader Coins ({formatPesoFromCoins(claim.claim.amount)}) from this earned minute.
             </p>
           </div>
           <button type="button" onClick={cancelClaim} disabled={cancelMutation.isPending} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:opacity-50 shrink-0 cursor-pointer" aria-label="Cancel claim">
@@ -97,7 +97,7 @@ export function IncomeClaimModal({ claim, onClose }: IncomeClaimModalProps) {
             onClick={() => setShowAd(true)}
             className="w-full sm:w-auto rounded-lg bg-primary px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 text-center order-1 sm:order-2 cursor-pointer"
           >
-            Watch ad and claim
+            Watch mock ad and claim
           </button>
         </div>
       </div>

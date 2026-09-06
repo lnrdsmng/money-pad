@@ -35,12 +35,15 @@ export function ReadingIncomeSection() {
     refetchInterval: 60_000,
   });
 
-  const createClaim = useMutation<CreateClaimResponse>({
-    mutationFn: async () => (await http.post('/earnings/claims')).data,
+  const createClaim = useMutation<CreateClaimResponse, Error, string>({
+    mutationFn: async (rewardId) => (await http.post('/earnings/claims', { reward_id: rewardId })).data,
     onSuccess: async (result) => {
       if (result.completed) {
         if (result.user) updateUser(result.user);
-        await queryClient.invalidateQueries({ queryKey: ['earnings', user?.id] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['earnings'] }),
+          queryClient.invalidateQueries({ queryKey: ['withdrawals'] }),
+        ]);
         return;
       }
 
@@ -88,7 +91,7 @@ export function ReadingIncomeSection() {
         <ClaimedEarningsSection />
       ) : (
         <div className="space-y-5">
-          <div className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-primary to-[#3d934b] p-5 sm:p-6 text-white sm:flex-row sm:items-center sm:justify-between shadow-xs">
+          <div className="rounded-2xl bg-gradient-to-r from-primary to-[#3d934b] p-5 sm:p-6 text-white shadow-xs">
             <div>
               <p className="text-xs sm:text-sm font-medium text-green-100">Available to Claim</p>
               <p className="mt-1 text-2xl sm:text-4xl font-bold">{formatCoins(incomeQuery.data?.pending_total ?? 0)}</p>
@@ -100,15 +103,6 @@ export function ReadingIncomeSection() {
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              disabled={!incomeQuery.data?.data.length || createClaim.isPending}
-              onClick={() => createClaim.mutate()}
-              className="inline-flex w-full sm:w-auto sm:min-w-44 items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-accent-hover active:scale-98 transition disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-            >
-              {createClaim.isPending && <LoaderCircle className="h-4 w-4 animate-spin" />}
-              Claim All Available
-            </button>
           </div>
 
           {createClaim.isError && (
@@ -139,12 +133,23 @@ export function ReadingIncomeSection() {
                       {new Date(reward.earned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
-                  <div className="flex sm:flex-col justify-between sm:justify-start sm:text-right border-t sm:border-t-0 border-slate-100 dark:border-slate-800 pt-1.5 sm:pt-0 shrink-0">
+                  <div className="flex items-center justify-between gap-3 border-t sm:border-t-0 border-slate-100 dark:border-slate-800 pt-2 sm:pt-0 shrink-0">
                     <div>
                       <p className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-400">+{formatCoins(reward.amount)}</p>
                       <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">{formatPesoFromCoins(reward.amount)}</p>
+                      <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400">Expires in {formatTimeRemaining(reward.expires_at, currentTime)}</p>
                     </div>
-                    <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400">Expires in {formatTimeRemaining(reward.expires_at, currentTime)}</p>
+                    <button
+                      type="button"
+                      disabled={createClaim.isPending}
+                      onClick={() => createClaim.mutate(reward.id)}
+                      className="inline-flex min-w-24 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                    >
+                      {createClaim.isPending && createClaim.variables === reward.id && (
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      )}
+                      Claim
+                    </button>
                   </div>
                 </article>
               ))}

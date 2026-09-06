@@ -1,5 +1,7 @@
 <?php
 
+$usesDevelopmentAds = in_array(env('APP_ENV', 'production'), ['local', 'testing'], true);
+
 return [
     'referral_milestones' => [
         1 => ['tier' => 1, 'chapters' => 5, 'ads' => 3, 'coins' => 10],
@@ -84,7 +86,7 @@ return [
         'proof_retention_days' => 180,
     ],
     'rewarded_ads' => [
-        'provider' => env('REWARDED_AD_PROVIDER', 'monetag_website'),
-        'mock_enabled' => env('REWARDED_AD_MOCK_ENABLED', false),
+        'provider' => env('REWARDED_AD_PROVIDER', $usesDevelopmentAds ? 'mock' : 'monetag_website'),
+        'mock_enabled' => env('REWARDED_AD_MOCK_ENABLED', $usesDevelopmentAds),
     ],
 ];

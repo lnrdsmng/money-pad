@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateReadingClaimRequest;
+use App\Http\Requests\StartReadingRewardClaimRequest;
 use App\Models\ReadingReward;
 use App\Models\ReadingRewardClaim;
 use App\ReadingRewardClaimStatus;
@@ -61,9 +62,14 @@ class EarningsController extends Controller
         return response()->json($claims);
     }
 
-    public function createClaim(Request $request, ReadingRewardService $readingRewardService): JsonResponse
-    {
-        $result = $readingRewardService->createClaim($request->user());
+    public function createClaim(
+        StartReadingRewardClaimRequest $request,
+        ReadingRewardService $readingRewardService,
+    ): JsonResponse {
+        $result = $readingRewardService->createClaim(
+            $request->user(),
+            $request->validated('reward_id'),
+        );
 
         return response()->json($result, 201);
     }

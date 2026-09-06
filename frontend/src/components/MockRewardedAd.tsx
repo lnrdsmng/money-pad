@@ -48,7 +48,7 @@ export const MockRewardedAd = ({ onComplete, onCancel, isCompleting = false }: M
       {playing && (
         <div className="text-center text-white">
           <div className="w-64 h-36 bg-gray-800 rounded flex items-center justify-center mb-4">
-            <span className="text-gray-400">Video Ad Playing...</span>
+            <span className="text-gray-400">Mock Video Ad Playing...</span>
           </div>
           <p className="text-xl font-bold">Reward in {timeLeft}s</p>
         </div>
