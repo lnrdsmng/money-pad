@@ -20,7 +20,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FAF9F6] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <header className="bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800 sticky top-0 z-30">
+      <header className="bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center min-w-0">
@@ -131,4 +131,3 @@ export default function AppLayout() {
     </div>
   );
 }
-

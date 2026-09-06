@@ -184,10 +184,13 @@ export const NotificationBell = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div
+          data-testid="notification-panel"
+          className="fixed inset-x-2 top-16 z-50 mt-2 flex max-h-[calc(100dvh-5rem)] w-auto flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:w-96 animate-in fade-in zoom-in-95 duration-150"
+        >
           {/* Header with segmented tabs */}
-          <div className="px-4 pt-3 pb-2 border-b border-gray-100 dark:border-slate-800">
-            <div className="flex justify-between items-center mb-2.5">
+          <div className="border-b border-gray-100 px-3 pb-2 pt-3 dark:border-slate-800 sm:px-4">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                 Notifications
                 {totalUnreadCount > 0 && (
@@ -200,7 +203,7 @@ export const NotificationBell = () => {
                   type="button"
                   onClick={() => markAllReadMutation.mutate()}
                   disabled={markAllReadMutation.isPending}
-                  className="text-xs text-primary hover:underline flex items-center gap-1 font-medium disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-1 whitespace-nowrap text-xs font-medium text-primary hover:underline disabled:opacity-50 cursor-pointer"
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
                   Mark all as read
@@ -248,7 +251,7 @@ export const NotificationBell = () => {
 
           {/* Activity Tab Content */}
           {activeTab === 'activity' && (
-            <div className="max-h-[380px] overflow-y-auto divide-y divide-gray-100 dark:divide-slate-800">
+            <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-slate-800">
               {loadingActivity ? (
                 <div className="p-6 text-center text-xs text-gray-500">Loading notifications...</div>
               ) : notifications.length === 0 ? (
@@ -303,7 +306,7 @@ export const NotificationBell = () => {
 
           {/* System Notices Tab Content */}
           {activeTab === 'system' && (
-            <div className="max-h-[380px] overflow-y-auto divide-y divide-gray-100 dark:divide-slate-800">
+            <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-slate-800">
               {loadingSystem ? (
                 <div className="p-6 text-center text-xs text-gray-500">Loading notices...</div>
               ) : systemMessages.length === 0 ? (
