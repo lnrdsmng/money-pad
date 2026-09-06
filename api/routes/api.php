@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\PlanPurchaseController;
 use App\Http\Controllers\Api\V1\ReadingSessionController;
 use App\Http\Controllers\Api\V1\ReferralController;
+use App\Http\Controllers\Api\V1\RewardedAdController;
 use App\Http\Controllers\Api\V1\StoryController;
 use App\Http\Controllers\Api\V1\StoryPartController;
 use App\Http\Controllers\Api\V1\SystemMessageController;
@@ -27,8 +28,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
-    Route::post('/auth/login', [AuthController::class, 'login']);
-    Route::post('/auth/signup', [AuthController::class, 'signup']);
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('/auth/signup', [AuthController::class, 'signup'])->middleware('throttle:signup');
     Route::get('/users/search', [UserController::class, 'search']);
     Route::get('/users/{userId}', [UserController::class, 'show']);
 
@@ -66,6 +67,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
         Route::put('/users/settings', [UserController::class, 'updateSettings']);
         Route::put('/users/{userId}/settings', [UserController::class, 'updateSettings']);
+
+        Route::post('/rewarded-ads', [RewardedAdController::class, 'start'])->middleware('throttle:10,1');
+        Route::post('/rewarded-ads/{eventId}/mock-verify', [RewardedAdController::class, 'verifyMock'])->middleware('throttle:10,1');
 
         // Media
         Route::post('/upload', [UploadController::class, 'upload']);

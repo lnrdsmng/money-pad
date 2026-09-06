@@ -5,15 +5,15 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\RewardedAdService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-
-use Illuminate\Support\Str;
 
 class TransactionController extends Controller
 {
-    public function index($userId)
+    public function index(Request $request, $userId)
     {
+        abort_unless($request->user()->id === $userId, 403);
+
         $transactions = Transaction::where('userId', $userId)->orderByDesc('timestamp')->get();
 
         return response()->json($transactions);
@@ -26,90 +26,24 @@ class TransactionController extends Controller
         return response()->json(['message' => 'Please use the new withdrawal flow from the dashboard'], 400);
     }
 
-    public function adWatchStatus(Request $request)
+    public function adWatchStatus(Request $request, RewardedAdService $ads)
     {
-        $user = $request->user();
-        $cooldownSeconds = (int) config('moneypad.rewards.ad_watch_cooldown_seconds', 60);
-        $rewardCoins = (float) config('moneypad.rewards.ad_watch_coins', 2.0);
-
-        $lastEvent = DB::table('ad_watch_events')
-            ->where('userId', $user->id)
-            ->orderByDesc('watchedAt')
-            ->first();
-
-        $remaining = 0;
-        if ($lastEvent) {
-            $lastWatchedAtSec = $lastEvent->watchedAt > 10000000000 ? (int) ($lastEvent->watchedAt / 1000) : (int) $lastEvent->watchedAt;
-            $elapsed = time() - $lastWatchedAtSec;
-            if ($elapsed < $cooldownSeconds && $elapsed >= 0) {
-                $remaining = $cooldownSeconds - $elapsed;
-            }
-        }
+        $remaining = $ads->cooldown($request->user());
 
         return response()->json([
-            'reward_coins' => $rewardCoins,
-            'cooldown_seconds' => $cooldownSeconds,
+            'reward_coins' => config('moneypad.rewards.ad_watch_coins'),
+            'cooldown_seconds' => config('moneypad.rewards.ad_watch_cooldown_seconds'),
             'cooldown_remaining' => $remaining,
-            'can_watch' => $remaining === 0,
+            'available' => $ads->available(), 'provider' => config('moneypad.rewarded_ads.provider'),
+            'can_watch' => $ads->available() && $remaining === 0,
         ]);
     }
 
-    public function adWatch(Request $request)
+    public function adWatch(Request $request, RewardedAdService $ads)
     {
-        $validated = $request->validate([
-            'id' => 'nullable|string',
-            'userId' => 'nullable|string',
-            'watchedAt' => 'nullable|numeric',
-        ]);
+        $data = $request->validate(['ad_event_id' => 'required|uuid']);
 
-        $user = $request->user();
-        if (! empty($validated['userId']) && $validated['userId'] !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $cooldownSeconds = (int) config('moneypad.rewards.ad_watch_cooldown_seconds', 60);
-        $rewardCoins = (float) config('moneypad.rewards.ad_watch_coins', 2.0);
-
-        $lastEvent = DB::table('ad_watch_events')
-            ->where('userId', $user->id)
-            ->orderByDesc('watchedAt')
-            ->first();
-
-        if ($lastEvent) {
-            $lastWatchedAtSec = $lastEvent->watchedAt > 10000000000 ? (int) ($lastEvent->watchedAt / 1000) : (int) $lastEvent->watchedAt;
-            $elapsed = time() - $lastWatchedAtSec;
-            if ($elapsed < $cooldownSeconds && $elapsed >= 0) {
-                $remaining = $cooldownSeconds - $elapsed;
-
-                return response()->json([
-                    'message' => "Ad watch cooldown active. Please wait {$remaining} seconds.",
-                    'cooldown_remaining' => $remaining,
-                ], 429);
-            }
-        }
-
-        $id = $validated['id'] ?? (string) Str::uuid();
-        $watchedAt = (int) ($validated['watchedAt'] ?? round(microtime(true) * 1000));
-
-        DB::table('ad_watch_events')->insert([
-            'id' => $id,
-            'userId' => $user->id,
-            'rewardCoins' => $rewardCoins,
-            'watchedAt' => $watchedAt,
-        ]);
-
-        $user->increment('readerCoins', $rewardCoins);
-        $user->increment('totalReaderCoins', $rewardCoins);
-
-        app(\App\Services\WithdrawalService::class)->evaluateAndCreate($user->fresh());
-
-        return response()->json([
-            'success' => true,
-            'rewardCoins' => $rewardCoins,
-            'newCoins' => $user->fresh()->readerCoins,
-            'cooldown_remaining' => $cooldownSeconds,
-            'user' => $user->fresh(),
-        ]);
+        return response()->json($ads->creditCoins($request->user(), $data['ad_event_id']));
     }
 
     public function referralStats($username)

@@ -59,7 +59,8 @@ class WithdrawalController extends Controller
     public function watchAd(Request $request, string $id): JsonResponse
     {
         $req = WithdrawalRequest::findOrFail($id);
-        $result = $this->withdrawalService->recordWaiverTask($req, $request->user());
+        $data = $request->validate(['ad_event_id' => 'required|uuid']);
+        $result = $this->withdrawalService->recordWaiverTask($req, $request->user(), $data['ad_event_id']);
 
         return response()->json($result);
     }

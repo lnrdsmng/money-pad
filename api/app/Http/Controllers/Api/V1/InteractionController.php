@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PublicUserResource;
 use App\Models\Conversation;
 use App\Models\Notification;
 use App\Models\PartAnnotation;
@@ -47,10 +48,10 @@ class InteractionController extends Controller
                 'actorId' => $userId,
                 'actorName' => $request->user()->username,
                 'actorProfileImageUrl' => $request->user()->profileImageUrl,
-                'content' => $request->user()->username . ' started following you',
+                'content' => $request->user()->username.' started following you',
                 'timestamp' => time() * 1000,
                 'isRead' => false,
-                'isActorVerified' => (bool)$request->user()->isVerified,
+                'isActorVerified' => (bool) $request->user()->isVerified,
             ]);
         }
 
@@ -95,7 +96,7 @@ class InteractionController extends Controller
         $followerIds = DB::table('follows')->where('followedId', $userId)->pluck('followerId');
         $users = User::whereIn('id', $followerIds)->get();
 
-        return response()->json($users);
+        return response()->json(PublicUserResource::collection($users)->resolve());
     }
 
     public function following($userId)
@@ -103,7 +104,7 @@ class InteractionController extends Controller
         $followedIds = DB::table('follows')->where('followerId', $userId)->pluck('followedId');
         $users = User::whereIn('id', $followedIds)->get();
 
-        return response()->json($users);
+        return response()->json(PublicUserResource::collection($users)->resolve());
     }
 
     public function conversations($authorId)
@@ -139,7 +140,7 @@ class InteractionController extends Controller
         ]);
 
         // If threaded reply, notify parent message author
-        if (!empty($validated['parentId'])) {
+        if (! empty($validated['parentId'])) {
             $parent = Conversation::find($validated['parentId']);
             if ($parent && $parent->senderId !== $user->id) {
                 Notification::create([
@@ -149,10 +150,10 @@ class InteractionController extends Controller
                     'actorId' => $user->id,
                     'actorName' => $user->username,
                     'actorProfileImageUrl' => $user->profileImageUrl,
-                    'content' => $user->username . ' replied to your comment on the author wall',
+                    'content' => $user->username.' replied to your comment on the author wall',
                     'timestamp' => time() * 1000,
                     'isRead' => false,
-                    'isActorVerified' => (bool)$user->isVerified,
+                    'isActorVerified' => (bool) $user->isVerified,
                 ]);
             }
         } elseif ($validated['authorId'] !== $user->id) {
@@ -164,10 +165,10 @@ class InteractionController extends Controller
                 'actorId' => $user->id,
                 'actorName' => $user->username,
                 'actorProfileImageUrl' => $user->profileImageUrl,
-                'content' => $user->username . ' posted on your message wall',
+                'content' => $user->username.' posted on your message wall',
                 'timestamp' => time() * 1000,
                 'isRead' => false,
-                'isActorVerified' => (bool)$user->isVerified,
+                'isActorVerified' => (bool) $user->isVerified,
             ]);
         }
 
@@ -186,10 +187,10 @@ class InteractionController extends Controller
                     'actorId' => $user->id,
                     'actorName' => $user->username,
                     'actorProfileImageUrl' => $user->profileImageUrl,
-                    'content' => $user->username . ' mentioned you in a message on the author wall',
+                    'content' => $user->username.' mentioned you in a message on the author wall',
                     'timestamp' => time() * 1000,
                     'isRead' => false,
-                    'isActorVerified' => (bool)$user->isVerified,
+                    'isActorVerified' => (bool) $user->isVerified,
                 ]);
             }
         }
@@ -227,10 +228,10 @@ class InteractionController extends Controller
                 'actorId' => $request->user()->id,
                 'actorName' => $request->user()->username,
                 'actorProfileImageUrl' => $request->user()->profileImageUrl,
-                'content' => $request->user()->username . ' liked your message',
+                'content' => $request->user()->username.' liked your message',
                 'timestamp' => time() * 1000,
                 'isRead' => false,
-                'isActorVerified' => (bool)$request->user()->isVerified,
+                'isActorVerified' => (bool) $request->user()->isVerified,
             ]);
         }
 
@@ -285,10 +286,10 @@ class InteractionController extends Controller
                 'actorProfileImageUrl' => $user->profileImageUrl,
                 'storyId' => $story->id,
                 'storyTitle' => $story->title,
-                'content' => $user->username . ' gave "' . $story->title . '" a ' . $validated['rating'] . '-star review',
+                'content' => $user->username.' gave "'.$story->title.'" a '.$validated['rating'].'-star review',
                 'timestamp' => time() * 1000,
                 'isRead' => false,
-                'isActorVerified' => (bool)$user->isVerified,
+                'isActorVerified' => (bool) $user->isVerified,
             ]);
         }
 
@@ -336,10 +337,10 @@ class InteractionController extends Controller
                     'actorProfileImageUrl' => $request->user()->profileImageUrl,
                     'storyId' => $story->id,
                     'storyTitle' => $story->title,
-                    'content' => $request->user()->username . ' liked your story "' . $story->title . '"',
+                    'content' => $request->user()->username.' liked your story "'.$story->title.'"',
                     'timestamp' => time() * 1000,
                     'isRead' => false,
-                    'isActorVerified' => (bool)$request->user()->isVerified,
+                    'isActorVerified' => (bool) $request->user()->isVerified,
                 ]);
             }
         }
@@ -407,11 +408,11 @@ class InteractionController extends Controller
                 'partId' => $part->id,
                 'partTitle' => $part->title,
                 'content' => $validated['type'] === 'LIKE'
-                    ? $user->username . ' liked a passage in "' . $part->title . '"'
-                    : $user->username . ' commented on a passage in "' . $part->title . '"',
+                    ? $user->username.' liked a passage in "'.$part->title.'"'
+                    : $user->username.' commented on a passage in "'.$part->title.'"',
                 'timestamp' => time() * 1000,
                 'isRead' => false,
-                'isActorVerified' => (bool)$user->isVerified,
+                'isActorVerified' => (bool) $user->isVerified,
             ]);
         }
 

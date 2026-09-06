@@ -10,6 +10,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\PlanPurchaseStatus;
 use App\PlanType;
+use App\Services\VerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,14 +37,14 @@ class VerificationController extends Controller
             ->latest()
             ->first();
 
-        if (!$pendingRequest) {
+        if (! $pendingRequest) {
             $pendingPlan = PlanPurchase::where('userId', $user->id)
                 ->where('plan_type', PlanType::AuthorVerification)
                 ->where('status', PlanPurchaseStatus::PendingReview)
                 ->latest('submitted_at')
                 ->first();
             if ($pendingPlan) {
-                $pendingRequest = (object)[
+                $pendingRequest = (object) [
                     'id' => $pendingPlan->id,
                     'user_id' => $pendingPlan->userId,
                     'payment_method' => $pendingPlan->payment_method,
@@ -59,19 +60,19 @@ class VerificationController extends Controller
             ->latest()
             ->first();
 
-        if (!$latestRequest) {
+        if (! $latestRequest) {
             $latestPlan = PlanPurchase::where('userId', $user->id)
                 ->where('plan_type', PlanType::AuthorVerification)
                 ->latest('submitted_at')
                 ->first();
             if ($latestPlan) {
-                $latestRequest = (object)[
+                $latestRequest = (object) [
                     'id' => $latestPlan->id,
                     'user_id' => $latestPlan->userId,
                     'payment_method' => $latestPlan->payment_method,
                     'payment_reference' => $latestPlan->payment_reference,
                     'receipt_url' => $latestPlan->payment_proof_path,
-                    'status' => $latestPlan->status instanceof \BackedEnum ? $latestPlan->status->value : (string)$latestPlan->status,
+                    'status' => $latestPlan->status instanceof \BackedEnum ? $latestPlan->status->value : (string) $latestPlan->status,
                     'rejection_reason' => $latestPlan->rejection_reason,
                     'created_at' => $latestPlan->submitted_at ?? $latestPlan->created_at,
                 ];
@@ -82,8 +83,8 @@ class VerificationController extends Controller
             'qualifyingStoriesCount' => $qualifyingCount,
             'requiredStoriesCount' => 2,
             'isEligible' => $qualifyingCount >= 2,
-            'isVerified' => (bool)$user->isVerified,
-            'authorIncome' => (float)$user->authorIncome,
+            'isVerified' => (bool) $user->isVerified,
+            'authorIncome' => (float) $user->authorIncome,
             'qualifyingStories' => $qualifyingStories,
             'pendingRequest' => $pendingRequest,
             'latestRequest' => $latestRequest,
@@ -120,60 +121,13 @@ class VerificationController extends Controller
         ]);
 
         if ($validated['payment_method'] === 'balance') {
-            if ((float)$user->authorIncome < 149.00) {
+            if ((float) $user->authorIncome < (float) config('moneypad.fees.verification_fee')) {
                 return response()->json([
-                    'message' => 'Insufficient author income balance. ₱149.00 required, current balance is ₱' . number_format($user->authorIncome, 2),
+                    'message' => 'Insufficient author income balance. PHP '.number_format(config('moneypad.fees.verification_fee'), 2).' required.',
                 ], 422);
             }
 
-            DB::transaction(function () use ($user) {
-                $user->authorIncome = (float)$user->authorIncome - 149.00;
-                $user->isVerified = true;
-                $user->save();
-
-                Story::where('authorId', $user->id)->update(['isAuthorVerified' => true]);
-
-                $ref = 'BAL-' . strtoupper(Str::random(10));
-
-                PlanPurchase::create([
-                    'id' => (string) Str::uuid(),
-                    'userId' => $user->id,
-                    'plan_type' => PlanType::AuthorVerification,
-                    'amount' => 149.00,
-                    'currency' => config('moneypad.currency', 'PHP'),
-                    'provider' => 'author_income',
-                    'payment_method' => 'author_income',
-                    'reference_number' => 'MP-VERIF-' . strtoupper(Str::random(16)),
-                    'payment_reference' => $ref,
-                    'status' => PlanPurchaseStatus::Approved,
-                    'submitted_at' => now(),
-                    'paid_at' => now(),
-                    'reviewed_by' => $user->id,
-                    'reviewed_at' => now(),
-                ]);
-
-                AuthorVerificationRequest::create([
-                    'id' => Str::uuid()->toString(),
-                    'user_id' => $user->id,
-                    'payment_method' => 'author_income',
-                    'payment_reference' => $ref,
-                    'status' => 'approved',
-                    'reviewed_at' => now(),
-                    'reviewed_by' => $user->id,
-                ]);
-
-                Notification::create([
-                    'id' => Str::uuid()->toString(),
-                    'userId' => $user->id,
-                    'type' => 'VERIFIED',
-                    'actorId' => $user->id,
-                    'actorName' => 'System',
-                    'content' => 'Congratulations! Your author profile is now verified.',
-                    'timestamp' => time() * 1000,
-                    'isRead' => false,
-                    'isActorVerified' => true,
-                ]);
-            });
+            $user = app(VerificationService::class)->payFromBalance($user);
 
             return response()->json([
                 'success' => true,
@@ -184,7 +138,7 @@ class VerificationController extends Controller
         }
 
         // Receipt upload flow (GCash, Maya, Bank Transfer)
-        if (!$request->hasFile('payment_proof') || empty($validated['payment_reference'])) {
+        if (! $request->hasFile('payment_proof') || empty($validated['payment_reference'])) {
             return response()->json([
                 'message' => 'Proof of payment receipt and payment reference number are required for manual payment.',
             ], 422);
@@ -211,11 +165,11 @@ class VerificationController extends Controller
             'id' => (string) Str::uuid(),
             'userId' => $user->id,
             'plan_type' => PlanType::AuthorVerification,
-            'amount' => 149.00,
+            'amount' => config('moneypad.fees.verification_fee'),
             'currency' => config('moneypad.currency', 'PHP'),
             'provider' => 'manual',
             'payment_method' => $validated['payment_method'],
-            'reference_number' => 'MP-VERIF-' . strtoupper(Str::random(16)),
+            'reference_number' => 'MP-VERIF-'.strtoupper(Str::random(16)),
             'payment_reference' => $validated['payment_reference'],
             'payment_proof_path' => $storedPath,
             'status' => PlanPurchaseStatus::PendingReview,
@@ -347,7 +301,7 @@ class VerificationController extends Controller
             'type' => 'SYSTEM',
             'actorId' => $request->user()->id,
             'actorName' => 'Admin',
-            'content' => 'Your author verification request was rejected: ' . $request->reason,
+            'content' => 'Your author verification request was rejected: '.$request->reason,
             'timestamp' => time() * 1000,
             'isRead' => false,
         ]);

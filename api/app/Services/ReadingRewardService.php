@@ -18,13 +18,14 @@ class ReadingRewardService
     public function recordHeartbeat(User $user, string $sessionId): array
     {
         return DB::transaction(function () use ($user, $sessionId): array {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             $session = ReadingSession::query()
                 ->where('id', $sessionId)
                 ->where('userId', $user->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (! $session->is_active) {
+            if (! $session->is_active || ! DB::table('active_reading_sessions')->where('user_id', $user->id)->where('session_id', $session->id)->exists()) {
                 throw ValidationException::withMessages([
                     'sessionId' => 'This reading session is no longer active.',
                 ]);
@@ -97,6 +98,7 @@ class ReadingRewardService
     public function createClaim(User $user): array
     {
         return DB::transaction(function () use ($user): array {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             $this->expirePendingRewards($user);
             $this->cancelAwaitingClaims($user);
 
@@ -116,10 +118,13 @@ class ReadingRewardService
             }
 
             $adRequired = $user->requiresClaimAd();
+            if ($adRequired && ! app(RewardedAdService::class)->available()) {
+                throw ValidationException::withMessages(['ad' => 'Rewarded ads are currently unavailable. Your income has not been claimed.']);
+            }
             $mockToken = null;
 
             if ($adRequired && config('moneypad.rewarded_ads.provider') === 'mock') {
-                if (! config('moneypad.rewarded_ads.mock_enabled')) {
+                if (! app(RewardedAdService::class)->mockEnabled()) {
                     throw ValidationException::withMessages([
                         'ad' => 'Rewarded ads are not configured.',
                     ]);
@@ -167,6 +172,7 @@ class ReadingRewardService
     public function completeClaim(User $user, ReadingRewardClaim $claim, ?string $mockAdToken): array
     {
         return DB::transaction(function () use ($user, $claim, $mockAdToken): array {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             $lockedClaim = ReadingRewardClaim::query()
                 ->whereKey($claim->id)
                 ->where('userId', $user->id)
@@ -196,6 +202,7 @@ class ReadingRewardService
     public function cancelClaim(User $user, ReadingRewardClaim $claim): void
     {
         DB::transaction(function () use ($user, $claim): void {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             $lockedClaim = ReadingRewardClaim::query()
                 ->whereKey($claim->id)
                 ->where('userId', $user->id)
@@ -279,7 +286,7 @@ class ReadingRewardService
 
         $amount = $this->formatAmount((float) $rewards->sum('amount'));
         $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
-        $lockedUser->readerCoins = $this->formatAmount((float) $lockedUser->readerCoins + (float) $amount);
+        $lockedUser->readerCoins = CoinAmount::add($lockedUser->readerCoins, $amount);
         $lockedUser->totalReaderCoins = $this->formatAmount(
             (float) $lockedUser->totalReaderCoins + (float) $amount,
         );
@@ -298,14 +305,14 @@ class ReadingRewardService
             'claimed_at' => $claimedAt,
         ]);
 
-        app(\App\Services\WithdrawalService::class)->evaluateAndCreate($lockedUser);
+        app(WithdrawalService::class)->evaluateAndCreate($lockedUser);
 
         return ['claim' => $claim->fresh(), 'user' => $lockedUser->fresh()];
     }
 
     private function verifyMockAd(ReadingRewardClaim $claim, ?string $mockAdToken): void
     {
-        if ($claim->ad_provider !== 'mock' || ! config('moneypad.rewarded_ads.mock_enabled')) {
+        if ($claim->ad_provider !== 'mock' || ! app(RewardedAdService::class)->mockEnabled()) {
             throw ValidationException::withMessages([
                 'ad' => 'The rewarded ad has not been verified.',
             ]);

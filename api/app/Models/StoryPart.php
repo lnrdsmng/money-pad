@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\ChapterHtmlSanitizer;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,8 +19,16 @@ class StoryPart extends Model
 
     protected $fillable = [
         'id', 'storyId', 'title', 'content', 'order', 'publishedAt', 'isPublished',
-        'readCount', 'headerImageUrl',
+        'readCount', 'headerImageUrl', 'revision',
     ];
+
+    protected function content(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => app(ChapterHtmlSanitizer::class)->sanitize($value),
+            set: fn ($value) => app(ChapterHtmlSanitizer::class)->sanitize($value),
+        );
+    }
 
     protected function casts(): array
     {

@@ -57,7 +57,7 @@ class AuthController extends Controller
         $user = $planExpirationService->synchronize($user);
 
         // Generate token for mobile app if needed
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $request->hasSession() ? null : $user->createToken('auth_token', ['*'], now()->addDays(7))->plainTextToken;
 
         return response()->json([
             'user' => $user,
@@ -68,8 +68,8 @@ class AuthController extends Controller
     public function signup(Request $request, DailyLoginRewardService $rewardService)
     {
         $request->validate([
-            'username' => 'required|string|unique:users',
-            'email' => 'required|email|unique:users',
+            'username' => 'required|string|min:3|max:50|regex:/^[A-Za-z0-9_]+$/|unique:users',
+            'email' => 'required|email|max:100|unique:users',
             'password' => 'required|string|min:8',
         ]);
 
@@ -102,7 +102,7 @@ class AuthController extends Controller
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $request->hasSession() ? null : $user->createToken('auth_token', ['*'], now()->addDays(7))->plainTextToken;
 
         return response()->json([
             'user' => $user->fresh() ?? $user,
@@ -116,6 +116,8 @@ class AuthController extends Controller
 
         if ($accessToken instanceof PersonalAccessToken) {
             $accessToken->delete();
+        } else {
+            $request->user()?->tokens()->delete();
         }
 
         if (Auth::guard('web')->check()) {
@@ -155,6 +157,12 @@ class AuthController extends Controller
 
         $user->password = Hash::make($pwd);
         $user->save();
+        $user->tokens()->delete();
+        if (config('session.driver') === 'database') {
+            DB::table('sessions')->where('user_id', $user->id)
+                ->when($request->hasSession(), fn ($query) => $query->where('id', '!=', $request->session()->getId()))
+                ->delete();
+        }
 
         return response()->json([
             'success' => true,

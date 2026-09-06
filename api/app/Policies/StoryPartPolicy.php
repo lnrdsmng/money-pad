@@ -7,6 +7,12 @@ use App\Models\User;
 
 class StoryPartPolicy
 {
+    public function view(?User $user, StoryPart $storyPart): bool
+    {
+        return ($storyPart->isPublished && $storyPart->story->isPublished)
+            || $user?->id === $storyPart->story->authorId;
+    }
+
     public function update(User $user, StoryPart $storyPart): bool
     {
         return $user->id === $storyPart->story->authorId;

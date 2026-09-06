@@ -4,19 +4,26 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Story;
+use App\Models\StoryPart;
+use App\Models\UserReadingProgress;
+use App\Models\UserReadPart;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class StoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Story::all());
+        return $this->page(Story::where('isPublished', true)->orderByDesc('lastUpdatedAt')->orderBy('id'), $request);
     }
 
-    public function show($storyId)
+    public function show(Request $request, $storyId)
     {
         $story = Story::findOrFail($storyId);
+
+        abort_unless(Gate::forUser($request->user('sanctum'))->allows('view', $story), 404);
 
         return response()->json($story);
     }
@@ -38,7 +45,7 @@ class StoryController extends Controller
             'id' => $storyId,
             'authorId' => $request->user()->id,
             'authorName' => $request->user()->username,
-            'isAuthorVerified' => (bool)$request->user()->isVerified,
+            'isAuthorVerified' => (bool) $request->user()->isVerified,
             'lastUpdatedAt' => time() * 1000,
         ]));
 
@@ -49,9 +56,7 @@ class StoryController extends Controller
     {
         $story = Story::findOrFail($storyId);
 
-        if ($story->authorId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('update', $story);
 
         $validated = $request->validate([
             'title' => 'string',
@@ -73,9 +78,7 @@ class StoryController extends Controller
     {
         $story = Story::findOrFail($storyId);
 
-        if ($story->authorId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('delete', $story);
 
         $story->delete();
 
@@ -86,9 +89,7 @@ class StoryController extends Controller
     {
         $story = Story::findOrFail($storyId);
 
-        if ($story->authorId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('update', $story);
 
         $story->update(['isPublished' => true, 'lastUpdatedAt' => time() * 1000]);
 
@@ -99,27 +100,26 @@ class StoryController extends Controller
     {
         $story = Story::findOrFail($storyId);
 
-        if ($story->authorId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('update', $story);
 
         $story->update(['isPublished' => false, 'lastUpdatedAt' => time() * 1000]);
 
         return response()->json(['success' => true]);
     }
 
-    public function publishedByAuthor($authorId)
+    public function publishedByAuthor(Request $request, $authorId)
     {
-        $stories = Story::where('authorId', $authorId)->where('isPublished', true)->get();
+        $stories = Story::where('authorId', $authorId)->where('isPublished', true)->orderByDesc('lastUpdatedAt')->orderBy('id');
 
-        return response()->json($stories);
+        return $this->page($stories, $request);
     }
 
-    public function draftsByAuthor($authorId)
+    public function draftsByAuthor(Request $request, $authorId)
     {
-        $stories = Story::where('authorId', $authorId)->where('isPublished', false)->get();
+        abort_unless($request->user()->id === $authorId, 403);
+        $stories = Story::where('authorId', $authorId)->where('isPublished', false)->orderByDesc('lastUpdatedAt')->orderBy('id');
 
-        return response()->json($stories);
+        return $this->page($stories, $request);
     }
 
     public function search(Request $request)
@@ -133,28 +133,28 @@ class StoryController extends Controller
             ->select('stories.*', 'users.isVerified as author_is_verified')
             ->where('stories.isPublished', true);
 
-        if (!empty($query)) {
+        if (! empty($query)) {
             $builder->where(function ($q) use ($query) {
                 $q->where('stories.title', 'like', "%{$query}%")
-                  ->orWhere('stories.overview', 'like', "%{$query}%")
-                  ->orWhere('stories.authorName', 'like', "%{$query}%");
+                    ->orWhere('stories.overview', 'like', "%{$query}%")
+                    ->orWhere('stories.authorName', 'like', "%{$query}%");
             });
 
             $lowerQuery = strtolower($query);
-            $builder->orderByRaw("CASE 
+            $builder->orderByRaw('CASE
                 WHEN LOWER(stories.title) = ? THEN 4
                 WHEN LOWER(stories.title) LIKE ? THEN 3
                 WHEN LOWER(stories.title) LIKE ? THEN 2
                 WHEN LOWER(stories.overview) LIKE ? THEN 1
-                ELSE 0 END DESC", [
+                ELSE 0 END DESC', [
                 $lowerQuery,
-                $lowerQuery . '%',
-                '%' . $lowerQuery . '%',
-                '%' . $lowerQuery . '%'
+                $lowerQuery.'%',
+                '%'.$lowerQuery.'%',
+                '%'.$lowerQuery.'%',
             ]);
         }
 
-        if (!empty($genre) && strtolower($genre) !== 'all') {
+        if (! empty($genre) && strtolower($genre) !== 'all') {
             $builder->where('stories.genres', 'like', "%{$genre}%");
         }
 
@@ -166,47 +166,46 @@ class StoryController extends Controller
         $builder->orderByDesc('users.isVerified');
         $builder->orderByDesc('stories.lastUpdatedAt');
 
-        return response()->json($builder->get());
+        return $this->page($builder->orderBy('stories.id'), $request);
     }
 
     public function continueReading(Request $request)
     {
         $user = $request->user();
 
-        $progresses = \App\Models\UserReadingProgress::where('userId', $user->id)
-            ->with(['story', 'storyPart'])
+        $progresses = UserReadingProgress::where('userId', $user->id)
+            ->with(['story', 'storyPart:id,storyId,title,isPublished'])
             ->orderByDesc('updated_at')
             ->limit(20)
             ->get();
+
+        $storyIds = $progresses->pluck('storyId');
+        $publishedCounts = StoryPart::whereIn('storyId', $storyIds)->where('isPublished', true)
+            ->selectRaw('storyId, COUNT(*) AS aggregate')->groupBy('storyId')->pluck('aggregate', 'storyId');
+        $readCounts = UserReadPart::where('userId', $user->id)->whereIn('storyId', $storyIds)
+            ->selectRaw('storyId, COUNT(*) AS aggregate')->groupBy('storyId')->pluck('aggregate', 'storyId');
+        $firstParts = StoryPart::whereIn('storyId', $storyIds)->where('isPublished', true)
+            ->select(['id', 'storyId', 'title', 'order'])->orderBy('order')->get()->groupBy('storyId');
 
         $results = [];
 
         foreach ($progresses as $progress) {
             $story = $progress->story;
-            if (!$story || !$story->isPublished) {
+            if (! $story || ! $story->isPublished) {
                 continue;
             }
 
-            $totalParts = \App\Models\StoryPart::where('storyId', $story->id)
-                ->where('isPublished', true)
-                ->count();
-
+            $totalParts = (int) ($publishedCounts[$story->id] ?? 0);
             if ($totalParts === 0) {
                 continue;
             }
-
-            $readCount = \App\Models\UserReadPart::where('userId', $user->id)
-                ->where('storyId', $story->id)
-                ->count();
+            $readCount = (int) ($readCounts[$story->id] ?? 0);
 
             $percentage = min(100, (int) round(($readCount / max(1, $totalParts)) * 100));
 
             $part = $progress->storyPart;
-            if (!$part || !$part->isPublished) {
-                $part = \App\Models\StoryPart::where('storyId', $story->id)
-                    ->where('isPublished', true)
-                    ->orderBy('order')
-                    ->first();
+            if (! $part || ! $part->isPublished) {
+                $part = $firstParts->get($story->id)?->first();
             }
 
             $results[] = [
@@ -241,7 +240,7 @@ class StoryController extends Controller
         $query = Story::where('isPublished', true)
             ->where('authorId', '!=', $user->id);
 
-        if (!empty($genres)) {
+        if (! empty($genres)) {
             $query->where(function ($q) use ($genres) {
                 foreach ($genres as $g) {
                     $q->orWhere('genres', 'like', "%{$g}%");
@@ -279,7 +278,15 @@ class StoryController extends Controller
             'LGBTQIA+', 'Werewolf', 'New Adult', 'Short Story', 'Teen Fiction',
             'Historical Fiction', 'Paranormal', 'Humor', 'Contemporary Lit',
             'Diverse Lit', 'Thriller', 'Adventure', 'Fan Fiction', 'Non-Fiction',
-            'Poetry', 'General'
+            'Poetry', 'General',
         ]);
+    }
+
+    private function page($query, Request $request): JsonResponse
+    {
+        $request->validate(['page' => 'sometimes|integer|min:1', 'per_page' => 'sometimes|integer|min:1|max:100']);
+        $page = $query->simplePaginate($request->integer('per_page', 30));
+
+        return response()->json($page->items())->header('X-Next-Page', $page->hasMorePages() ? (string) ($page->currentPage() + 1) : '');
     }
 }

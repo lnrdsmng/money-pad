@@ -27,6 +27,7 @@ class WithdrawalService
             'min_bank' => (float) config('moneypad.withdrawals.min_bank', 20.0),
             'platform_fee' => (float) config('moneypad.withdrawals.platform_fee', 3.0),
             'bank_fee' => (float) config('moneypad.withdrawals.bank_processing_fee', 10.0),
+            'rewarded_ads_available' => app(RewardedAdService::class)->available(),
             'ads_to_waive_fee' => (int) config('moneypad.withdrawals.ads_to_waive_fee', 10),
             'coin_to_php_rate' => (float) config('moneypad.conversion.coins_to_cash_ratio', 0.01),
             'timezone' => (string) config('moneypad.withdrawals.timezone', 'Asia/Manila'),
@@ -55,6 +56,9 @@ class WithdrawalService
      */
     public function hasCompletePayoutDetails(User $user): bool
     {
+        if ($user->payout_account_conflict) {
+            return false;
+        }
         if (empty($user->payment_method) || empty($user->payment_account_info)) {
             return false;
         }
@@ -137,8 +141,13 @@ class WithdrawalService
             }
 
             $coinToPhpRate = (float) config('moneypad.conversion.coins_to_cash_ratio', 0.01);
-            $readerCoins = (float) $lockedUser->readerCoins;
-            $pesoBalance = round($readerCoins * $coinToPhpRate, 2);
+            $units = CoinAmount::units($lockedUser->readerCoins);
+            $centavosPerThousandCoins = (int) round($coinToPhpRate * 100 * 1000);
+            if ($centavosPerThousandCoins <= 0) {
+                return null;
+            }
+            $centavos = intdiv($units * $centavosPerThousandCoins, 1_000_000);
+            $pesoBalance = $centavos / 100;
 
             $threshold = $this->getThresholdForMethod($lockedUser->payment_method);
             if ($pesoBalance < $threshold) {
@@ -147,9 +156,10 @@ class WithdrawalService
 
             // Reserve/deduct balance atomically
             $grossAmount = number_format($pesoBalance, 2, '.', '');
-            $coinsToDeduct = $grossAmount / $coinToPhpRate;
+            $unitsToDeduct = intdiv($centavos * 1_000_000 + $centavosPerThousandCoins - 1, $centavosPerThousandCoins);
+            $coinsToDeduct = CoinAmount::format($unitsToDeduct);
 
-            $lockedUser->readerCoins = number_format(max(0, (float) $lockedUser->readerCoins - $coinsToDeduct), 3, '.', '');
+            $lockedUser->readerCoins = CoinAmount::format($units - $unitsToDeduct);
             $lockedUser->save();
 
             $platformFee = (float) config('moneypad.withdrawals.platform_fee', 3.0);
@@ -198,8 +208,8 @@ class WithdrawalService
                 'userId' => $lockedUser->id,
                 'type' => 'withdrawal_eligible',
                 'title' => 'Automatic Payout Processing',
-                'content' => 'You reached the minimum balance! An automatic payout of ₱'.$grossAmount.' to '.$lockedUser->payment_method.' has been queued. Complete designated in-app tasks (10 ads) before review to waive the ₱'.number_format($platformFee, 2, '.', '').' platform fee.',
-                'action_type' => 'watch_ads_prompt',
+                'content' => 'You reached the minimum balance! An automatic payout of ₱'.$grossAmount.' to '.$lockedUser->payment_method.' has been queued.',
+                'action_type' => app(RewardedAdService::class)->available() ? 'watch_ads_prompt' : 'info',
                 'action_payload' => ['withdrawal_request_id' => $req->id],
                 'is_pinned' => true,
                 'withdrawal_request_id' => $req->id,
@@ -227,41 +237,47 @@ class WithdrawalService
      *
      * @return array<string, mixed>
      */
-    public function recordWaiverTask(WithdrawalRequest $req, User $user): array
+    public function recordWaiverTask(WithdrawalRequest $req, User $user, string $eventId): array
     {
-        if ($req->userId !== $user->id) {
-            throw ValidationException::withMessages(['user' => 'Unauthorized']);
-        }
+        return DB::transaction(function () use ($req, $user, $eventId) {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $req = WithdrawalRequest::whereKey($req->id)->lockForUpdate()->firstOrFail();
+            if ($req->userId !== $user->id) {
+                throw ValidationException::withMessages(['user' => 'Unauthorized']);
+            }
 
-        $statusStr = $req->status instanceof WithdrawalStatus ? $req->status->value : (string) $req->status;
-        if (! in_array($statusStr, [
-            WithdrawalStatus::PendingReview->value,
-            WithdrawalStatus::PendingAdChoice->value,
-            WithdrawalStatus::WatchingAds->value,
-            WithdrawalStatus::Eligible->value,
-        ], true)) {
-            throw ValidationException::withMessages(['status' => 'Fee waiver is no longer editable for this withdrawal.']);
-        }
+            $statusStr = $req->status instanceof WithdrawalStatus ? $req->status->value : (string) $req->status;
+            if (! in_array($statusStr, [
+                WithdrawalStatus::PendingReview->value,
+                WithdrawalStatus::PendingAdChoice->value,
+                WithdrawalStatus::WatchingAds->value,
+                WithdrawalStatus::Eligible->value,
+            ], true)) {
+                throw ValidationException::withMessages(['status' => 'Fee waiver is no longer editable for this withdrawal.']);
+            }
 
-        $req->increment('ads_watched_count');
-        $target = (int) config('moneypad.withdrawals.ads_to_waive_fee', 10);
+            if (app(RewardedAdService::class)->consume($user, $eventId, 'withdrawal', $req->id)) {
+                $req->increment('ads_watched_count');
+            }
+            $target = (int) config('moneypad.withdrawals.ads_to_waive_fee', 10);
 
-        if ($req->ads_watched_count >= $target) {
-            $req->fee_waived = true;
-            $gross = (float) ($req->gross_amount ?? $req->amount);
-            $bankFee = (float) $req->bank_fee;
-            $req->net_amount = number_format(max(0, $gross - $bankFee), 2, '.', '');
-        }
+            if ($req->ads_watched_count >= $target) {
+                $req->fee_waived = true;
+                $gross = (float) ($req->gross_amount ?? $req->amount);
+                $bankFee = (float) $req->bank_fee;
+                $req->net_amount = number_format(max(0, $gross - $bankFee), 2, '.', '');
+            }
 
-        $req->save();
+            $req->save();
 
-        return [
-            'success' => true,
-            'count' => $req->ads_watched_count,
-            'fee_waived' => (bool) $req->fee_waived,
-            'net_amount' => $req->net_amount,
-            'status' => $req->status instanceof WithdrawalStatus ? $req->status->value : (string) $req->status,
-        ];
+            return [
+                'success' => true,
+                'count' => $req->ads_watched_count,
+                'fee_waived' => (bool) $req->fee_waived,
+                'net_amount' => $req->net_amount,
+                'status' => $req->status instanceof WithdrawalStatus ? $req->status->value : (string) $req->status,
+            ];
+        }, 3);
     }
 
     /**
@@ -319,8 +335,8 @@ class WithdrawalService
             $user = User::findOrFail($locked->userId);
 
             // Handle referral bonus
-            if ($user->referredBy && ! $user->has_received_first_withdrawal) {
-                $inviter = User::where('username', $user->referredBy)->first();
+            if ($user->referrer_id && ! $user->has_received_first_withdrawal) {
+                $inviter = User::find($user->referrer_id);
                 if ($inviter) {
                     $bonus = (float) config('moneypad.rewards.referral_bonus', 1000.0);
                     $inviter->increment('readerCoins', $bonus);
@@ -366,8 +382,8 @@ class WithdrawalService
             }
 
             $user = User::findOrFail($locked->userId);
-            if ($user->referredBy && ! $user->has_received_first_withdrawal) {
-                $inviter = User::where('username', $user->referredBy)->first();
+            if ($user->referrer_id && ! $user->has_received_first_withdrawal) {
+                $inviter = User::find($user->referrer_id);
                 if ($inviter) {
                     $bonus = (float) config('moneypad.rewards.referral_bonus', 1000.0);
                     $inviter->increment('readerCoins', $bonus);
@@ -420,7 +436,7 @@ class WithdrawalService
                 ? (float) $locked->coins_deducted
                 : ((float) $locked->amount / $coinToPhpRate);
 
-            $user->readerCoins = number_format((float) $user->readerCoins + $coinsToRefund, 3, '.', '');
+            $user->readerCoins = CoinAmount::add($user->readerCoins, $coinsToRefund);
             $user->save();
 
             $locked->update([

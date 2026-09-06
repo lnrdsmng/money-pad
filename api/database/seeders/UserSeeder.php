@@ -15,8 +15,12 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         // 1. Normal User
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['username' => 'user'],
             [
                 'id' => Str::uuid()->toString(),
@@ -44,7 +48,7 @@ class UserSeeder extends Seeder
         );
 
         // 2. Admin User
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['username' => 'admin'],
             [
                 'id' => Str::uuid()->toString(),

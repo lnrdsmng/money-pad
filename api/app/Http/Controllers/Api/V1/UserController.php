@@ -3,8 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PublicUserResource;
+use App\Models\Conversation;
+use App\Models\PartAnnotation;
+use App\Models\Review;
+use App\Models\Story;
 use App\Models\User;
+use App\Services\PayoutAccount;
+use App\Services\WithdrawalService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -12,7 +23,7 @@ class UserController extends Controller
     {
         $user = User::where('id', $userId)->orWhere('username', $userId)->firstOrFail();
 
-        return response()->json($user);
+        return response()->json((new PublicUserResource($user))->resolve());
     }
 
     public function updateProfile(Request $request, $userId)
@@ -30,59 +41,41 @@ class UserController extends Controller
             'coverImageUrl' => 'nullable|url',
             'payment_method' => 'nullable|string|in:GCash,Maya,Bank Transfer',
             'payment_account_name' => 'nullable|string|max:100',
-            'payment_account_info' => 'nullable|string',
+            'payment_account_info' => 'nullable|string|max:100',
             'bank_name' => 'nullable|string',
         ]);
 
-        if (!empty($validated['payment_account_info'])) {
-            $digits = preg_replace('/\D+/', '', $validated['payment_account_info']);
-            if (strlen($digits) === 12 && str_starts_with($digits, '639')) {
-                $normalizedDigits = '0'.substr($digits, 2);
-            } elseif (strlen($digits) === 10 && str_starts_with($digits, '9')) {
-                $normalizedDigits = '0'.$digits;
-            } else {
-                $normalizedDigits = $digits;
-            }
-
-            $otherUsers = User::query()
-                ->where('id', '!=', $user->id)
-                ->whereNotNull('payment_account_info')
-                ->where('payment_account_info', '!=', '')
-                ->get(['id', 'payment_account_info']);
-
-            $isDuplicate = false;
-            foreach ($otherUsers as $otherUser) {
-                if ($otherUser->payment_account_info === $validated['payment_account_info']) {
-                    $isDuplicate = true;
-                    break;
+        try {
+            DB::transaction(function () use ($user, $validated) {
+                $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+                $key = PayoutAccount::normalize($validated['payment_account_info'] ?? $locked->payment_account_info);
+                if (array_key_exists('payment_account_info', $validated) && $validated['payment_account_info'] === null) {
+                    $key = null;
                 }
-                $otherDigits = preg_replace('/\D+/', '', $otherUser->payment_account_info);
-                if (strlen($otherDigits) === 12 && str_starts_with($otherDigits, '639')) {
-                    $otherNormalized = '0'.substr($otherDigits, 2);
-                } elseif (strlen($otherDigits) === 10 && str_starts_with($otherDigits, '9')) {
-                    $otherNormalized = '0'.$otherDigits;
-                } else {
-                    $otherNormalized = $otherDigits;
+                if ($key !== null && User::where('payout_account_key', $key)->where('id', '!=', $locked->id)->exists()) {
+                    throw ValidationException::withMessages(['payment_account_info' => 'This account number / mobile number is already in use by another account.']);
                 }
-                if (!empty($normalizedDigits) && $normalizedDigits === $otherNormalized) {
-                    $isDuplicate = true;
-                    break;
+                if ($key !== $locked->payout_account_key) {
+                    DB::table('payout_accounts')->where('user_id', $locked->id)->delete();
                 }
-            }
-
-            if ($isDuplicate) {
-                return response()->json([
-                    'message' => 'This account number / mobile number is already in use by another account.',
-                    'errors' => [
-                        'payment_account_info' => ['This account number / mobile number has already been used.'],
-                    ],
-                ], 422);
-            }
+                if ($key !== null) {
+                    $reserved = DB::table('payout_accounts')->where('account_key', $key)->first();
+                    if ($reserved && $reserved->user_id !== $locked->id) {
+                        throw ValidationException::withMessages(['payment_account_info' => 'This payout account is reserved or requires administrator review.']);
+                    }
+                    if (! $reserved) {
+                        DB::table('payout_accounts')->insert(['account_key' => $key, 'user_id' => $locked->id]);
+                    }
+                }
+                $locked->fill($validated);
+                $locked->payout_account_conflict = false;
+                $locked->save();
+            }, 3);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['payment_account_info' => 'This account number / mobile number is already in use by another account.']);
         }
 
-        $user->update($validated);
-
-        app(\App\Services\WithdrawalService::class)->evaluateAndCreate($user->fresh());
+        app(WithdrawalService::class)->evaluateAndCreate($user->fresh());
 
         return response()->json(['success' => true, 'user' => $user->fresh()]);
     }
@@ -158,18 +151,18 @@ class UserController extends Controller
 
         $users = User::query();
 
-        if (!empty($query)) {
+        if (! empty($query)) {
             $users->where('username', 'like', "%{$query}%");
 
             $lowerQuery = strtolower($query);
-            $users->orderByRaw("CASE 
+            $users->orderByRaw('CASE
                 WHEN LOWER(username) = ? THEN 3
                 WHEN LOWER(username) LIKE ? THEN 2
                 WHEN LOWER(username) LIKE ? THEN 1
-                ELSE 0 END DESC", [
+                ELSE 0 END DESC', [
                 $lowerQuery,
-                $lowerQuery . '%',
-                '%' . $lowerQuery . '%'
+                $lowerQuery.'%',
+                '%'.$lowerQuery.'%',
             ]);
         }
 
@@ -181,7 +174,11 @@ class UserController extends Controller
         $users->orderByDesc('isVerified');
         $users->orderBy('username');
 
-        return response()->json($users->get());
+        $request->validate(['page' => 'sometimes|integer|min:1']);
+        $page = $users->orderBy('id')->simplePaginate(50);
+
+        return response()->json(PublicUserResource::collection(collect($page->items()))->resolve())
+            ->header('X-Next-Page', $page->hasMorePages() ? (string) ($page->currentPage() + 1) : '');
     }
 
     public function updateSettings(Request $request, $userId = null)
@@ -193,19 +190,22 @@ class UserController extends Controller
         }
 
         $validated = $request->validate([
-            'username' => ['sometimes', 'string', 'min:3', 'max:50', \Illuminate\Validation\Rule::unique('users')->ignore($user->id)],
+            'username' => ['sometimes', 'string', 'min:3', 'max:50', Rule::unique('users')->ignore($user->id)],
             'preferredGenres' => ['sometimes', 'string'],
         ]);
 
         $oldUsername = $user->username;
-        $user->update($validated);
+        DB::transaction(function () use ($user, $validated, $oldUsername) {
+            $user->update($validated);
 
-        if (!empty($validated['username']) && $validated['username'] !== $oldUsername) {
-            \App\Models\Story::where('authorId', $user->id)->update(['authorName' => $validated['username']]);
-            \App\Models\Conversation::where('senderId', $user->id)->update(['senderName' => $validated['username']]);
-            \App\Models\Review::where('userId', $user->id)->update(['username' => $validated['username']]);
-            \App\Models\PartAnnotation::where('userId', $user->id)->update(['username' => $validated['username']]);
-        }
+            if (! empty($validated['username']) && $validated['username'] !== $oldUsername) {
+                Story::where('authorId', $user->id)->update(['authorName' => $validated['username']]);
+                Conversation::where('senderId', $user->id)->update(['senderName' => $validated['username']]);
+                Review::where('userId', $user->id)->update(['username' => $validated['username']]);
+                PartAnnotation::where('userId', $user->id)->update(['username' => $validated['username']]);
+            }
+
+        });
 
         return response()->json([
             'success' => true,

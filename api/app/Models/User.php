@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\PlanType;
+use App\Services\PayoutAccount;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -28,7 +29,14 @@ class User extends Authenticatable
     {
         parent::boot();
 
+        static::saving(function ($user) {
+            $user->payout_account_key = PayoutAccount::normalize($user->payment_account_info);
+        });
+
         static::creating(function ($user) {
+            if (! $user->referrer_id && $user->referredBy) {
+                $user->referrer_id = static::where('username', $user->referredBy)->value('id');
+            }
             if (empty($user->signupTimestamp)) {
                 $user->signupTimestamp = ($user->created_at ? $user->created_at->timestamp : time()) * 1000;
             }
@@ -66,6 +74,7 @@ class User extends Authenticatable
         'followers',
         'following',
         'referredBy',
+        'referrer_id',
         'referralCount',
         'isReferralRewardClaimed',
         'has_received_first_withdrawal',
@@ -77,12 +86,15 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'payout_account_key',
+        'payout_account_conflict',
     ];
 
     protected function casts(): array
     {
         return [
             'password' => 'hashed',
+            'payout_account_conflict' => 'boolean',
             'isVerified' => 'boolean',
             'isReferralRewardClaimed' => 'boolean',
             'has_received_first_withdrawal' => 'boolean',

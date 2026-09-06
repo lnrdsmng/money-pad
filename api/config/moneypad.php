@@ -1,6 +1,15 @@
 <?php
 
 return [
+    'referral_milestones' => [
+        1 => ['tier' => 1, 'chapters' => 5, 'ads' => 3, 'coins' => 10],
+        2 => ['tier' => 2, 'chapters' => 15, 'ads' => 5, 'coins' => 30],
+        3 => ['tier' => 3, 'chapters' => 25, 'ads' => 7, 'coins' => 50],
+        4 => ['tier' => 4, 'chapters' => 40, 'ads' => 10, 'coins' => 80],
+        5 => ['tier' => 5, 'chapters' => 80, 'ads' => 15, 'coins' => 160],
+        6 => ['tier' => 6, 'chapters' => 110, 'ads' => 20, 'coins' => 220],
+    ],
+
     'currency' => 'PHP',
     'symbol' => '₱',
     'conversion' => ['coins_to_cash_ratio' => (float) env('COIN_TO_PHP_RATE', 0.01)],
@@ -75,7 +84,7 @@ return [
         'proof_retention_days' => 180,
     ],
     'rewarded_ads' => [
-        'provider' => env('REWARDED_AD_PROVIDER', 'mock'),
-        'mock_enabled' => env('REWARDED_AD_MOCK_ENABLED', true),
+        'provider' => env('REWARDED_AD_PROVIDER', 'monetag_website'),
+        'mock_enabled' => env('REWARDED_AD_MOCK_ENABLED', false),
     ],
 ];

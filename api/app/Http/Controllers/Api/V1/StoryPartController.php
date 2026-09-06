@@ -7,26 +7,34 @@ use App\Models\Story;
 use App\Models\StoryPart;
 use App\Models\UserReadPart;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class StoryPartController extends Controller
 {
     public function index(Request $request, $storyId)
     {
+        $story = Story::findOrFail($storyId);
+        $viewer = $request->user('sanctum');
+        abort_unless(Gate::forUser($viewer)->allows('view', $story), 404);
+        $owner = $viewer?->id === $story->authorId;
         $onlyPublished = filter_var($request->query('onlyPublished', 'false'), FILTER_VALIDATE_BOOLEAN);
 
         $query = StoryPart::where('storyId', $storyId)->orderBy('order');
 
-        if ($onlyPublished) {
+        if (! $owner || $onlyPublished) {
             $query->where('isPublished', true);
         }
 
-        return response()->json($query->get());
+        return response()->json($query->get(['id', 'storyId', 'title', 'order', 'isPublished', 'publishedAt', 'readCount', 'headerImageUrl', 'revision']));
     }
 
-    public function show($partId)
+    public function show(Request $request, $partId)
     {
         $part = StoryPart::findOrFail($partId);
+
+        abort_unless(Gate::forUser($request->user('sanctum'))->allows('view', $part), 404);
 
         return response()->json($part);
     }
@@ -35,13 +43,11 @@ class StoryPartController extends Controller
     {
         $story = Story::findOrFail($storyId);
 
-        if ($story->authorId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('update', $story);
 
         $validated = $request->validate([
-            'title' => 'required|string',
-            'content' => 'nullable|string',
+            'title' => 'required|string|max:255',
+            'content' => 'nullable|string|max:1000000',
             'order' => 'nullable|integer',
             'headerImageUrl' => 'nullable|url',
         ]);
@@ -62,40 +68,31 @@ class StoryPartController extends Controller
 
     public function update(Request $request, $partId)
     {
-        $part = StoryPart::findOrFail($partId);
-        $story = Story::findOrFail($part->storyId);
-
-        if ($story->authorId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $validated = $request->validate([
-            'title' => 'string',
-            'content' => 'nullable|string',
-            'order' => 'integer',
-            'headerImageUrl' => 'nullable|url',
-            'isPublished' => 'boolean',
-        ]);
-
-        if (array_key_exists('content', $validated) && $validated['content'] === null) {
-            $validated['content'] = '';
-        }
-
-        if (isset($validated['isPublished']) && $validated['isPublished']) {
-            if (! $part->isPublished) {
+        return DB::transaction(function () use ($request, $partId) {
+            $part = StoryPart::whereKey($partId)->lockForUpdate()->firstOrFail();
+            Gate::authorize('update', $part);
+            $validated = $request->validate([
+                'title' => 'sometimes|string|max:255',
+                'content' => 'sometimes|nullable|string|max:1000000',
+                'order' => 'sometimes|integer|min:1',
+                'headerImageUrl' => 'sometimes|nullable|url:http,https|max:2048',
+                'isPublished' => 'sometimes|boolean',
+                'revision' => 'sometimes|integer|min:0',
+            ]);
+            if (isset($validated['revision']) && $validated['revision'] !== (int) $part->revision) {
+                return response()->json(['message' => 'This chapter changed in another editor. Reload before saving.', 'revision' => $part->revision], 409);
+            }
+            unset($validated['revision']);
+            if (($validated['isPublished'] ?? false) && ! $part->isPublished) {
                 $validated['publishedAt'] = time() * 1000;
+                $part->story->update(['isPublished' => true, 'lastUpdatedAt' => time() * 1000]);
             }
-            if (! $story->isPublished) {
-                $story->update([
-                    'isPublished' => true,
-                    'lastUpdatedAt' => time() * 1000,
-                ]);
-            }
-        }
+            $part->fill($validated);
+            $part->revision++;
+            $part->save();
 
-        $part->update($validated);
-
-        return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'revision' => $part->revision]);
+        }, 3);
     }
 
     public function destroy(Request $request, $partId)
@@ -103,9 +100,7 @@ class StoryPartController extends Controller
         $part = StoryPart::findOrFail($partId);
         $story = Story::findOrFail($part->storyId);
 
-        if ($story->authorId !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('update', $story);
 
         $part->delete();
 
@@ -127,12 +122,15 @@ class StoryPartController extends Controller
         $part = StoryPart::findOrFail($partId);
         $userId = $request->user()->id;
 
-        UserReadPart::firstOrCreate(
+        Gate::authorize('view', $part);
+        $read = UserReadPart::firstOrCreate(
             ['userId' => $userId, 'partId' => $partId],
             ['storyId' => $part->storyId, 'readAt' => time() * 1000]
         );
 
-        $part->increment('readCount');
+        if ($read->wasRecentlyCreated) {
+            $part->increment('readCount');
+        }
 
         return response()->json(['success' => true]);
     }
