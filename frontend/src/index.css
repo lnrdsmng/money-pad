@@ -87,3 +87,27 @@ body {
   animation: wiggle 2.5s ease-in-out infinite;
 }
 
+/* Floating Coin Award Fade Animation */
+@keyframes coin-award-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0px) scale(1.05);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.95);
+  }
+}
+
+.animate-coin-award {
+  animation: coin-award-fade 3.2s ease-out forwards;
+}
+

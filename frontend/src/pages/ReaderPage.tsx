@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import http from '../api/http';
-import { ArrowLeft, Coins, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { useReadingTimer } from '../hooks/useReadingTimer';
 import { useReadingProgress } from '../hooks/useReadingProgress';
 import { ChapterSlider } from '../components/ChapterSlider';
@@ -9,8 +9,8 @@ import { ActionDialog } from '../components/feedback/ActionDialog';
 import { TextAnnotationBar } from '../components/reader/TextAnnotationBar';
 import { ChapterAnnotationsDrawer } from '../components/reader/ChapterAnnotationsDrawer';
 import type { Chapter, ChapterSummary } from '../types/content';
-import { formatCoins, formatPesoFromCoins } from '../utils/money';
 import { formatChapterHtml } from '../utils/formatHtml';
+import { ReadingCoinIndicator } from '../components/reader/ReadingCoinIndicator';
 
 export default function ReaderPage() {
   const { storyId, partId } = useParams();
@@ -21,8 +21,37 @@ export default function ReaderPage() {
   const [dismissedResumePartId, setDismissedResumePartId] = useState<string | null>(null);
   const [isAnnotationsDrawerOpen, setIsAnnotationsDrawerOpen] = useState(false);
   
-  // Custom hooks for new features
-  const { pendingEarned, isPaused, error: earningsError } = useReadingTimer(storyId!, partId!);
+  const [isEndOfChapter, setIsEndOfChapter] = useState(false);
+
+  // Reset isEndOfChapter when partId changes
+  useEffect(() => {
+    setIsEndOfChapter(false);
+  }, [partId]);
+
+  // Strict validation: stop when bottom of any chapter is reached
+  useEffect(() => {
+    if (isEndOfChapter) return;
+
+    const checkScrollBottom = () => {
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollHeight <= 0) return;
+      const scrollPosition = window.scrollY / scrollHeight;
+      if (scrollPosition >= 0.96 || window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 70) {
+        setIsEndOfChapter(true);
+      }
+    };
+
+    window.addEventListener('scroll', checkScrollBottom, { passive: true });
+    checkScrollBottom();
+    return () => window.removeEventListener('scroll', checkScrollBottom);
+  }, [partId, isEndOfChapter]);
+
+  // Custom hooks for reading timer and progress
+  const { pendingEarned, isPaused, progress, latestAward, error: earningsError } = useReadingTimer(
+    storyId!,
+    partId!,
+    isEndOfChapter
+  );
   const { savedPartId, savedScrollPosition, saveProgress, loaded: progressLoaded } = useReadingProgress(storyId!);
 
   const contentRef = useRef<HTMLDivElement>(null);
@@ -109,12 +138,14 @@ export default function ReaderPage() {
     <div className="bg-[#FAF9F6] dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen pb-24 relative">
       {/* Floating Indicators Container */}
       <div className="fixed top-18 right-2 sm:top-24 sm:right-8 flex flex-col items-end gap-2 z-40">
-        {/* Floating Coins Indicator */}
-        <div className={`bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 backdrop-blur shadow-md sm:shadow-lg rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm transition-opacity ${isPaused ? 'opacity-60' : 'opacity-100'}`}>
-          <Coins className="text-yellow-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-          <span className="font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Pending {formatCoins(pendingEarned)} ({formatPesoFromCoins(pendingEarned)})</span>
-          {isPaused && <span className="text-[10px] sm:text-xs text-red-500 ml-1 sm:ml-2">(Paused)</span>}
-        </div>
+        {/* Floating Circular Reading Coins Loading Indicator */}
+        <ReadingCoinIndicator
+          pendingEarned={pendingEarned}
+          progress={progress}
+          isPaused={isPaused}
+          isEndOfChapter={isEndOfChapter}
+          latestAward={latestAward}
+        />
 
         {/* Floating Reactions Drawer Toggle Button */}
         <button
