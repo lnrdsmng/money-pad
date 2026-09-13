@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Highlight from '@tiptap/extension-highlight';
 import ImageResize from 'tiptap-extension-resize-image';
@@ -17,8 +17,6 @@ import {
   X,
   Bold,
   Italic,
-  Heading2,
-  List,
   Image as LucideImage,
 } from 'lucide-react';
 import http from '../../api/http';
@@ -96,6 +94,16 @@ function ChapterEditor() {
       setStats({ words, characters, paragraphs, readingTime });
     },
   });
+
+  const editorState = useEditorState({
+    editor,
+    selector: (ctx) => ({
+      isBold: ctx.editor?.isActive('bold') ?? false,
+      isItalic: ctx.editor?.isActive('italic') ?? false,
+    }),
+  });
+  const isBold = editorState?.isBold ?? false;
+  const isItalic = editorState?.isItalic ?? false;
 
   const [stats, setStats] = useState({ words: 0, characters: 0, paragraphs: 0, readingTime: 1 });
 
@@ -355,47 +363,29 @@ function ChapterEditor() {
         <div className="border-b border-gray-200 dark:border-slate-700 p-2 flex gap-1.5 bg-gray-50 dark:bg-slate-900 flex-wrap items-center text-xs">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleBold().run()}
             title="Bold"
             aria-label="Bold"
+            aria-pressed={isBold}
             className={`p-2 rounded-lg transition cursor-pointer ${
-              editor?.isActive('bold') ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
+              isBold ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
             }`}
           >
             <Bold className="w-4 h-4" />
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor?.chain().focus().toggleItalic().run()}
             title="Italic"
             aria-label="Italic"
+            aria-pressed={isItalic}
             className={`p-2 rounded-lg transition cursor-pointer ${
-              editor?.isActive('italic') ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
+              isItalic ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
             }`}
           >
             <Italic className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            title="Heading 2"
-            aria-label="Heading 2"
-            className={`p-2 rounded-lg transition cursor-pointer ${
-              editor?.isActive('heading', { level: 2 }) ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            <Heading2 className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            title="Bullet List"
-            aria-label="Bullet List"
-            className={`p-2 rounded-lg transition cursor-pointer ${
-              editor?.isActive('bulletList') ? 'bg-primary text-white' : 'hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            <List className="w-4 h-4" />
           </button>
           <button
             type="button"
