@@ -172,6 +172,80 @@ class PlanPurchaseTest extends TestCase
         $this->assertFalse(UserPlan::query()->sole()->is_active);
     }
 
+    public function test_multiple_users_can_submit_same_last_four_digits_reference(): void
+    {
+        Storage::fake('payment_proofs');
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        $res1 = $this->actingAs($user1)->post('/api/v1/plan-purchases', [
+            'plan_type' => PlanType::MegaPremium->value,
+            'payment_method' => 'gcash',
+            'payment_reference' => '4829',
+            'payment_proof' => $this->paymentProof(),
+        ]);
+        $res1->assertCreated()
+            ->assertJsonPath('purchase.payment_reference', '4829');
+
+        $res2 = $this->actingAs($user2)->post('/api/v1/plan-purchases', [
+            'plan_type' => PlanType::Standard->value,
+            'payment_method' => 'gcash',
+            'payment_reference' => '4829',
+            'payment_proof' => $this->paymentProof(),
+        ]);
+        $res2->assertCreated()
+            ->assertJsonPath('purchase.payment_reference', '4829');
+
+        $this->assertSame(2, PlanPurchase::where('payment_reference', '4829')->count());
+    }
+
+    public function test_admin_can_search_plan_purchases_by_last_four_digits_reference(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user1 = User::factory()->create(['username' => 'buyer_one']);
+        $user2 = User::factory()->create(['username' => 'buyer_two']);
+
+        $purchase1 = PlanPurchase::factory()->create([
+            'userId' => $user1->id,
+            'payment_reference' => '8899',
+            'status' => PlanPurchaseStatus::PendingReview,
+        ]);
+
+        $purchase2 = PlanPurchase::factory()->create([
+            'userId' => $user2->id,
+            'payment_reference' => '1122',
+            'status' => PlanPurchaseStatus::PendingReview,
+        ]);
+
+        $res = $this->actingAs($admin)->getJson('/api/v1/admin/plan-purchases?search=8899');
+        $res->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $purchase1->id)
+            ->assertJsonPath('data.0.payment_reference', '8899');
+    }
+
+    public function test_admin_search_escapes_sql_wildcards(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        PlanPurchase::factory()->create([
+            'userId' => $user1->id,
+            'payment_reference' => '1234',
+            'status' => PlanPurchaseStatus::PendingReview,
+        ]);
+        PlanPurchase::factory()->create([
+            'userId' => $user2->id,
+            'payment_reference' => '5678',
+            'status' => PlanPurchaseStatus::PendingReview,
+        ]);
+
+        // Search for "%" should return 0 results since neither has literal "%"
+        $res = $this->actingAs($admin)->getJson('/api/v1/admin/plan-purchases?search=%25');
+        $res->assertOk()->assertJsonCount(0, 'data');
+    }
+
     private function paymentProof(): UploadedFile
     {
         return UploadedFile::fake()->createWithContent(

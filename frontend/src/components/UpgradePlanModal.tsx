@@ -19,6 +19,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
   const feedback = useFeedback();
   const [selectedPlan, setSelectedPlan] = useState<MoneyPadPlan | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('gcash');
+  const [paymentReference, setPaymentReference] = useState('');
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
 
   const plansQuery = useQuery<MoneyPadPlan[]>({
@@ -45,12 +46,16 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
       const form = new FormData();
       form.append('plan_type', selectedPlan.id);
       form.append('payment_method', selectedPaymentMethod);
+      if (paymentReference.trim()) {
+        form.append('payment_reference', paymentReference.trim());
+      }
       form.append('payment_proof', paymentProof);
       return (await http.post('/plan-purchases', form)).data;
     },
     onSuccess: async () => {
       setSelectedPlan(null);
       setPaymentProof(null);
+      setPaymentReference('');
       await queryClient.invalidateQueries({ queryKey: ['plan-purchases', user?.id] });
       feedback.success('Payment proof submitted for admin review.');
     },
@@ -58,6 +63,10 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!paymentReference.trim() || paymentReference.trim().length !== 4) {
+      feedback.warning('Please enter the last 4 digits of your reference number.');
+      return;
+    }
     submitMutation.mutate();
   };
 
@@ -66,7 +75,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
       <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 shadow-xl">
         <button type="button" onClick={onClose} disabled={submitMutation.isPending} className="absolute right-4 top-4 z-10 rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Close plans"><X /></button>
         <div className="border-b border-slate-100 dark:border-slate-800 p-4 sm:p-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Choose your monthly plan</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Choose your lifetime plan</h2>
           <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400">Pay with GCash, Maya, or PayPal, then submit your proof for admin review.</p>
         </div>
         <div className="space-y-6 bg-slate-50 dark:bg-slate-950 p-3.5 sm:p-8">
@@ -111,6 +120,33 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
                 <select required disabled={submitMutation.isPending} value={selectedPaymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-3 disabled:opacity-60">
                   {(methodsQuery.data ?? []).map((method) => <option key={method.id} value={method.id} className="dark:bg-slate-800 dark:text-slate-100">{method.label}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  Last 4 Digits of Reference Number
+                </label>
+                <input
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  pattern="[0-9]{4}"
+                  minLength={4}
+                  maxLength={4}
+                  disabled={submitMutation.isPending}
+                  value={paymentReference}
+                  onChange={(event) => setPaymentReference(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onPaste={(event) => {
+                    event.preventDefault();
+                    const pasted = event.clipboardData.getData('text');
+                    const digits = pasted.replace(/\D/g, '');
+                    if (digits) {
+                      setPaymentReference(digits.slice(-4));
+                    }
+                  }}
+                  placeholder="Last 4 digits (e.g. 1234)"
+                  aria-label="Last 4 digits of reference number"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-3 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
               {methodsQuery.data?.filter((method) => method.id === selectedPaymentMethod).map((method) => (
                 <div key={method.id} className="rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 p-4 text-sm text-blue-950 dark:text-blue-200">

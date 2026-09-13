@@ -19,7 +19,10 @@ class AdminPlanPurchaseController extends Controller
     {
         $validated = $request->validate([
             'status' => ['sometimes', Rule::enum(PlanPurchaseStatus::class)],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
+
+        $search = trim((string) $request->input('search', ''));
 
         $purchases = PlanPurchase::query()
             ->when(
@@ -31,6 +34,17 @@ class AdminPlanPurchaseController extends Controller
                     PlanPurchaseStatus::Rejected,
                 ]),
             )
+            ->when($search !== '', function ($query) use ($search) {
+                $escapedSearch = addcslashes($search, '%_\\');
+                $query->where(function ($sub) use ($escapedSearch) {
+                    $sub->where('payment_reference', 'like', "%{$escapedSearch}%")
+                        ->orWhere('reference_number', 'like', "%{$escapedSearch}%")
+                        ->orWhereHas('user', function ($userQuery) use ($escapedSearch) {
+                            $userQuery->where('username', 'like', "%{$escapedSearch}%")
+                                ->orWhere('email', 'like', "%{$escapedSearch}%");
+                        });
+                });
+            })
             ->with(['user:id,username,email,plan', 'reviewer:id,username'])
             ->latest('submitted_at')
             ->latest('id')

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ExternalLink, LoaderCircle, Save, XCircle } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { CheckCircle2, ExternalLink, LoaderCircle, Save, Search, X, XCircle } from 'lucide-react';
+import { useState, useDeferredValue, type FormEvent } from 'react';
 import http from '../../api/http';
 import type { PaymentMethodSetting, PlanPurchase, PlanPurchaseStatus } from '../../types/earnings';
 import { ActionDialog } from '../../components/feedback/ActionDialog';
@@ -17,12 +17,14 @@ export function PlanPaymentManagement() {
   const queryClient = useQueryClient();
   const feedback = useFeedback();
   const [status, setStatus] = useState<Extract<PlanPurchaseStatus, 'pending_review' | 'approved' | 'rejected'>>('pending_review');
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
   const [purchaseToReject, setPurchaseToReject] = useState<AdminPurchase | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [openingProofId, setOpeningProofId] = useState<string | null>(null);
   const purchasesQuery = useQuery<{ data: AdminPurchase[] }>({
-    queryKey: ['admin', 'plan-purchases', status],
-    queryFn: async () => (await http.get('/admin/plan-purchases', { params: { status } })).data,
+    queryKey: ['admin', 'plan-purchases', status, deferredSearch],
+    queryFn: async () => (await http.get('/admin/plan-purchases', { params: { status, search: deferredSearch.trim() || undefined } })).data,
   });
   const methodsQuery = useQuery<PaymentMethodSetting[]>({
     queryKey: ['admin', 'payment-methods'],
@@ -77,22 +79,45 @@ export function PlanPaymentManagement() {
       <div><h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Plan payments</h1><p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">Review private payment proofs and configure wallet destinations.</p></div>
 
       <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <div className="flex overflow-x-auto gap-2 border-b border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-          {(['pending_review', 'approved', 'rejected'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={status === option}
-              onClick={() => setStatus(option)}
-              className={`rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold capitalize whitespace-nowrap cursor-pointer transition-colors ${
-                status === option
-                  ? 'bg-primary text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {option.replace('_', ' ')}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 p-3 sm:p-4">
+          <div className="flex overflow-x-auto gap-2">
+            {(['pending_review', 'approved', 'rejected'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={status === option}
+                onClick={() => setStatus(option)}
+                className={`rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold capitalize whitespace-nowrap cursor-pointer transition-colors ${
+                  status === option
+                    ? 'bg-primary text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {option.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search last 4 digits, ref, username..."
+              aria-label="Search upgrades"
+              className="w-full pl-9 pr-8 py-1.5 text-xs sm:text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-sm">
@@ -102,7 +127,7 @@ export function PlanPaymentManagement() {
                 <tr key={purchase.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                   <td className="px-4 py-4"><p className="font-semibold">{purchase.user.username}</p><p className="text-xs text-slate-500 dark:text-slate-400">{purchase.user.email}</p></td>
                   <td className="px-4 py-4"><p className="font-medium capitalize">{purchase.plan_type.replaceAll('_', ' ')}</p><p className="text-slate-500 dark:text-slate-400">₱{Number(purchase.amount).toFixed(2)}</p></td>
-                  <td className="px-4 py-4"><p className="font-medium uppercase">{purchase.payment_method}</p>{purchase.payment_reference ? <p className="break-all text-slate-500 dark:text-slate-400">Ref: {purchase.payment_reference}</p> : <p className="text-xs text-slate-400 dark:text-slate-500">No ref provided</p>}</td>
+                  <td className="px-4 py-4"><p className="font-medium uppercase">{purchase.payment_method}</p>{purchase.payment_reference ? <p className="break-all text-slate-600 dark:text-slate-300 text-xs">Ref: <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{purchase.payment_reference}</span></p> : <p className="text-xs text-slate-400 dark:text-slate-500">No ref provided</p>}</td>
                   <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{new Date(purchase.submitted_at).toLocaleString()}</td>
                   <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><button type="button" disabled={openingProofId !== null} aria-busy={openingProofId === purchase.id} onClick={() => void openProof(purchase)} className="inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer">{openingProofId === purchase.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}{openingProofId === purchase.id ? 'Opening...' : 'Proof'}</button>{status === 'pending_review' && <><button type="button" disabled={reviewMutation.isPending} aria-busy={reviewMutation.isPending && reviewMutation.variables?.id === purchase.id && reviewMutation.variables.action === 'approve'} onClick={() => reviewMutation.mutate({ id: purchase.id, action: 'approve' })} className="inline-flex items-center gap-1 rounded bg-emerald-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer">{reviewMutation.isPending && reviewMutation.variables?.id === purchase.id && reviewMutation.variables.action === 'approve' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Approve</button><button type="button" disabled={reviewMutation.isPending} onClick={() => reject(purchase)} className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"><XCircle className="h-4 w-4" />Reject</button></>}</div>{purchase.rejection_reason && <p className="mt-2 max-w-xs text-xs text-red-700 dark:text-red-400">{purchase.rejection_reason}</p>}</td>
                 </tr>
@@ -114,7 +139,9 @@ export function PlanPaymentManagement() {
             <p role="alert" className="p-8 text-center text-red-600 dark:text-red-400">Payments could not be loaded.</p>
           )}
           {!purchasesQuery.isLoading && !purchasesQuery.isError && !(purchasesQuery.data?.data.length) && (
-            <p className="p-8 text-center text-slate-500 dark:text-slate-400">No {status.replace('_', ' ')} payments.</p>
+            <p className="p-8 text-center text-slate-500 dark:text-slate-400">
+              {search.trim() ? `No payments found matching "${search.trim()}".` : `No ${status.replace('_', ' ')} payments.`}
+            </p>
           )}
         </div>
       </section>

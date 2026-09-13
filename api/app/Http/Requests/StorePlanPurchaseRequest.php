@@ -19,8 +19,11 @@ class StorePlanPurchaseRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->has('payment_reference')) {
+            $this->merge(['payment_reference' => trim((string) $this->input('payment_reference'))]);
+        }
         if ($this->filled('account_name') && ! $this->filled('payment_reference')) {
-            $this->merge(['payment_reference' => $this->input('account_name')]);
+            $this->merge(['payment_reference' => trim((string) $this->input('account_name'))]);
         }
     }
 

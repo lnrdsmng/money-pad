@@ -349,13 +349,13 @@ async function runE2ETests() {
 
     console.log('8.5 Opening Upgrade Plan Modal...');
     await page.click('button:has-text("Upgrade Plan")');
-    await page.waitForSelector('text=Choose your monthly plan', { timeout: 5000 });
+    await page.waitForSelector('text=Choose your lifetime plan', { timeout: 5000 });
 
     console.log('8.6 Submitting a Standard plan payment proof...');
     const planDialog = page.locator('[role="dialog"]');
     const standardCard = planDialog.locator('article').filter({ hasText: 'Standard' });
     await standardCard.getByRole('button', { name: 'Select plan' }).click();
-    await planDialog.locator('input[placeholder="Transaction/reference number"]').fill(`E2E-${Date.now()}`);
+    await planDialog.locator('input[aria-label="Last 4 digits of reference number"]').fill('9876');
     await planDialog.locator('input[type="file"]').setInputFiles({
       name: 'receipt.png',
       mimeType: 'image/png',
