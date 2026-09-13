@@ -110,7 +110,7 @@ function ChapterEditor() {
   // Load content into editor once fetched
   useEffect(() => {
     if (part && editor && !editor.isDestroyed && !loaded.current) {
-      setTitle(part.title);
+      setTitle(part.title === 'Untitled Chapter' ? '' : part.title);
       setHeaderImageUrl(part.headerImageUrl || '');
       saver.initialize(part.revision);
       loaded.current = true;

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AuthorReferralCommission;
 use App\Models\RewardedAdEvent;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
@@ -47,9 +48,13 @@ class RewardedAdService
             if ($purpose === 'coins') {
                 abort_if($this->cooldown($user) > 0, 429, 'Ad watch cooldown active.');
                 $target = null;
-            } else {
+            } elseif ($purpose === 'withdrawal') {
                 $withdrawal = WithdrawalRequest::whereKey($target)->where('userId', $user->id)->firstOrFail();
                 abort_if($withdrawal->fee_waived, 422, 'The platform fee is already waived.');
+            } elseif ($purpose === 'author_commission') {
+                $commission = AuthorReferralCommission::whereKey($target)->where('referrer_id', $user->id)->firstOrFail();
+                abort_if($commission->status === 'claimed', 422, 'The commission has already been claimed.');
+                abort_if($commission->ads_watched >= $commission->required_ads, 422, 'All required ads have already been watched.');
             }
             $existing = RewardedAdEvent::where('user_id', $user->id)->where('purpose', $purpose)
                 ->where('target_id', $target)->whereNull('consumed_at')->where('expires_at', '>', now())->first();

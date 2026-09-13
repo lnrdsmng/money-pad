@@ -54,4 +54,23 @@ class StoryCreationTest extends TestCase
         $this->assertDatabaseCount('stories', 1);
         $this->assertDatabaseCount('story_parts', 0);
     }
+
+    public function test_story_can_be_created_without_selected_genres(): void
+    {
+        $author = User::factory()->create();
+
+        $response = $this->actingAs($author)->postJson('/api/v1/stories', [
+            'title' => 'No Genre Story',
+            'overview' => 'Story without any genre selected.',
+            'genres' => '',
+            'language' => 'en',
+            'isMature' => false,
+            'createInitialChapter' => true,
+        ]);
+
+        $response->assertCreated();
+
+        $story = Story::findOrFail($response->json('id'));
+        $this->assertSame('', $story->genres);
+    }
 }

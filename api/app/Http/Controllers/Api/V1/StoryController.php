@@ -43,6 +43,8 @@ class StoryController extends Controller
 
         $createInitialChapter = (bool) ($validated['createInitialChapter'] ?? false);
         unset($validated['createInitialChapter']);
+        $validated['genres'] = $validated['genres'] ?? '';
+        $validated['language'] = $validated['language'] ?? 'en';
 
         $author = $request->user();
         [$story, $initialPartId] = DB::transaction(function () use ($validated, $author, $createInitialChapter) {
@@ -92,6 +94,10 @@ class StoryController extends Controller
             'isMature' => 'boolean',
             'isCompleted' => 'boolean',
         ]);
+
+        if (array_key_exists('genres', $validated)) {
+            $validated['genres'] = $validated['genres'] ?? '';
+        }
 
         $validated['lastUpdatedAt'] = time() * 1000;
         $story->update($validated);
@@ -197,11 +203,12 @@ class StoryController extends Controller
     public function continueReading(Request $request)
     {
         $user = $request->user();
+        $limit = min(100, max(1, (int) $request->input('limit', 100)));
 
         $progresses = UserReadingProgress::where('userId', $user->id)
             ->with(['story', 'storyPart:id,storyId,title,isPublished'])
             ->orderByDesc('updated_at')
-            ->limit(20)
+            ->limit($limit)
             ->get();
 
         $storyIds = $progresses->pluck('storyId');
@@ -229,16 +236,19 @@ class StoryController extends Controller
             $percentage = min(100, (int) round(($readCount / max(1, $totalParts)) * 100));
 
             $part = $progress->storyPart;
+            $firstPart = $firstParts->get($story->id)?->first();
             if (! $part || ! $part->isPublished) {
-                $part = $firstParts->get($story->id)?->first();
+                $part = $firstPart;
             }
 
             $results[] = [
                 'story' => $story,
                 'last_part_id' => $part ? $part->id : $progress->last_part_id,
                 'last_part_title' => $part ? $part->title : null,
+                'first_part_id' => $firstPart ? $firstPart->id : null,
                 'last_scroll_position' => $progress->last_scroll_position,
                 'completed_percentage' => $percentage,
+                'is_finished' => $percentage >= 100 || $readCount >= $totalParts,
                 'read_count' => $readCount,
                 'total_parts' => $totalParts,
                 'updated_at' => $progress->updated_at,

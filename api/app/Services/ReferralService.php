@@ -51,6 +51,55 @@ class ReferralService
         }, 3);
     }
 
+    public function linkReferrer(User $user, string $code): User
+    {
+        return DB::transaction(function () use ($user, $code) {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if ($user->referrer_id || $user->referredBy) {
+                throw ValidationException::withMessages(['referral_code' => 'A referral has already been linked to this account.']);
+            }
+
+            $trimmedCode = trim($code);
+            if (preg_match('/[?&]ref=([^&#\s]+)/i', $trimmedCode, $matches)) {
+                $trimmedCode = rtrim(urldecode($matches[1]), '/#');
+            }
+            $referrer = User::where('username', $trimmedCode)->orWhere('id', $trimmedCode)->first();
+            if (! $referrer) {
+                throw ValidationException::withMessages(['referral_code' => "The referral username '{$trimmedCode}' does not exist."]);
+            }
+            if ($referrer->id === $user->id) {
+                throw ValidationException::withMessages(['referral_code' => 'You cannot claim your own referral code.']);
+            }
+
+            $signup = $user->created_at?->timestamp ?: (int) ($user->signupTimestamp / 1000);
+            $awardBonus = $signup && (now()->timestamp - $signup <= 86400) && ! $user->isReferralRewardClaimed;
+
+            $user->referrer_id = $referrer->id;
+            $user->referredBy = $referrer->username;
+            if ($awardBonus) {
+                $user->isReferralRewardClaimed = true;
+                $user->readerCoins = CoinAmount::add($user->readerCoins, 10);
+                $user->totalReaderCoins = CoinAmount::add($user->totalReaderCoins, 10);
+            }
+            $user->save();
+            $referrer->increment('referralCount');
+
+            Notification::create([
+                'id' => (string) Str::uuid(),
+                'userId' => $referrer->id,
+                'type' => 'REFERRAL_REWARD',
+                'actorId' => $user->id,
+                'actorName' => $user->username,
+                'actorProfileImageUrl' => $user->profileImageUrl,
+                'isActorVerified' => $user->isVerified,
+                'content' => $user->username.' registered using your referral code!',
+                'timestamp' => now()->valueOf(),
+            ]);
+
+            return $user->fresh();
+        }, 3);
+    }
+
     /** @return array{chapters: int, ads: int} */
     private function progress(User $user): array
     {

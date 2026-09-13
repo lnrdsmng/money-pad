@@ -15,8 +15,18 @@ class ReferralController extends Controller
     {
         $data = $request->validate(['referral_code' => 'required|string|max:255']);
         $user = $this->referrals->claimWelcome($request->user(), $data['referral_code']);
-
         return response()->json(['success' => true, 'message' => 'Welcome bonus of 10 reader coins claimed successfully!', 'readerCoins' => $user->readerCoins, 'user' => $user]);
+    }
+
+    public function linkReferrer(Request $request): JsonResponse
+    {
+        $data = $request->validate(['referral_code' => 'required|string|max:255']);
+        $user = $this->referrals->linkReferrer($request->user(), $data['referral_code']);
+        $message = $user->isReferralRewardClaimed
+            ? 'Referral linked and 10 bonus coins claimed!'
+            : 'Referral linked successfully! You can now watch ads and read stories to support your inviter.';
+
+        return response()->json(['success' => true, 'message' => $message, 'readerCoins' => $user->readerCoins, 'user' => $user]);
     }
 
     public function milestones(Request $request): JsonResponse

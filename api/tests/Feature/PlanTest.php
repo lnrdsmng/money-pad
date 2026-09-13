@@ -29,4 +29,30 @@ class PlanTest extends TestCase
             ->assertJsonPath('data.3.rate_per_minute', '6.000')
             ->assertJsonPath('data.3.ads', false);
     }
+
+    public function test_admin_can_update_plan_settings(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $user = User::factory()->create();
+
+        // Admin updates standard plan
+        $this->actingAs($admin)
+            ->putJson('/api/v1/admin/plans/standard', [
+                'price' => 99.00,
+                'rate_per_minute' => 3.000,
+                'ads' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.price', '99.00')
+            ->assertJsonPath('data.rate_per_minute', '3.000')
+            ->assertJsonPath('data.ads', false);
+
+        // Reader views updated plans
+        $this->actingAs($user)
+            ->getJson('/api/v1/plans')
+            ->assertOk()
+            ->assertJsonPath('data.1.price', '99.00')
+            ->assertJsonPath('data.1.rate_per_minute', '3.000')
+            ->assertJsonPath('data.1.ads', false);
+    }
 }

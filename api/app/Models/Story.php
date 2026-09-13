@@ -15,12 +15,22 @@ class Story extends Model
 
     public $timestamps = false;
 
+    protected $attributes = [
+        'genres' => '',
+        'language' => 'en',
+    ];
+
     protected $fillable = [
         'id', 'authorId', 'authorName', 'title', 'overview', 'genres', 'language',
         'coverImageUrl', 'readCount', 'isPublished', 'isCompleted', 'isMature',
         'likes', 'commentsCount', 'uniqueViews', 'repeatedViews', 'lastUpdatedAt',
         'isAuthorVerified',
     ];
+
+    public function setGenresAttribute($value): void
+    {
+        $this->attributes['genres'] = $value ?? '';
+    }
 
     protected function casts(): array
     {

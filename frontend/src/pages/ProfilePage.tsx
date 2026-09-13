@@ -4,12 +4,13 @@ import type { Story } from '../types/content';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import http from '../api/http';
-import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle, Edit3, MessageSquare } from 'lucide-react';
+import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle, Edit3, MessageSquare, BookCheck } from 'lucide-react';
 import { useAuth, type User } from '../auth/AuthProvider';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { UserListModal } from '../components/profile/UserListModal';
 import { EditBioModal } from '../components/profile/EditBioModal';
 import { AuthorWall } from '../components/profile/AuthorWall';
+import { ProfileReadingShelf } from '../components/profile/ProfileReadingShelf';
 import { useFeedback } from '../components/feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
 
@@ -23,7 +24,7 @@ export default function ProfilePage() {
   const [loadError, setLoadError] = useState('');
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowPending, setIsFollowPending] = useState(false);
-  const [activeTab, setActiveTab] = useState<'works' | 'wall'>('works');
+  const [activeTab, setActiveTab] = useState<'works' | 'wall' | 'reading'>('works');
 
   // Modals
   const [userListModal, setUserListModal] = useState<'followers' | 'following' | null>(null);
@@ -294,6 +295,20 @@ export default function ProfilePage() {
             <MessageSquare className="w-4 h-4" />
             Author Wall
           </button>
+          {isOwnProfile && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('reading')}
+              className={`pb-3 font-semibold text-sm sm:text-base flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+                activeTab === 'reading'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <BookCheck className="w-4 h-4" />
+              Reading History
+            </button>
+          )}
         </div>
 
         {activeTab === 'works' ? (
@@ -327,9 +342,13 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'wall' ? (
           <div className="max-w-3xl">
             <AuthorWall authorId={profile.id} authorUsername={profile.username} />
+          </div>
+        ) : (
+          <div className="mb-8">
+            <ProfileReadingShelf />
           </div>
         )}
       </div>

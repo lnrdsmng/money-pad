@@ -11,7 +11,7 @@ class RewardedAdController extends Controller
 {
     public function start(Request $request, RewardedAdService $ads): JsonResponse
     {
-        $data = $request->validate(['purpose' => 'required|in:coins,withdrawal', 'target_id' => 'nullable|string|max:50']);
+        $data = $request->validate(['purpose' => 'required|in:coins,withdrawal,author_commission', 'target_id' => 'nullable|string|max:50']);
 
         return response()->json($ads->start($request->user(), $data['purpose'], $data['target_id'] ?? null), 201);
     }

@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Api\V1\AdminController;
 use App\Http\Controllers\Api\V1\AdminPlanPurchaseController;
+use App\Http\Controllers\Api\V1\AdminPlanSettingController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AuthorCommissionController;
 use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\DailyLoginRewardController;
 use App\Http\Controllers\Api\V1\EarningsController;
@@ -133,8 +135,12 @@ Route::prefix('v1')->group(function () {
 
         // Referrals
         Route::post('/referrals/claim-welcome', [ReferralController::class, 'claimWelcome']);
+        Route::post('/referrals/link', [ReferralController::class, 'linkReferrer']);
         Route::get('/referrals/milestones', [ReferralController::class, 'milestones']);
         Route::post('/referrals/claim-milestone', [ReferralController::class, 'claimMilestone']);
+        Route::get('/referrals/author-commissions', [AuthorCommissionController::class, 'index']);
+        Route::post('/referrals/author-commissions/{id}/watch-ad', [AuthorCommissionController::class, 'watchAd']);
+        Route::post('/referrals/author-commissions/{id}/claim', [AuthorCommissionController::class, 'claim']);
 
         // Transactions
         Route::get('/users/{userId}/transactions', [TransactionController::class, 'index']);
@@ -196,6 +202,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/plan-purchases/{planPurchase}/reject', [AdminPlanPurchaseController::class, 'reject']);
         Route::get('/payment-methods', [PaymentMethodSettingController::class, 'adminIndex']);
         Route::put('/payment-methods/{paymentMethodSetting}', [PaymentMethodSettingController::class, 'update']);
+        Route::get('/plans', [AdminPlanSettingController::class, 'index']);
+        Route::put('/plans/{id}', [AdminPlanSettingController::class, 'update']);
         Route::get('/verification-requests', [VerificationController::class, 'adminIndex']);
         Route::get('/verification-requests/{verificationRequest}/proof', [VerificationController::class, 'adminProof']);
         Route::post('/verification-requests/{id}/approve', [VerificationController::class, 'adminApprove']);

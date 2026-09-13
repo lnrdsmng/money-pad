@@ -7,7 +7,6 @@ import { Link } from 'react-router-dom';
 import { Search, X, User as UserIcon, BookOpen, Eye, Heart } from 'lucide-react';
 import { STORY_GENRES } from '../constants/genres';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
-import { ContinueReadingShelf } from '../components/explore/ContinueReadingShelf';
 import { RecommendedShelf } from '../components/explore/RecommendedShelf';
 import { DailyLoginRewardPanel } from '../components/DailyLoginRewardPanel';
 
@@ -137,9 +136,6 @@ export default function ExplorePage() {
       ) : (
         /* NORMAL FEED VIEW */
         <>
-          {/* Continue Reading Shelf */}
-          <ContinueReadingShelf />
-
           {/* Recommended Shelf */}
           <RecommendedShelf />
 

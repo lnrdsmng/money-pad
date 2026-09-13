@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\AuthorReferralCommission;
 use App\Models\Notification;
+use App\Models\Story;
 use App\Models\SystemMessage;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
@@ -345,6 +347,8 @@ class WithdrawalService
                 $user->update(['has_received_first_withdrawal' => true]);
             }
 
+            $this->createAuthorCommissionIfEligible($locked, $user);
+
             if ($locked->system_message_id) {
                 SystemMessage::where('id', $locked->system_message_id)->update(['is_pinned' => false]);
             }
@@ -391,6 +395,8 @@ class WithdrawalService
                 }
                 $user->update(['has_received_first_withdrawal' => true]);
             }
+
+            $this->createAuthorCommissionIfEligible($locked, $user);
 
             $locked->update([
                 'status' => WithdrawalStatus::Completed->value,
@@ -445,6 +451,11 @@ class WithdrawalService
                 'reviewed_at' => now(),
             ]);
 
+            // Cancel any pending author commissions for this rejected withdrawal
+            AuthorReferralCommission::where('withdrawal_request_id', $locked->id)
+                ->where('status', '!=', 'claimed')
+                ->update(['status' => 'cancelled']);
+
             if ($locked->system_message_id) {
                 SystemMessage::where('id', $locked->system_message_id)->update(['is_pinned' => false]);
             }
@@ -460,5 +471,82 @@ class WithdrawalService
                 'is_pinned' => true,
             ]);
         });
+    }
+
+    public static function calculateRequiredAdsForCommission(float $withdrawalAmount): int
+    {
+        $tiers = config('moneypad.author_commission.ad_tiers', [
+            ['max' => 10, 'ads' => 1],
+            ['max' => 25, 'ads' => 2],
+            ['max' => 50, 'ads' => 3],
+            ['max' => 100, 'ads' => 4],
+            ['max' => PHP_FLOAT_MAX, 'ads' => 5],
+        ]);
+
+        foreach ($tiers as $tier) {
+            if ($withdrawalAmount <= $tier['max']) {
+                return (int) $tier['ads'];
+            }
+        }
+
+        return 5;
+    }
+
+    protected function createAuthorCommissionIfEligible(WithdrawalRequest $locked, User $user): void
+    {
+        if (! $user->referrer_id) {
+            return;
+        }
+
+        $referrer = User::find($user->referrer_id);
+        if (! $referrer) {
+            return;
+        }
+
+        $isAuthor = $locked->source === 'AUTHOR'
+            || $user->isVerified
+            || Story::where('authorId', $user->id)->exists()
+            || in_array($user->role, ['author', 'admin'], true);
+
+        if (! $isAuthor) {
+            return;
+        }
+
+        $existing = AuthorReferralCommission::where('withdrawal_request_id', $locked->id)->first();
+        if ($existing) {
+            return;
+        }
+
+        $amount = (float) $locked->amount;
+        $commissionRate = (float) config('moneypad.author_commission.rate', 0.05);
+        $commissionAmount = round($amount * $commissionRate, 2);
+        if ($commissionAmount <= 0) {
+            return;
+        }
+        $requiredAds = static::calculateRequiredAdsForCommission($amount);
+
+        AuthorReferralCommission::create([
+            'id' => (string) Str::uuid(),
+            'referrer_id' => $referrer->id,
+            'author_id' => $user->id,
+            'withdrawal_request_id' => $locked->id,
+            'withdrawal_amount' => $amount,
+            'commission_amount' => $commissionAmount,
+            'required_ads' => $requiredAds,
+            'ads_watched' => 0,
+            'status' => 'pending',
+        ]);
+
+        Notification::create([
+            'id' => (string) Str::uuid(),
+            'userId' => $referrer->id,
+            'type' => 'AUTHOR_COMMISSION_AVAILABLE',
+            'actorId' => $user->id,
+            'actorName' => $user->username,
+            'actorProfileImageUrl' => $user->profileImageUrl,
+            'isActorVerified' => $user->isVerified,
+            'content' => "You have a pending ₱{$commissionAmount} commission from {$user->username}'s withdrawal! Watch {$requiredAds} ad(s) to claim it.",
+            'timestamp' => (int) (now()->valueOf()),
+        ]);
     }
 }

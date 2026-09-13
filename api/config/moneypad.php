@@ -12,6 +12,17 @@ return [
         6 => ['tier' => 6, 'chapters' => 110, 'ads' => 20, 'coins' => 220],
     ],
 
+    'author_commission' => [
+        'rate' => 0.05,
+        'ad_tiers' => [
+            ['max' => 10, 'ads' => 1],
+            ['max' => 25, 'ads' => 2],
+            ['max' => 50, 'ads' => 3],
+            ['max' => 100, 'ads' => 4],
+            ['max' => PHP_FLOAT_MAX, 'ads' => 5],
+        ],
+    ],
+
     'currency' => 'PHP',
     'symbol' => '₱',
     'conversion' => ['coins_to_cash_ratio' => (float) env('COIN_TO_PHP_RATE', 0.01)],

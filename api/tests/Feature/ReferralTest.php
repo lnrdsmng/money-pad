@@ -300,5 +300,33 @@ class ReferralTest extends TestCase
             ->assertJsonValidationErrors(['referral_code'])
             ->assertJsonPath('errors.referral_code.0', "The referral username 'ghost_writer' does not exist.");
     }
+
+    public function test_user_can_link_referrer_after_24_hours_without_bonus(): void
+    {
+        $referrer = User::factory()->create(['username' => 'mentor', 'referralCount' => 0]);
+        $referee = User::factory()->create([
+            'username' => 'student',
+            'created_at' => now()->subDays(3),
+            'referredBy' => '',
+            'isReferralRewardClaimed' => false,
+            'readerCoins' => 5.0,
+        ]);
+
+        $response = $this->actingAs($referee)->postJson('/api/v1/referrals/link', [
+            'referral_code' => 'mentor',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+
+        $referee->refresh();
+        $referrer->refresh();
+
+        $this->assertEquals('mentor', $referee->referredBy);
+        $this->assertEquals($referrer->id, $referee->referrer_id);
+        $this->assertFalse($referee->isReferralRewardClaimed); // no bonus since > 24 hours
+        $this->assertEquals(5.0, (float) $referee->readerCoins);
+        $this->assertEquals(1, $referrer->referralCount);
+    }
 }
 
