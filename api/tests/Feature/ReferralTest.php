@@ -192,4 +192,113 @@ class ReferralTest extends TestCase
             ->assertJsonPath('totalChaptersRead', 0)
             ->assertJsonPath('totalAdsWatched', 0);
     }
+
+    public function test_claiming_with_non_existent_username_returns_validation_error(): void
+    {
+        $referee = User::factory()->create([
+            'username' => 'newbie_claim',
+            'created_at' => now()->subHours(2),
+            'referredBy' => '',
+            'isReferralRewardClaimed' => false,
+        ]);
+
+        $response = $this->actingAs($referee)
+            ->postJson('/api/v1/referrals/claim-welcome', [
+                'referral_code' => 'ghost_user',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['referral_code'])
+            ->assertJsonPath('errors.referral_code.0', "The referral username 'ghost_user' does not exist.");
+    }
+
+    public function test_signup_with_valid_referral_code_rewards_both_users(): void
+    {
+        $referrer = User::factory()->create([
+            'username' => 'alice_referrer',
+            'referralCount' => 0,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/signup', [
+            'username' => 'bob_referee',
+            'email' => 'bob@example.com',
+            'password' => 'Password123!',
+            'referral_code' => 'alice_referrer',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('user.username', 'bob_referee')
+            ->assertJsonPath('user.referredBy', 'alice_referrer');
+
+        $this->assertEquals(10.0, (float) $response->json('user.readerCoins'));
+        $this->assertEquals(1, $referrer->fresh()->referralCount);
+        $this->assertDatabaseHas('notifications', [
+            'userId' => $referrer->id,
+            'type' => 'REFERRAL_REWARD',
+            'actorName' => 'bob_referee',
+        ]);
+    }
+
+    public function test_signup_with_invalid_referral_code_fails_validation(): void
+    {
+        $response = $this->postJson('/api/v1/auth/signup', [
+            'username' => 'charlie_test',
+            'email' => 'charlie@example.com',
+            'password' => 'Password123!',
+            'referral_code' => 'nonexistent_user',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['referral_code'])
+            ->assertJsonPath('errors.referral_code.0', "The referral username 'nonexistent_user' does not exist.");
+
+        $this->assertDatabaseMissing('users', ['username' => 'charlie_test']);
+    }
+
+    public function test_claiming_with_full_referral_url_succeeds(): void
+    {
+        $referrer = User::factory()->create([
+            'username' => 'author_link',
+            'referralCount' => 0,
+        ]);
+        $referee = User::factory()->create([
+            'username' => 'reader_link',
+            'created_at' => now()->subHours(1),
+            'referredBy' => '',
+            'isReferralRewardClaimed' => false,
+            'readerCoins' => 0,
+        ]);
+
+        $response = $this->actingAs($referee)
+            ->postJson('/api/v1/referrals/claim-welcome', [
+                'referral_code' => 'http://localhost:5173/register?ref=author_link',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+        $this->assertEquals(10.0, (float) $response->json('readerCoins'));
+
+        $this->assertEquals('author_link', $referee->fresh()->referredBy);
+        $this->assertEquals(1, $referrer->fresh()->referralCount);
+    }
+
+    public function test_claiming_with_url_containing_non_existent_username_returns_validation_error(): void
+    {
+        $referee = User::factory()->create([
+            'username' => 'reader_link_fail',
+            'created_at' => now()->subHours(1),
+            'referredBy' => '',
+            'isReferralRewardClaimed' => false,
+        ]);
+
+        $response = $this->actingAs($referee)
+            ->postJson('/api/v1/referrals/claim-welcome', [
+                'referral_code' => 'https://moneypad.app/register?ref=ghost_writer/',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['referral_code'])
+            ->assertJsonPath('errors.referral_code.0', "The referral username 'ghost_writer' does not exist.");
+    }
 }
+

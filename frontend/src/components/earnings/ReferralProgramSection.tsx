@@ -16,6 +16,7 @@ import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { useFeedback } from '../feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { parseReferralInput } from '../../utils/referral';
 
 export const ReferralProgramSection = () => {
   const { user, updateUser } = useAuth();
@@ -166,7 +167,15 @@ export const ReferralProgramSection = () => {
                 required
                 placeholder="Friend's username"
                 value={welcomeCode}
-                onChange={(e) => setWelcomeCode(e.target.value)}
+                onChange={(e) => setWelcomeCode(parseReferralInput(e.target.value))}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData('text');
+                  const parsed = parseReferralInput(pasted);
+                  if (parsed && parsed !== pasted) {
+                    e.preventDefault();
+                    setWelcomeCode(parsed);
+                  }
+                }}
                 className="px-3 py-2 rounded-xl bg-white text-gray-900 text-xs sm:text-sm placeholder:text-gray-400 focus:outline-none w-full sm:w-44"
               />
               <button

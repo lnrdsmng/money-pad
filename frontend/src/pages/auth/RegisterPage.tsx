@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { BookOpen } from 'lucide-react';
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator';
 import { PasswordInput } from '../../components/common/PasswordInput';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { parseReferralInput } from '../../utils/referral';
 
 export default function RegisterPage() {
+  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralUsername, setReferralUsername] = useState(() => {
+    const ref = searchParams.get('ref') || new URLSearchParams(window.location.search).get('ref');
+    const initial = ref ? parseReferralInput(ref) : (localStorage.getItem('pending_referral_code') || '');
+    if (initial) {
+      localStorage.setItem('pending_referral_code', initial);
+    }
+    return initial;
+  });
   const [loading, setLoading] = useState(false);
   
   const { signup } = useAuth();
@@ -18,12 +28,34 @@ export default function RegisterPage() {
   const feedback = useFeedback();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref');
+    const ref = searchParams.get('ref');
     if (ref) {
-      localStorage.setItem('pending_referral_code', ref.trim());
+      const parsed = parseReferralInput(ref);
+      setReferralUsername((curr) => (curr !== parsed ? parsed : curr));
+      localStorage.setItem('pending_referral_code', parsed);
     }
-  }, []);
+  }, [searchParams]);
+
+  const handleReferralChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseReferralInput(e.target.value);
+    setReferralUsername(parsed);
+    if (parsed) {
+      localStorage.setItem('pending_referral_code', parsed);
+    } else {
+      localStorage.removeItem('pending_referral_code');
+    }
+
+  };
+
+  const handleReferralPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text');
+    const parsed = parseReferralInput(pasted);
+    if (parsed && parsed !== pasted) {
+      e.preventDefault();
+      setReferralUsername(parsed);
+      localStorage.setItem('pending_referral_code', parsed);
+    }
+  };
 
   const getPasswordStrength = (pwd: string) => {
     let score = 0;
@@ -45,7 +77,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await signup({ username, email, password });
+      await signup({
+        username,
+        email,
+        password,
+        referral_code: referralUsername.trim() || undefined,
+      });
+      localStorage.removeItem('pending_referral_code');
       navigate('/onboarding');
     } catch (err: any) {
       feedback.error(getApiErrorMessage(err, 'Failed to register'));
@@ -100,6 +138,20 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <PasswordStrengthIndicator password={password} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Referral Username (Optional)
+              </label>
+              <input
+                type="text"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-700 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                placeholder="Referral username or link"
+                value={referralUsername}
+                onChange={handleReferralChange}
+                onPaste={handleReferralPaste}
+                autoComplete="off"
+              />
             </div>
           </div>
 

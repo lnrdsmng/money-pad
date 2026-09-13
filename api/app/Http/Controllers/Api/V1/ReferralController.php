@@ -13,7 +13,7 @@ class ReferralController extends Controller
 
     public function claimWelcome(Request $request): JsonResponse
     {
-        $data = $request->validate(['referral_code' => 'required|string|max:50']);
+        $data = $request->validate(['referral_code' => 'required|string|max:255']);
         $user = $this->referrals->claimWelcome($request->user(), $data['referral_code']);
 
         return response()->json(['success' => true, 'message' => 'Welcome bonus of 10 reader coins claimed successfully!', 'readerCoins' => $user->readerCoins, 'user' => $user]);

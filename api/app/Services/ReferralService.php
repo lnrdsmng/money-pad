@@ -22,7 +22,14 @@ class ReferralService
             if (! $signup || now()->timestamp - $signup > 86400) {
                 throw ValidationException::withMessages(['referral_code' => 'Welcome bonus grace period (24 hours from registration) has expired.']);
             }
-            $referrer = User::where('username', trim($code))->orWhere('id', trim($code))->firstOrFail();
+            $trimmedCode = trim($code);
+            if (preg_match('/[?&]ref=([^&#\s]+)/i', $trimmedCode, $matches)) {
+                $trimmedCode = rtrim(urldecode($matches[1]), '/#');
+            }
+            $referrer = User::where('username', $trimmedCode)->orWhere('id', $trimmedCode)->first();
+            if (! $referrer) {
+                throw ValidationException::withMessages(['referral_code' => "The referral username '{$trimmedCode}' does not exist."]);
+            }
             if ($referrer->id === $user->id) {
                 throw ValidationException::withMessages(['referral_code' => 'You cannot claim your own referral code.']);
             }

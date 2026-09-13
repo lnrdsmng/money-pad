@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\DailyLoginRewardService;
 use App\Services\PlanExpirationService;
+use App\Services\ReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -65,12 +66,13 @@ class AuthController extends Controller
         ]);
     }
 
-    public function signup(Request $request, DailyLoginRewardService $rewardService)
+    public function signup(Request $request, DailyLoginRewardService $rewardService, ReferralService $referralService)
     {
         $request->validate([
             'username' => 'required|string|min:3|max:50|regex:/^[A-Za-z0-9_]+$/|unique:users',
             'email' => 'required|email|max:100|unique:users',
             'password' => 'required|string|min:8',
+            'referral_code' => 'nullable|string|max:255',
         ]);
 
         $pwd = $request->password;
@@ -79,7 +81,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Password is too weak. Must contain uppercase, lowercase, and numbers.'], 400);
         }
 
-        $user = DB::transaction(function () use ($request, $rewardService): User {
+        $user = DB::transaction(function () use ($request, $rewardService, $referralService): User {
             $user = User::create([
                 'id' => Str::uuid()->toString(),
                 'username' => $request->username,
@@ -94,6 +96,10 @@ class AuthController extends Controller
                 'plan' => 'free',
             ]);
             $rewardService->enroll($user);
+
+            if ($referralCode = trim((string) $request->input('referral_code', ''))) {
+                $user = $referralService->claimWelcome($user, $referralCode);
+            }
 
             return $user;
         }, 3);
