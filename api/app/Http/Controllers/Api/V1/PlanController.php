@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlanPurchase;
 use App\Models\PlanSetting;
 use App\Models\UserPlan;
+use App\PlanType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,7 +14,17 @@ class PlanController extends Controller
 {
     public function index(): JsonResponse
     {
-        $dbPlans = PlanSetting::where('is_active', true)->get();
+        $readingPlanTypes = collect(PlanType::cases())
+            ->reject(fn (PlanType $planType): bool => $planType === PlanType::AuthorVerification)
+            ->values();
+        $planOrder = $readingPlanTypes
+            ->mapWithKeys(fn (PlanType $planType, int $index): array => [$planType->value => $index]);
+        $dbPlans = PlanSetting::query()
+            ->where('is_active', true)
+            ->whereIn('id', $planOrder->keys())
+            ->get()
+            ->sortBy(fn (PlanSetting $plan): int => $planOrder[$plan->id])
+            ->values();
 
         if ($dbPlans->isNotEmpty()) {
             $plans = $dbPlans->map(fn (PlanSetting $plan): array => [
@@ -26,12 +37,11 @@ class PlanController extends Controller
                 'duration_months' => $plan->id === 'free' ? null : 1,
             ])->values();
         } else {
-            $plans = collect(config('moneypad.plans'))
-                ->reject(fn (array $plan, string $id): bool => $id === 'author_verification')
-                ->map(fn (array $plan, string $id): array => [
-                    'id' => $id,
-                    ...$plan,
-                    'duration_months' => $id === 'free' ? null : 1,
+            $plans = $readingPlanTypes
+                ->map(fn (PlanType $planType): array => [
+                    'id' => $planType->value,
+                    ...config("moneypad.plans.{$planType->value}"),
+                    'duration_months' => $planType === PlanType::Free ? null : 1,
                 ])
                 ->values();
         }

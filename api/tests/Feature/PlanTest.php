@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\PlanSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -28,6 +29,30 @@ class PlanTest extends TestCase
             ->assertJsonPath('data.2.rate_per_minute', '4.500')
             ->assertJsonPath('data.3.rate_per_minute', '6.000')
             ->assertJsonPath('data.3.ads', false);
+    }
+
+    public function test_active_reading_plans_are_returned_in_tier_order(): void
+    {
+        PlanSetting::query()->delete();
+
+        foreach (['ultimate_premium', 'mega_premium', 'standard', 'free'] as $planId) {
+            $configuredPlan = config("moneypad.plans.{$planId}");
+            PlanSetting::query()->create([
+                'id' => $planId,
+                ...$configuredPlan,
+                'is_active' => true,
+            ]);
+        }
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->getJson('/api/v1/plans')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', 'free')
+            ->assertJsonPath('data.1.id', 'standard')
+            ->assertJsonPath('data.2.id', 'mega_premium')
+            ->assertJsonPath('data.3.id', 'ultimate_premium');
     }
 
     public function test_admin_can_update_plan_settings(): void
