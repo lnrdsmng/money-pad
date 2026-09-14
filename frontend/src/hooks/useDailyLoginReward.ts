@@ -33,7 +33,11 @@ export function useDailyLoginReward() {
     onSuccess: async (data) => {
       updateUser(data.user);
       await queryClient.invalidateQueries({ queryKey: ['daily-login-reward', user?.id] });
-      const coins = data.claim?.amount || data.claimed_amount || 'daily';
+      const rawCoins = data.claim?.amount || data.claimed_amount;
+      const numericCoins = Number(rawCoins);
+      const coins = Number.isFinite(numericCoins)
+        ? numericCoins.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : 'daily';
       feedback.success(`Claimed ${coins} coins from daily login reward!`);
     },
     onError: (error) => {
