@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, CheckCircle2, Clock, Play, RotateCcw, Sparkles } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
+import { getStoredReadingProgress } from '../../hooks/useReadingProgress';
 
 interface ReadingItem {
   story: {
@@ -120,6 +121,11 @@ export const ProfileReadingShelf = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {displayedItems.map((item) => {
             const { story, completed_percentage, is_finished } = item;
+            const storedProgress = user ? getStoredReadingProgress(user.id, story.id) : null;
+            const serverSavedAt = item.updated_at ? Date.parse(item.updated_at) : 0;
+            const resumePartId = storedProgress && storedProgress.savedAt >= serverSavedAt
+              ? storedProgress.last_part_id
+              : item.last_part_id;
             return (
               <div
                 key={story.id}
@@ -208,7 +214,7 @@ export const ProfileReadingShelf = () => {
                     </Link>
                   ) : (
                     <Link
-                      to={`/story/${story.id}/read/${item.last_part_id}`}
+                      to={`/story/${story.id}/read/${resumePartId}`}
                       className="w-full py-2 px-3 bg-primary text-white rounded-xl text-xs font-bold hover:bg-green-600 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <Play className="w-3.5 h-3.5 fill-white" />

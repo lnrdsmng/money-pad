@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Play } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
+import { getStoredReadingProgress } from '../../hooks/useReadingProgress';
 
 export const ContinueReadingShelf = () => {
   const { user } = useAuth();
@@ -31,6 +32,11 @@ export const ContinueReadingShelf = () => {
         {items.map((item: any) => {
           const story = item.story;
           const percentage = item.completed_percentage || 0;
+          const storedProgress = getStoredReadingProgress(user.id, story.id);
+          const serverSavedAt = item.updated_at ? Date.parse(item.updated_at) : 0;
+          const resumePartId = storedProgress && storedProgress.savedAt >= serverSavedAt
+            ? storedProgress.last_part_id
+            : item.last_part_id;
 
           return (
             <div
@@ -73,7 +79,7 @@ export const ContinueReadingShelf = () => {
                 </div>
 
                 <Link
-                  to={`/story/${story.id}/read/${item.last_part_id}`}
+                  to={`/story/${story.id}/read/${resumePartId}`}
                   className="w-full py-1.5 px-3 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-green-600 transition flex items-center justify-center gap-1.5"
                 >
                   <Play className="w-3 h-3 fill-white" />
