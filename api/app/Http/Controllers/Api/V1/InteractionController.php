@@ -7,6 +7,7 @@ use App\Http\Resources\PublicUserResource;
 use App\Models\Conversation;
 use App\Models\Notification;
 use App\Models\PartAnnotation;
+use App\Models\PartAnnotationReaction;
 use App\Models\Review;
 use App\Models\Story;
 use App\Models\StoryPart;
@@ -15,6 +16,7 @@ use App\Models\UserStoryLike;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class InteractionController extends Controller
 {
@@ -356,39 +358,108 @@ class InteractionController extends Controller
         return response()->json(['isLiked' => $exists]);
     }
 
-    public function annotations($partId)
+    public function annotationSummaries($partId)
     {
-        $annotations = PartAnnotation::where('partId', $partId)->orderByDesc('timestamp')->get();
+        $summaries = DB::table('part_annotations as annotation')
+            ->leftJoin('part_annotations as parent', 'annotation.parentId', '=', 'parent.id')
+            ->where('annotation.partId', $partId)
+            ->where('annotation.type', 'COMMENT')
+            ->selectRaw('COALESCE(parent.startIndex, annotation.startIndex) as startIndex')
+            ->selectRaw('COALESCE(parent.endIndex, annotation.endIndex) as endIndex')
+            ->selectRaw('COALESCE(parent.selectedText, annotation.selectedText) as selectedText')
+            ->selectRaw('COUNT(annotation.id) as commentCount')
+            ->groupByRaw('COALESCE(parent.startIndex, annotation.startIndex), COALESCE(parent.endIndex, annotation.endIndex), COALESCE(parent.selectedText, annotation.selectedText)')
+            ->get();
 
-        return response()->json($annotations);
+        return response()->json($summaries);
+    }
+
+    public function annotations(Request $request, $partId)
+    {
+        if (! $request->has(['startIndex', 'endIndex'])) {
+            $annotations = PartAnnotation::where('partId', $partId)->orderByDesc('timestamp')->get();
+
+            return response()->json($annotations);
+        }
+
+        $validated = $request->validate([
+            'startIndex' => 'required|integer|min:0',
+            'endIndex' => 'required|integer|gt:startIndex',
+            'page' => 'sometimes|integer|min:1',
+        ]);
+        $viewerId = $request->user('sanctum')?->id;
+
+        $comments = PartAnnotation::query()
+            ->where('partId', $partId)
+            ->where('type', 'COMMENT')
+            ->whereNull('parentId')
+            ->where('startIndex', '>=', $validated['startIndex'])
+            ->where('startIndex', '<', $validated['endIndex'])
+            ->with([
+                'user:id,username,profileImageUrl,isVerified',
+                'reactions' => fn ($query) => $viewerId
+                    ? $query->where('userId', $viewerId)
+                    : $query->whereRaw('1 = 0'),
+                'replies' => fn ($query) => $query->with([
+                    'user:id,username,profileImageUrl,isVerified',
+                    'reactions' => fn ($reactionQuery) => $viewerId
+                        ? $reactionQuery->where('userId', $viewerId)
+                        : $reactionQuery->whereRaw('1 = 0'),
+                ])->withCount('reactions'),
+            ])
+            ->withCount('reactions')
+            ->orderByDesc('timestamp')
+            ->paginate(25);
+
+        $comments->getCollection()->transform(
+            fn (PartAnnotation $annotation) => $this->serializeAnnotation($annotation)
+        );
+
+        return response()->json($comments);
     }
 
     public function storeAnnotation(Request $request, $partId)
     {
         $validated = $request->validate([
-            'userId' => 'required|string',
-            'selectedText' => 'required|string',
-            'startIndex' => 'required|integer',
-            'endIndex' => 'required|integer',
-            'type' => 'required|string|in:LIKE,COMMENT',
-            'content' => 'nullable|string',
+            'userId' => 'sometimes|string',
+            'parentId' => 'nullable|string|exists:part_annotations,id',
+            'selectedText' => 'required_without:parentId|string|max:10000',
+            'startIndex' => 'required_without:parentId|integer|min:0',
+            'endIndex' => 'required_without:parentId|integer|gt:startIndex',
+            'type' => 'required_without:parentId|string|in:LIKE,COMMENT',
+            'content' => [
+                Rule::requiredIf(fn () => $request->input('type') === 'COMMENT' || $request->filled('parentId')),
+                'nullable',
+                'string',
+                'max:2000',
+            ],
         ]);
 
-        if ($validated['userId'] !== $request->user()->id) {
+        if (isset($validated['userId']) && $validated['userId'] !== $request->user()->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $user = $request->user();
+        $parent = null;
+        if (! empty($validated['parentId'])) {
+            $parent = PartAnnotation::query()
+                ->where('id', $validated['parentId'])
+                ->where('partId', $partId)
+                ->whereNull('parentId')
+                ->where('type', 'COMMENT')
+                ->firstOrFail();
+        }
 
-        PartAnnotation::create([
+        $annotation = PartAnnotation::create([
             'id' => Str::uuid()->toString(),
+            'parentId' => $parent?->id,
             'partId' => $partId,
             'userId' => $user->id,
             'username' => $user->username,
-            'selectedText' => $validated['selectedText'],
-            'startIndex' => $validated['startIndex'],
-            'endIndex' => $validated['endIndex'],
-            'type' => $validated['type'],
+            'selectedText' => $parent?->selectedText ?? $validated['selectedText'],
+            'startIndex' => $parent?->startIndex ?? $validated['startIndex'],
+            'endIndex' => $parent?->endIndex ?? $validated['endIndex'],
+            'type' => $parent ? 'COMMENT' : $validated['type'],
             'content' => $validated['content'] ?? null,
             'timestamp' => time() * 1000,
             'isUserVerified' => $user->isVerified,
@@ -399,7 +470,7 @@ class InteractionController extends Controller
             Notification::create([
                 'id' => Str::uuid()->toString(),
                 'userId' => $part->story->authorId,
-                'type' => $validated['type'] === 'LIKE' ? 'LIKE' : 'REVIEW',
+                'type' => ($parent ? 'COMMENT' : $validated['type']) === 'LIKE' ? 'LIKE' : 'REVIEW',
                 'actorId' => $user->id,
                 'actorName' => $user->username,
                 'actorProfileImageUrl' => $user->profileImageUrl,
@@ -407,7 +478,7 @@ class InteractionController extends Controller
                 'storyTitle' => $part->story->title,
                 'partId' => $part->id,
                 'partTitle' => $part->title,
-                'content' => $validated['type'] === 'LIKE'
+                'content' => ($parent ? 'COMMENT' : $validated['type']) === 'LIKE'
                     ? $user->username.' liked a passage in "'.$part->title.'"'
                     : $user->username.' commented on a passage in "'.$part->title.'"',
                 'timestamp' => time() * 1000,
@@ -416,6 +487,59 @@ class InteractionController extends Controller
             ]);
         }
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'annotation' => $annotation]);
+    }
+
+    public function toggleAnnotationHeart(Request $request, PartAnnotation $annotation)
+    {
+        abort_unless($annotation->type === 'COMMENT', 422, 'Only comments can receive hearts.');
+
+        $key = [
+            'annotationId' => $annotation->id,
+            'userId' => $request->user()->id,
+        ];
+        $existing = PartAnnotationReaction::where($key)->first();
+
+        if ($existing) {
+            PartAnnotationReaction::where($key)->delete();
+            $isHearted = false;
+        } else {
+            PartAnnotationReaction::create([
+                ...$key,
+                'createdAt' => now()->timestamp * 1000,
+            ]);
+            $isHearted = true;
+        }
+
+        return response()->json([
+            'isHearted' => $isHearted,
+            'heartsCount' => PartAnnotationReaction::where('annotationId', $annotation->id)->count(),
+        ]);
+    }
+
+    private function serializeAnnotation(
+        PartAnnotation $annotation,
+        bool $includeReplies = true
+    ): array {
+        return [
+            'id' => $annotation->id,
+            'parentId' => $annotation->parentId,
+            'userId' => $annotation->userId,
+            'username' => $annotation->user?->username ?? $annotation->username,
+            'userProfileImageUrl' => $annotation->user?->profileImageUrl,
+            'isUserVerified' => (bool) ($annotation->user?->isVerified ?? $annotation->isUserVerified),
+            'selectedText' => $annotation->selectedText,
+            'startIndex' => $annotation->startIndex,
+            'endIndex' => $annotation->endIndex,
+            'content' => $annotation->content,
+            'timestamp' => $annotation->timestamp,
+            'heartsCount' => $annotation->reactions_count,
+            'isHearted' => $annotation->reactions->isNotEmpty(),
+            'replies' => $includeReplies
+                ? $annotation->replies->map(
+                    fn (PartAnnotation $reply) => $this->serializeAnnotation($reply, false)
+                )->values()
+                : [],
+        ];
     }
 }

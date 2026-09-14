@@ -28,7 +28,6 @@ export const TextAnnotationBar = ({
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const selectedParagraphRef = useRef<HTMLParagraphElement | null>(null);
-  const isExpandingSelection = useRef(false);
   const isCommenting = useRef(false);
 
   const clearParagraphHighlight = () => {
@@ -42,7 +41,6 @@ export const TextAnnotationBar = ({
 
   useEffect(() => {
     const handleSelectionChange = () => {
-      if (isExpandingSelection.current) return;
       if (isCommenting.current) return;
 
       const selection = window.getSelection();
@@ -57,7 +55,10 @@ export const TextAnnotationBar = ({
         ? range.startContainer.parentElement
         : range.startContainer as Element;
       const paragraph = selectedNode?.closest('p');
-      if (!paragraph || !containerRef.current.contains(paragraph)) {
+      const endNode = range.endContainer.nodeType === Node.TEXT_NODE
+        ? range.endContainer.parentElement
+        : range.endContainer as Element;
+      if (!paragraph || endNode?.closest('p') !== paragraph || !containerRef.current.contains(paragraph)) {
         setPosition(null);
         clearParagraphHighlight();
         return;
@@ -72,12 +73,12 @@ export const TextAnnotationBar = ({
       }
 
       const selectedTextRect = range.getBoundingClientRect();
-      const paragraphRange = document.createRange();
-      paragraphRange.selectNodeContents(paragraph);
-      isExpandingSelection.current = true;
-      selection.removeAllRanges();
-      selection.addRange(paragraphRange);
-      window.queueMicrotask(() => { isExpandingSelection.current = false; });
+      if (selection.toString().trim() !== text) {
+        const paragraphRange = document.createRange();
+        paragraphRange.selectNodeContents(paragraph);
+        selection.removeAllRanges();
+        selection.addRange(paragraphRange);
+      }
 
       clearParagraphHighlight();
       paragraph.classList.add('bg-amber-100', 'dark:bg-amber-950/40', 'transition-colors');
@@ -89,8 +90,9 @@ export const TextAnnotationBar = ({
       const leadingWhitespace = rawParagraphText.indexOf(text);
       const paragraphStart = precedingContent.toString().length + Math.max(0, leadingWhitespace);
 
-      const top = selectedTextRect.top - 50 + window.scrollY;
-      const idealLeft = selectedTextRect.left + selectedTextRect.width / 2 - 80;
+      const anchorRect = selectedTextRect.width > 0 ? selectedTextRect : paragraph.getBoundingClientRect();
+      const top = anchorRect.top - 50 + window.scrollY;
+      const idealLeft = anchorRect.left + anchorRect.width / 2 - 80;
       const left = Math.max(10, Math.min(window.innerWidth - 170, idealLeft));
 
       setSelectedText(text);
@@ -131,6 +133,7 @@ export const TextAnnotationBar = ({
       clearParagraphHighlight();
       window.getSelection()?.removeAllRanges();
       queryClient.invalidateQueries({ queryKey: ['annotations', partId] });
+      queryClient.invalidateQueries({ queryKey: ['annotationSummaries', partId] });
       onAnnotationCreated?.();
     } catch {
       feedback.error('Could not save annotation.');
@@ -145,6 +148,7 @@ export const TextAnnotationBar = ({
     <div
       className="absolute z-50 animate-in fade-in zoom-in duration-150"
       style={{ top: `${position.top}px`, left: `${position.left}px` }}
+      onPointerDown={() => { isCommenting.current = true; }}
     >
       <div className="bg-gray-900 text-white rounded-full shadow-2xl px-3 py-1.5 flex items-center gap-2 text-xs border border-gray-700">
         {!showCommentInput ? (
@@ -166,6 +170,7 @@ export const TextAnnotationBar = ({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 setPosition(null);
+                isCommenting.current = false;
                 clearParagraphHighlight();
                 window.getSelection()?.removeAllRanges();
               }}

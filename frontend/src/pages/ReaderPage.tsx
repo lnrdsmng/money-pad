@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import http from '../api/http';
 import { ArrowLeft } from 'lucide-react';
 import { useReadingTimer } from '../hooks/useReadingTimer';
@@ -7,6 +8,9 @@ import { useReadingProgress } from '../hooks/useReadingProgress';
 import { ChapterSlider } from '../components/ChapterSlider';
 import { ActionDialog } from '../components/feedback/ActionDialog';
 import { TextAnnotationBar } from '../components/reader/TextAnnotationBar';
+import { ChapterAnnotationsDrawer } from '../components/reader/ChapterAnnotationsDrawer';
+import { ParagraphCommentBubbles } from '../components/reader/ParagraphCommentBubbles';
+import type { ParagraphAnchor, ParagraphCommentSummary } from '../types/annotations';
 import type { Chapter, ChapterSummary } from '../types/content';
 import { formatChapterHtml } from '../utils/formatHtml';
 import { ReadingCoinIndicator } from '../components/reader/ReadingCoinIndicator';
@@ -20,6 +24,7 @@ export default function ReaderPage() {
   const [isEndOfChapter, setIsEndOfChapter] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [openParagraph, setOpenParagraph] = useState<(ParagraphAnchor & { partId: string }) | null>(null);
 
   // Strict validation: stop when bottom of any chapter is reached
   useEffect(() => {
@@ -55,6 +60,15 @@ export default function ReaderPage() {
   const restoredPartId = useRef<string | null>(null);
   const latestScrollPosition = useRef(0);
   const guardedPartId = useRef<string | null>(null);
+
+  const { data: annotationSummaries = [] } = useQuery<ParagraphCommentSummary[]>({
+    queryKey: ['annotationSummaries', partId],
+    queryFn: async () => {
+      const response = await http.get(`/parts/${partId}/annotation-summaries`);
+      return response.data;
+    },
+    enabled: Boolean(partId),
+  });
 
   const getScrollPosition = useCallback(() => {
     const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
@@ -304,11 +318,18 @@ export default function ReaderPage() {
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4 font-serif break-words">{part.title}</h1>
         </div>
         
-        <div 
-          ref={contentRef}
-          className="prose dark:prose-invert prose-base sm:prose-lg max-w-none prose-p:leading-relaxed sm:prose-p:leading-loose text-gray-800 dark:text-gray-200 font-serif"
-          dangerouslySetInnerHTML={{ __html: formatChapterHtml(part.content) }}
-        />
+        <div className="relative">
+          <div
+            ref={contentRef}
+            className="prose dark:prose-invert prose-base sm:prose-lg max-w-none pr-10 sm:pr-0 prose-p:leading-relaxed sm:prose-p:leading-loose text-gray-800 dark:text-gray-200 font-serif"
+            dangerouslySetInnerHTML={{ __html: formatChapterHtml(part.content) }}
+          />
+          <ParagraphCommentBubbles
+            containerRef={contentRef}
+            summaries={annotationSummaries}
+            onOpen={(paragraph) => setOpenParagraph({ ...paragraph, partId: partId! })}
+          />
+        </div>
         
         <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200 dark:border-slate-800 pt-6 sm:pt-8 pb-16 text-sm sm:text-base">
           {prevPart ? (
@@ -338,6 +359,13 @@ export default function ReaderPage() {
       <ChapterSlider 
         progress={scrollProgress}
         onProgressChange={handleSliderChange}
+      />
+
+      <ChapterAnnotationsDrawer
+        key={openParagraph ? `${openParagraph.partId}-${openParagraph.startIndex}` : 'closed'}
+        partId={partId!}
+        paragraph={openParagraph?.partId === partId ? openParagraph : null}
+        onClose={() => setOpenParagraph(null)}
       />
 
       <ActionDialog

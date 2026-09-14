@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\PlanPurchaseController;
+use App\Http\Controllers\Api\V1\ReadingListController;
 use App\Http\Controllers\Api\V1\ReadingSessionController;
 use App\Http\Controllers\Api\V1\ReferralController;
 use App\Http\Controllers\Api\V1\RewardedAdController;
@@ -54,6 +55,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/conversations/{parentId}/replies', [InteractionController::class, 'replies']);
     Route::get('/stories/{storyId}/reviews', [InteractionController::class, 'reviews']);
     Route::get('/parts/{partId}/annotations', [InteractionController::class, 'annotations']);
+    Route::get('/parts/{partId}/annotation-summaries', [InteractionController::class, 'annotationSummaries']);
+    Route::get('/users/{user}/reading-lists', [ReadingListController::class, 'index']);
     Route::get('/users/{username}/referral-stats', [TransactionController::class, 'referralStats']);
 
     // Protected Routes (Require Authentication)
@@ -132,6 +135,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/stories/{storyId}/like', [InteractionController::class, 'likeStory']);
         Route::get('/stories/{storyId}/is-liked', [InteractionController::class, 'isStoryLiked']);
         Route::post('/parts/{partId}/annotations', [InteractionController::class, 'storeAnnotation']);
+        Route::post('/annotations/{annotation}/heart', [InteractionController::class, 'toggleAnnotationHeart']);
+
+        Route::post('/reading-lists', [ReadingListController::class, 'store']);
+        Route::post('/reading-lists/{readingList}/stories/{story}', [ReadingListController::class, 'addStory']);
+        Route::delete('/reading-lists/{readingList}/stories/{story}', [ReadingListController::class, 'removeStory']);
 
         // Referrals
         Route::post('/referrals/claim-welcome', [ReferralController::class, 'claimWelcome']);
