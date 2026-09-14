@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Heart, MessageSquare, X, Send } from 'lucide-react';
+import { MessageSquare, X, Send } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { useFeedback } from '../feedback/feedback';
@@ -27,49 +27,87 @@ export const TextAnnotationBar = ({
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedParagraphRef = useRef<HTMLParagraphElement | null>(null);
+  const isExpandingSelection = useRef(false);
+  const isCommenting = useRef(false);
+
+  const clearParagraphHighlight = () => {
+    selectedParagraphRef.current?.classList.remove(
+      'bg-amber-100',
+      'dark:bg-amber-950/40',
+      'transition-colors',
+    );
+    selectedParagraphRef.current = null;
+  };
 
   useEffect(() => {
     const handleSelectionChange = () => {
-      if (showCommentInput) return; // Don't hide if currently typing comment
+      if (isExpandingSelection.current) return;
+      if (isCommenting.current) return;
 
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !containerRef.current) {
         setPosition(null);
+        clearParagraphHighlight();
         return;
       }
 
-      const text = selection.toString().trim();
-      if (text.length < 3) {
-        setPosition(null);
-        return;
-      }
-
-      // Ensure selection is inside container
       const range = selection.getRangeAt(0);
-      if (!containerRef.current.contains(range.commonAncestorContainer)) {
+      const selectedNode = range.startContainer.nodeType === Node.TEXT_NODE
+        ? range.startContainer.parentElement
+        : range.startContainer as Element;
+      const paragraph = selectedNode?.closest('p');
+      if (!paragraph || !containerRef.current.contains(paragraph)) {
         setPosition(null);
+        clearParagraphHighlight();
         return;
       }
 
-      const rect = range.getBoundingClientRect();
-      const containerRect = containerRef.current.getBoundingClientRect();
+      const rawParagraphText = paragraph.textContent || '';
+      const text = rawParagraphText.trim();
+      if (!text) {
+        setPosition(null);
+        clearParagraphHighlight();
+        return;
+      }
 
-      const top = rect.top - 50 + window.scrollY;
-      const left = Math.max(10, rect.left + rect.width / 2 - 80);
+      const selectedTextRect = range.getBoundingClientRect();
+      const paragraphRange = document.createRange();
+      paragraphRange.selectNodeContents(paragraph);
+      isExpandingSelection.current = true;
+      selection.removeAllRanges();
+      selection.addRange(paragraphRange);
+      window.queueMicrotask(() => { isExpandingSelection.current = false; });
+
+      clearParagraphHighlight();
+      paragraph.classList.add('bg-amber-100', 'dark:bg-amber-950/40', 'transition-colors');
+      selectedParagraphRef.current = paragraph;
+
+      const precedingContent = document.createRange();
+      precedingContent.selectNodeContents(containerRef.current);
+      precedingContent.setEndBefore(paragraph);
+      const leadingWhitespace = rawParagraphText.indexOf(text);
+      const paragraphStart = precedingContent.toString().length + Math.max(0, leadingWhitespace);
+
+      const top = selectedTextRect.top - 50 + window.scrollY;
+      const idealLeft = selectedTextRect.left + selectedTextRect.width / 2 - 80;
+      const left = Math.max(10, Math.min(window.innerWidth - 170, idealLeft));
 
       setSelectedText(text);
-      setStartIndex(Math.max(0, Math.floor(rect.top - containerRect.top)));
-      setEndIndex(Math.max(0, Math.floor(rect.bottom - containerRect.top)));
+      setStartIndex(paragraphStart);
+      setEndIndex(paragraphStart + text.length);
       setPosition({ top, left });
     };
 
     document.addEventListener('selectionchange', handleSelectionChange);
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
-  }, [containerRef, showCommentInput]);
+  }, [containerRef]);
 
-  const submitAnnotation = async (type: 'LIKE' | 'COMMENT', noteContent?: string) => {
+  useEffect(() => () => clearParagraphHighlight(), [partId]);
+
+  const submitAnnotation = async (noteContent: string) => {
     if (!user) {
-      feedback.info('Please log in to react or comment on passages.');
+      feedback.info('Please log in to comment on passages.');
       return;
     }
     if (!selectedText) return;
@@ -81,14 +119,16 @@ export const TextAnnotationBar = ({
         selectedText,
         startIndex,
         endIndex,
-        type,
-        content: noteContent || null,
+        type: 'COMMENT',
+        content: noteContent,
       });
 
-      feedback.success(type === 'LIKE' ? 'Passage liked!' : 'Annotation comment posted!');
+      feedback.success('Annotation comment posted!');
       setPosition(null);
       setShowCommentInput(false);
+      isCommenting.current = false;
       setComment('');
+      clearParagraphHighlight();
       window.getSelection()?.removeAllRanges();
       queryClient.invalidateQueries({ queryKey: ['annotations', partId] });
       onAnnotationCreated?.();
@@ -110,18 +150,10 @@ export const TextAnnotationBar = ({
         {!showCommentInput ? (
           <>
             <button
-              onClick={() => submitAnnotation('LIKE')}
-              disabled={isSubmitting}
-              className="flex items-center gap-1.5 hover:text-rose-400 transition-colors px-2 py-1 rounded-full hover:bg-gray-800 cursor-pointer"
-              title="Like this passage"
-            >
-              <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-              <span>Like</span>
-            </button>
-
-            <span className="text-gray-600">|</span>
-
-            <button
+              onPointerDown={(event) => {
+                event.preventDefault();
+                isCommenting.current = true;
+              }}
               onClick={() => setShowCommentInput(true)}
               className="flex items-center gap-1.5 hover:text-primary transition-colors px-2 py-1 rounded-full hover:bg-gray-800 cursor-pointer"
               title="Add inline comment"
@@ -131,7 +163,12 @@ export const TextAnnotationBar = ({
             </button>
 
             <button
-              onClick={() => setPosition(null)}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                setPosition(null);
+                clearParagraphHighlight();
+                window.getSelection()?.removeAllRanges();
+              }}
               className="text-gray-500 hover:text-gray-300 p-0.5"
             >
               <X className="w-3 h-3" />
@@ -147,13 +184,13 @@ export const TextAnnotationBar = ({
               onChange={(e) => setComment(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && comment.trim()) {
-                  submitAnnotation('COMMENT', comment.trim());
+                  submitAnnotation(comment.trim());
                 }
               }}
               className="text-xs bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1 text-white focus:outline-none focus:border-primary w-48"
             />
             <button
-              onClick={() => submitAnnotation('COMMENT', comment.trim())}
+              onClick={() => submitAnnotation(comment.trim())}
               disabled={!comment.trim() || isSubmitting}
               className="p-1 bg-primary rounded-md text-white hover:bg-green-600 transition disabled:opacity-50"
             >
@@ -162,7 +199,10 @@ export const TextAnnotationBar = ({
             <button
               onClick={() => {
                 setShowCommentInput(false);
+                isCommenting.current = false;
                 setPosition(null);
+                clearParagraphHighlight();
+                window.getSelection()?.removeAllRanges();
               }}
               className="text-gray-400 hover:text-gray-200"
             >

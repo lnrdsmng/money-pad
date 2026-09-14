@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import http from '../api/http';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useReadingTimer } from '../hooks/useReadingTimer';
 import { useReadingProgress } from '../hooks/useReadingProgress';
 import { ChapterSlider } from '../components/ChapterSlider';
 import { ActionDialog } from '../components/feedback/ActionDialog';
 import { TextAnnotationBar } from '../components/reader/TextAnnotationBar';
-import { ChapterAnnotationsDrawer } from '../components/reader/ChapterAnnotationsDrawer';
 import type { Chapter, ChapterSummary } from '../types/content';
 import { formatChapterHtml } from '../utils/formatHtml';
 import { ReadingCoinIndicator } from '../components/reader/ReadingCoinIndicator';
@@ -18,9 +17,9 @@ export default function ReaderPage() {
   const [part, setPart] = useState<Chapter | null>(null);
   const [allParts, setAllParts] = useState<ChapterSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAnnotationsDrawerOpen, setIsAnnotationsDrawerOpen] = useState(false);
   const [isEndOfChapter, setIsEndOfChapter] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   // Strict validation: stop when bottom of any chapter is reached
   useEffect(() => {
@@ -50,9 +49,24 @@ export default function ReaderPage() {
   const { savedPartId, savedScrollPosition, saveProgress, loaded: progressLoaded } = useReadingProgress(storyId!);
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const readerRef = useRef<HTMLDivElement>(null);
   const completedPartRequests = useRef(new Set<string>());
   const pendingNavigationPartId = useRef<string | null>(null);
   const restoredPartId = useRef<string | null>(null);
+  const latestScrollPosition = useRef(0);
+  const guardedPartId = useRef<string | null>(null);
+
+  const getScrollPosition = useCallback(() => {
+    const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+    return scrollHeight > 0 ? Math.min(1, Math.max(0, window.scrollY / scrollHeight)) : 0;
+  }, []);
+
+  const updateScrollPosition = useCallback(() => {
+    const position = getScrollPosition();
+    latestScrollPosition.current = position;
+    setScrollProgress(position);
+    return position;
+  }, [getScrollPosition]);
 
   const resumePartId = progressLoaded
     && savedPartId
@@ -102,28 +116,60 @@ export default function ReaderPage() {
 
   useEffect(() => {
     restoredPartId.current = null;
+    latestScrollPosition.current = 0;
   }, [partId]);
 
   // Handle restoring scroll position when part loads
   useEffect(() => {
-    if (!part || !progressLoaded || savedPartId !== partId || savedScrollPosition <= 0) return;
+    if (!part || !progressLoaded || savedPartId !== partId) return;
     if (restoredPartId.current === partId) return;
 
     restoredPartId.current = partId!;
-    const frame = window.requestAnimationFrame(() => {
+    let disposed = false;
+    const waitForLayout = async () => {
+      const images = Array.from(readerRef.current?.querySelectorAll('img') || []);
+      const imageLoads = images.map(image => image.complete
+        ? Promise.resolve()
+        : new Promise<void>(resolve => {
+          image.addEventListener('load', () => resolve(), { once: true });
+          image.addEventListener('error', () => resolve(), { once: true });
+        }));
+      const timeout = new Promise<void>(resolve => window.setTimeout(resolve, 1000));
+      await Promise.race([Promise.all(imageLoads).then(() => undefined), timeout]);
+      await new Promise<void>(resolve => window.requestAnimationFrame(() => resolve()));
+      if (disposed) return;
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       window.scrollTo(0, scrollHeight * savedScrollPosition);
-    });
-    return () => window.cancelAnimationFrame(frame);
+      latestScrollPosition.current = savedScrollPosition;
+      setScrollProgress(savedScrollPosition);
+    };
+    void waitForLayout();
+    return () => { disposed = true; };
   }, [part, progressLoaded, savedPartId, partId, savedScrollPosition]);
+
+  // Keep the reading-position slider synchronized with ordinary page scrolling.
+  useEffect(() => {
+    let frame: number | null = null;
+    const handleScroll = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        updateScrollPosition();
+      });
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, [updateScrollPosition]);
 
   // Periodic progress saving
   useEffect(() => {
     const saveInterval = setInterval(() => {
       if (!partId || loading || part?.id !== partId) return;
-      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const scrollPosition = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
-      void saveProgress(partId, scrollPosition);
+      void saveProgress(partId, latestScrollPosition.current);
     }, 30000); // 30s
     return () => clearInterval(saveInterval);
   }, [partId, part, loading, saveProgress]);
@@ -132,14 +178,38 @@ export default function ReaderPage() {
   // progress during deliberate in-reader navigation.
   useEffect(() => {
     const currentPartId = partId;
+    const loadedPartId = part?.id;
     return () => {
       if (!currentPartId) return;
+      if (loadedPartId !== currentPartId) return;
       if (pendingNavigationPartId.current !== null) return;
-      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const scrollPosition = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
-      void saveProgress(currentPartId, scrollPosition);
+      void saveProgress(currentPartId, latestScrollPosition.current);
     };
-  }, [partId, saveProgress]);
+  }, [partId, part?.id, saveProgress]);
+
+  // Add a same-URL history entry so browser Back is handled before the reader route unmounts.
+  useEffect(() => {
+    if (!partId) return;
+    const guardKey = `${storyId}:${partId}`;
+    if (guardedPartId.current !== guardKey) {
+      const historyState = typeof window.history.state === 'object' && window.history.state !== null
+        ? window.history.state
+        : {};
+      window.history.pushState({ ...historyState, moneyPadReaderGuard: guardKey }, '', window.location.href);
+      guardedPartId.current = guardKey;
+    }
+
+    const handleBrowserBack = () => {
+      if (partId && part?.id === partId) {
+        const position = getScrollPosition();
+        latestScrollPosition.current = position;
+        void saveProgress(partId, position);
+      }
+      navigate('/explore', { replace: true });
+    };
+    window.addEventListener('popstate', handleBrowserBack);
+    return () => window.removeEventListener('popstate', handleBrowserBack);
+  }, [getScrollPosition, navigate, part, partId, saveProgress, storyId]);
 
   // Load data
   useEffect(() => {
@@ -176,18 +246,11 @@ export default function ReaderPage() {
     navigate(`/story/${storyId}/read/${destinationPartId}`);
   };
 
-  const handleSelectPassage = (selectedText: string) => {
-    setIsAnnotationsDrawerOpen(false);
-    if (!contentRef.current) return;
-    const elements = contentRef.current.querySelectorAll('p, h1, h2, h3, div');
-    for (const el of elements) {
-      if (el.textContent?.includes(selectedText)) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('bg-amber-100', 'transition-colors');
-        setTimeout(() => el.classList.remove('bg-amber-100'), 2500);
-        break;
-      }
-    }
+  const handleSliderChange = (position: number) => {
+    const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo({ top: scrollHeight * position, behavior: 'auto' });
+    latestScrollPosition.current = position;
+    setScrollProgress(position);
   };
 
   if (loading) return <div className="text-center p-12">Loading...</div>;
@@ -198,7 +261,7 @@ export default function ReaderPage() {
   const nextPart = currentIndex < allParts.length - 1 ? allParts[currentIndex + 1] : null;
 
   return (
-    <div className="bg-[#FAF9F6] dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen pb-24 relative">
+    <div ref={readerRef} className="bg-[#FAF9F6] dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen pb-24 relative">
       {/* Floating Indicators Container */}
       <div className="fixed top-18 right-2 sm:top-24 sm:right-8 flex flex-col items-end gap-2 z-40">
         {/* Floating Circular Reading Coins Loading Indicator */}
@@ -210,16 +273,6 @@ export default function ReaderPage() {
           isEndOfChapter={isEndOfChapter}
           latestAward={latestAward}
         />
-
-        {/* Floating Reactions Drawer Toggle Button */}
-        <button
-          onClick={() => setIsAnnotationsDrawerOpen(true)}
-          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-md sm:shadow-lg rounded-full px-3 py-1.5 flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer border border-gray-200 dark:border-slate-800"
-          title="View chapter reactions and comments"
-        >
-          <MessageSquare className="w-4 h-4 text-primary" />
-          <span className="font-medium">Reactions</span>
-        </button>
       </div>
 
       {(earningsError || completionError) && (
@@ -283,16 +336,8 @@ export default function ReaderPage() {
       </div>
 
       <ChapterSlider 
-        parts={allParts} 
-        currentPartId={partId!} 
-        onPartSelect={navigateToPart}
-      />
-
-      <ChapterAnnotationsDrawer
-        partId={partId!}
-        isOpen={isAnnotationsDrawerOpen}
-        onClose={() => setIsAnnotationsDrawerOpen(false)}
-        onSelectPassage={handleSelectPassage}
+        progress={scrollProgress}
+        onProgressChange={handleSliderChange}
       />
 
       <ActionDialog
@@ -303,9 +348,7 @@ export default function ReaderPage() {
         cancelLabel="Continue here"
         onCancel={() => {
           if (!partId) return;
-          const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-          const scrollPosition = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
-          void saveProgress(partId, scrollPosition);
+          void saveProgress(partId, latestScrollPosition.current);
         }}
         onConfirm={() => {
           const destination = resumePartId;

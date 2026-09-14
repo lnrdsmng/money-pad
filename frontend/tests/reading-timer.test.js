@@ -64,6 +64,22 @@ test('reader reaches the first reward heartbeat without continuous input', async
           { id: 'part-2', title: 'The Next Chapter', order: 2, isPublished: true },
         ]);
       }
+      if (pathname === '/api/v1/stories/continue-reading') {
+        return json([{
+          story: {
+            id: 'story-1',
+            title: 'Reader History Story',
+            authorName: 'Author',
+            coverImageUrl: null,
+          },
+          last_part_id: 'part-2',
+          last_part_title: 'The Next Chapter',
+          completed_percentage: 50,
+          is_finished: false,
+          read_count: 1,
+          total_parts: 2,
+        }]);
+      }
       if (pathname === '/api/v1/reading/start' && method === 'POST') {
         startCount += 1;
         return json({
@@ -103,6 +119,7 @@ test('reader reaches the first reward heartbeat without continuous input', async
       assert.fail(`Reader did not render. Body: ${body} Errors: ${pageErrors.join('; ')}`);
     }
     await page.waitForSelector('[title^="Reading active"]');
+    assert.equal(await page.getByRole('button', { name: /Reactions/i }).count(), 0);
 
     await page.waitForFunction(() => document.querySelector('[data-testid="reading-coin-total"]')?.textContent === '1');
 
@@ -144,6 +161,53 @@ test('reader reaches the first reward heartbeat without continuous input', async
       `dialog: ${await page.getByRole('dialog').allInnerTexts()} writes: ${JSON.stringify(progressWrites)}`,
     );
     assert.equal(progressWrites.at(-1)?.last_part_id, 'part-1');
+
+    const readingSlider = page.getByRole('slider', { name: 'Reading position' });
+    await readingSlider.fill('50');
+    await page.waitForFunction(() => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      return maxScroll > 0 && Math.abs((window.scrollY / maxScroll) - 0.5) < 0.05;
+    });
+    assert.match(page.url(), /\/story\/story-1\/read\/part-1$/);
+
+    await page.evaluate(() => {
+      const paragraph = document.querySelector('.prose p');
+      const textNode = paragraph?.firstChild;
+      if (!paragraph || !textNode) throw new Error('Reader paragraph was not found');
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, 7);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('button:has-text("Comment")');
+    assert.equal(await page.locator('button:has-text("Like")').count(), 0);
+    assert.equal(
+      await page.evaluate(() => window.getSelection()?.toString()),
+      await page.locator('.prose p').innerText(),
+    );
+    await page.getByRole('button', { name: 'Comment' }).click();
+    await page.waitForSelector('input[placeholder="Your thought on this passage..."]');
+
+    const positionBeforeBack = await page.evaluate(() => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      return window.scrollY / maxScroll;
+    });
+    await page.goBack();
+    await page.waitForURL('**/explore');
+    await page.goto(`${server.resolvedUrls.local[0]}story/story-1/read/part-1`);
+    await page.waitForSelector('h1:has-text("A Long Chapter")');
+    await page.waitForTimeout(1500);
+    const resumedPosition = await page.evaluate(() => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      return window.scrollY / maxScroll;
+    });
+    assert.ok(
+      Math.abs(resumedPosition - positionBeforeBack) < 0.05,
+      `expected resume near ${positionBeforeBack}, received ${resumedPosition}`,
+    );
   } finally {
     await browser?.close();
     await server.close();
