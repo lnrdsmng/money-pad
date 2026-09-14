@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Crown, LoaderCircle, Shield, Sparkles, Upload, X, Zap } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import type { MoneyPadPlan, PaymentMethodSetting, ReadingPlanId, PlanPurchase } from '../types/earnings';
@@ -17,6 +17,8 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const feedback = useFeedback();
+  const modalContentRef = useRef<HTMLDivElement>(null);
+  const paymentFormRef = useRef<HTMLFormElement>(null);
   const [selectedPlan, setSelectedPlan] = useState<MoneyPadPlan | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('gcash');
   const [paymentReference, setPaymentReference] = useState('');
@@ -70,9 +72,28 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
     submitMutation.mutate();
   };
 
+  const selectPlan = (plan: MoneyPadPlan) => {
+    setSelectedPlan(plan);
+
+    if (!window.matchMedia('(max-width: 639px)').matches) return;
+
+    window.requestAnimationFrame(() => {
+      const modalContent = modalContentRef.current;
+      const paymentForm = paymentFormRef.current;
+      if (!modalContent || !paymentForm) return;
+
+      const formOffset = paymentForm.getBoundingClientRect().top - modalContent.getBoundingClientRect().top;
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      modalContent.scrollTo({
+        top: modalContent.scrollTop + formOffset - 16,
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-      <div className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 shadow-xl">
+      <div ref={modalContentRef} className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 shadow-xl">
         <button type="button" onClick={onClose} disabled={submitMutation.isPending} className="absolute right-4 top-4 z-10 rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Close plans"><X /></button>
         <div className="border-b border-slate-100 dark:border-slate-800 p-4 sm:p-8 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Choose your lifetime plan</h2>
@@ -104,7 +125,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
                       <li className="flex gap-2"><Check className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />Optional withdrawal fee-waiver tasks</li>
                     )}
                   </ul>
-                  <button type="button" disabled={isCurrent || plan.id === 'free' || Boolean(pendingPurchase) || submitMutation.isPending} onClick={() => setSelectedPlan(plan)} className={`mt-auto w-full rounded-lg py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white disabled:bg-slate-200 disabled:text-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 ${planStyles[plan.id].buttonClass}`}>
+                  <button type="button" disabled={isCurrent || plan.id === 'free' || Boolean(pendingPurchase) || submitMutation.isPending} onClick={() => selectPlan(plan)} className={`mt-auto w-full rounded-lg py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white disabled:bg-slate-200 disabled:text-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 ${planStyles[plan.id].buttonClass}`}>
                     {isCurrent ? 'Active plan' : plan.id === 'free' ? 'Included' : 'Select plan'}
                   </button>
                 </article>
@@ -113,7 +134,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
           </div>
 
           {selectedPlan && !pendingPurchase && (
-            <form onSubmit={submit} className="mx-auto max-w-2xl space-y-4 sm:space-y-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 text-slate-900 dark:text-slate-100">
+            <form ref={paymentFormRef} onSubmit={submit} className="mx-auto max-w-2xl space-y-4 sm:space-y-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 text-slate-900 dark:text-slate-100">
               <div><h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Pay ₱{Number(selectedPlan.price).toFixed(2)} for {selectedPlan.name}</h3><p className="text-sm text-slate-500 dark:text-slate-400">Your plan changes only after an administrator verifies the payment.</p></div>
               <div>
                 <label className="mb-1 block text-sm font-semibold text-slate-800 dark:text-slate-200">Payment method</label>
