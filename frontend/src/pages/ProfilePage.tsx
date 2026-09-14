@@ -4,13 +4,14 @@ import type { Story } from '../types/content';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import http from '../api/http';
-import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle, Edit3, MessageSquare, BookCheck } from 'lucide-react';
+import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle, Edit3, MessageSquare, BookCheck, BookMarked } from 'lucide-react';
 import { useAuth, type User } from '../auth/AuthProvider';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { UserListModal } from '../components/profile/UserListModal';
 import { EditBioModal } from '../components/profile/EditBioModal';
 import { AuthorWall } from '../components/profile/AuthorWall';
 import { ProfileReadingShelf } from '../components/profile/ProfileReadingShelf';
+import { ProfileReadingLists } from '../components/profile/ProfileReadingLists';
 import { useFeedback } from '../components/feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
 
@@ -24,7 +25,8 @@ export default function ProfilePage() {
   const [loadError, setLoadError] = useState('');
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowPending, setIsFollowPending] = useState(false);
-  const [activeTab, setActiveTab] = useState<'works' | 'wall' | 'reading'>('works');
+  type ProfileTab = 'works' | 'wall' | 'reading' | 'readingLists';
+  const [tabState, setTabState] = useState<{ username?: string; tab: ProfileTab }>({ tab: 'works' });
 
   // Modals
   const [userListModal, setUserListModal] = useState<'followers' | 'following' | null>(null);
@@ -35,6 +37,8 @@ export default function ProfilePage() {
 
   const feedback = useFeedback();
   const isOwnProfile = currentUser?.username === username;
+  const activeTab = tabState.username === username ? tabState.tab : 'works';
+  const setActiveTab = (tab: ProfileTab) => setTabState({ username, tab });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -270,7 +274,7 @@ export default function ProfilePage() {
 
 
         {/* Profile Tabs */}
-        <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6 gap-6">
+        <div className="flex overflow-x-auto border-b border-gray-200 dark:border-slate-700 mb-6 gap-6">
           <button
             type="button"
             onClick={() => setActiveTab('works')}
@@ -309,6 +313,18 @@ export default function ProfilePage() {
               Reading History
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setActiveTab('readingLists')}
+            className={`pb-3 font-semibold text-sm sm:text-base flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'readingLists'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <BookMarked className="w-4 h-4" />
+            Reading List
+          </button>
         </div>
 
         {activeTab === 'works' ? (
@@ -346,9 +362,13 @@ export default function ProfilePage() {
           <div className="max-w-3xl">
             <AuthorWall authorId={profile.id} authorUsername={profile.username} />
           </div>
-        ) : (
+        ) : activeTab === 'reading' && isOwnProfile ? (
           <div className="mb-8">
             <ProfileReadingShelf />
+          </div>
+        ) : (
+          <div className="mb-8">
+            <ProfileReadingLists profileUserId={profile.id} isOwnProfile={Boolean(isOwnProfile)} />
           </div>
         )}
       </div>

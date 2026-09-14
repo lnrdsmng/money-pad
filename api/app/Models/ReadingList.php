@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ReadingList extends Model
 {
@@ -19,13 +21,14 @@ class ReadingList extends Model
         'id', 'name', 'description', 'userId', 'createdAt',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'userId', 'id');
     }
 
-    public function stories()
+    public function stories(): BelongsToMany
     {
-        return $this->belongsToMany(Story::class, 'reading_list_stories', 'listId', 'storyId');
+        return $this->belongsToMany(Story::class, 'reading_list_stories', 'listId', 'storyId')
+            ->withPivot('addedAt');
     }
 }

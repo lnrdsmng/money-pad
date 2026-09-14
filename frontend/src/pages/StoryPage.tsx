@@ -1,17 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, BookOpen, ArrowRight, Eye } from 'lucide-react';
+import { Heart, BookOpen, ArrowRight, Eye, BookmarkPlus } from 'lucide-react';
 import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { StoryReviewsSection } from '../components/story/StoryReviewsSection';
 import { useFeedback } from '../components/feedback/feedback';
+import { ReadingListPicker } from '../components/story/ReadingListPicker';
 
 export default function StoryPage() {
   const { storyId } = useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const feedback = useFeedback();
+  const [showReadingListPicker, setShowReadingListPicker] = useState(false);
 
   const { data: story, isLoading: loadingStory } = useQuery({
     queryKey: ['story', storyId],
@@ -141,6 +144,20 @@ export default function StoryPage() {
                 <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLiked ? 'fill-rose-500 text-rose-500' : 'text-gray-400'}`} />
                 <span>{likesCount} {likesCount === 1 ? 'Like' : 'Likes'}</span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    feedback.info('Please log in to save stories.');
+                    return;
+                  }
+                  setShowReadingListPicker(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300"
+              >
+                <BookmarkPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Add to Reading List
+              </button>
               <span className="px-2.5 py-1 bg-gray-100 dark:bg-slate-800 rounded-full font-medium">{story.isCompleted ? 'Completed' : 'Ongoing'}</span>
             </div>
 
@@ -200,6 +217,14 @@ export default function StoryPage() {
 
       {/* Reviews Section */}
       <StoryReviewsSection storyId={story.id} storyTitle={story.title} />
+
+      {showReadingListPicker && user && (
+        <ReadingListPicker
+          storyId={story.id}
+          userId={user.id}
+          onClose={() => setShowReadingListPicker(false)}
+        />
+      )}
     </div>
   );
 }
