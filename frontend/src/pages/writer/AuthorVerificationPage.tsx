@@ -192,7 +192,7 @@ export default function AuthorVerificationPage() {
           <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100 mb-1">
               <DollarSign className="w-4 h-4 text-emerald-500" />
-              ₱20 Minimum Payout
+              ₱10 Minimum Payout
             </div>
             <p className="text-xs text-gray-500">
               Enjoy lower minimum withdrawal thresholds for rapid cashouts to GCash and Maya.

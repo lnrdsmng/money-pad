@@ -74,7 +74,7 @@ export default function WriterDashboard() {
                 <VerifiedBadge size={16} />
               </h2>
               <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
-                Unlock ₱20 minimum withdrawals, $0.05 / 50 views payout rates, and priority ranking across discovery.
+                Unlock ₱10 minimum withdrawals, $0.05 / 50 views payout rates, and priority ranking across discovery.
               </p>
             </div>
           </div>
