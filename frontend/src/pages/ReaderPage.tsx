@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
 import { ArrowLeft } from 'lucide-react';
 import { useReadingTimer } from '../hooks/useReadingTimer';
@@ -18,6 +18,7 @@ import { ReadingCoinIndicator } from '../components/reader/ReadingCoinIndicator'
 export default function ReaderPage() {
   const { storyId, partId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [part, setPart] = useState<Chapter | null>(null);
   const [allParts, setAllParts] = useState<ChapterSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +110,9 @@ export default function ReaderPage() {
               ? { ...current, isCompletedByCurrentUser: true }
               : current);
             setCompletionError(null);
+            void queryClient.invalidateQueries({ queryKey: ['story', storyId] });
+            void queryClient.invalidateQueries({ queryKey: ['parts', storyId] });
+            void queryClient.invalidateQueries({ queryKey: ['referralMilestones'] });
           }
           return;
         } catch {
@@ -126,7 +130,7 @@ export default function ReaderPage() {
 
     void persistCompletion();
     return () => { disposed = true; };
-  }, [isEndOfChapter, part, partId, saveProgress]);
+  }, [isEndOfChapter, part, partId, queryClient, saveProgress, storyId]);
 
   useEffect(() => {
     restoredPartId.current = null;

@@ -33,4 +33,64 @@ class ContentIntegrityTest extends TestCase
         $response = $this->getJson("/api/v1/stories/{$part->storyId}/parts")->assertOk();
         $this->assertArrayNotHasKey('content', $response->json('0'));
     }
+
+    public function test_chapter_completion_increments_both_chapter_and_story_read_count_once_for_first_completion(): void
+    {
+        $author = User::factory()->create();
+        $reader = User::factory()->create();
+
+        $story = Story::factory()->create([
+            'authorId' => $author->id,
+            'isPublished' => true,
+            'readCount' => 0,
+        ]);
+
+        $part1 = StoryPart::factory()->create([
+            'storyId' => $story->id,
+            'isPublished' => true,
+            'readCount' => 0,
+            'order' => 1,
+        ]);
+
+        $part2 = StoryPart::factory()->create([
+            'storyId' => $story->id,
+            'isPublished' => true,
+            'readCount' => 0,
+            'order' => 2,
+        ]);
+
+        // First completion of Part 1
+        $res1 = $this->actingAs($reader)->postJson("/api/v1/parts/{$part1->id}/read");
+        $res1->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('alreadyCompleted', false)
+            ->assertJsonPath('partReadCount', 1)
+            ->assertJsonPath('storyReadCount', 1);
+
+        $this->assertEquals(1, $part1->fresh()->readCount);
+        $this->assertEquals(1, $story->fresh()->readCount);
+
+        // Re-read of Part 1 (idempotent, must not increment counts)
+        $resRetry = $this->actingAs($reader)->postJson("/api/v1/parts/{$part1->id}/read");
+        $resRetry->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('alreadyCompleted', true)
+            ->assertJsonPath('partReadCount', 1)
+            ->assertJsonPath('storyReadCount', 1);
+
+        $this->assertEquals(1, $part1->fresh()->readCount);
+        $this->assertEquals(1, $story->fresh()->readCount);
+
+        // First completion of Part 2 (increments Part 2 to 1 and parent Story to 2)
+        $res2 = $this->actingAs($reader)->postJson("/api/v1/parts/{$part2->id}/read");
+        $res2->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('alreadyCompleted', false)
+            ->assertJsonPath('partReadCount', 1)
+            ->assertJsonPath('storyReadCount', 2);
+
+        $this->assertEquals(1, $part2->fresh()->readCount);
+        $this->assertEquals(2, $story->fresh()->readCount);
+    }
 }
+

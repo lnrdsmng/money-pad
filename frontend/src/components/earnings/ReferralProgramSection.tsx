@@ -16,13 +16,18 @@ import {
   Lock,
   DollarSign,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { MockRewardedAd } from '../MockRewardedAd';
+import { RewardAdPromptModal } from '../RewardAdPromptModal';
+import { ReferralMilestoneTable } from './ReferralMilestoneTable';
 import { useFeedback } from '../feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { parseReferralInput } from '../../utils/referral';
+import type { ReferralMilestonesResponse } from '../../types/referrals';
 
 interface AuthorCommission {
   id: string;
@@ -72,12 +77,28 @@ export const ReferralProgramSection = () => {
   // Milestone inline inviter link form state
   const [inlineInviterCode, setInlineInviterCode] = useState('');
 
+  // Expanded referrals accordion state
+  const [expandedUserIds, setExpandedUserIds] = useState<Record<string, boolean>>({});
+
   // Ad watching state
   const [activeAd, setActiveAd] = useState<{
-    purpose: 'coins' | 'author_commission';
+    purpose: 'author_commission' | 'referral_tier';
     commissionId?: string;
+    tierIndex?: number;
     adEventId: string;
   } | null>(null);
+
+  // Ad explanation modal prompt state
+  const [pendingAdPrompt, setPendingAdPrompt] = useState<{
+    type: 'author_commission' | 'referral_tier';
+    commissionId?: string;
+    tierIndex?: number;
+    title: string;
+    rewardTitle: string;
+    rewardDescription: string;
+    confirmLabel?: string;
+  } | null>(null);
+
   const [startingAd, setStartingAd] = useState(false);
   const [completingAd, setCompletingAd] = useState(false);
   const [adCooldownSeconds, setAdCooldownSeconds] = useState<number | null>(null);
@@ -115,7 +136,7 @@ export const ReferralProgramSection = () => {
   }, [isEligible, signupTimestamp]);
 
   // Fetch milestones progress
-  const { data: milestonesData, isLoading: loadingMilestones } = useQuery({
+  const { data: milestonesData, isLoading: loadingMilestones } = useQuery<ReferralMilestonesResponse>({
     queryKey: ['referralMilestones', user?.id],
     queryFn: async () => {
       const res = await http.get('/referrals/milestones');
@@ -201,8 +222,9 @@ export const ReferralProgramSection = () => {
 
   // Claim milestone mutation
   const claimMilestoneMutation = useMutation({
-    mutationFn: async (tierIndex: number) => {
+    mutationFn: async ({ referredUserId, tierIndex }: { referredUserId?: string; tierIndex: number }) => {
       const res = await http.post('/referrals/claim-milestone', {
+        referred_user_id: referredUserId,
         tier_index: tierIndex,
       });
       return res.data;
@@ -235,43 +257,59 @@ export const ReferralProgramSection = () => {
     },
   });
 
-  // Start ad for milestone support
-  const handleStartMilestoneAd = async () => {
-    if (!user?.referredBy) {
-      feedback.error('Please link a valid referral username first.');
-      return;
-    }
-    if (adCooldown > 0) {
-      feedback.error(`Please wait ${adCooldown}s for cooldown.`);
-      return;
-    }
-    setStartingAd(true);
-    try {
-      const res = await http.post<{ id: string }>('/rewarded-ads', { purpose: 'coins' });
-      setActiveAd({
-        purpose: 'coins',
-        adEventId: res.data.id,
-      });
-    } catch (err) {
-      feedback.error(getApiErrorMessage(err, 'Rewarded ads are currently unavailable.'));
-    } finally {
-      setStartingAd(false);
-    }
+  // Prompt ad for milestone support
+  const handlePromptTierAd = (tierIndex: number) => {
+    setPendingAdPrompt({
+      type: 'referral_tier',
+      tierIndex,
+      title: `Watch Ad to Advance Tier ${tierIndex}!`,
+      rewardTitle: `Support @${user?.referredBy || 'Inviter'}`,
+      rewardDescription: `Contribute 1 ad toward Tier ${tierIndex} milestone requirements!`,
+      confirmLabel: 'Watch Ad to Claim',
+    });
   };
 
-  // Start ad for author commission
-  const handleStartCommissionAd = async (commissionId: string) => {
+  // Prompt ad for author commission
+  const handlePromptCommissionAd = (comm: AuthorCommission) => {
+    setPendingAdPrompt({
+      type: 'author_commission',
+      commissionId: comm.id,
+      title: 'Watch Ad for Author Commission!',
+      rewardTitle: `5% Commission (₱${Number(comm.commission_amount).toFixed(2)})`,
+      rewardDescription: `Watch to unlock cash commission for @${comm.author?.username || 'author'}'s earnings!`,
+      confirmLabel: 'Watch Ad to Claim',
+    });
+  };
+
+  // Start prompted ad once user confirms in explanation modal
+  const handleStartPromptedAd = async () => {
+    if (!pendingAdPrompt) return;
+    const prompt = pendingAdPrompt;
+    setPendingAdPrompt(null);
     setStartingAd(true);
+
     try {
-      const res = await http.post<{ id: string }>('/rewarded-ads', {
-        purpose: 'author_commission',
-        target_id: commissionId,
-      });
-      setActiveAd({
-        purpose: 'author_commission',
-        commissionId,
-        adEventId: res.data.id,
-      });
+      if (prompt.type === 'author_commission' && prompt.commissionId) {
+        const res = await http.post<{ id: string }>('/rewarded-ads', {
+          purpose: 'author_commission',
+          target_id: prompt.commissionId,
+        });
+        setActiveAd({
+          purpose: 'author_commission',
+          commissionId: prompt.commissionId,
+          adEventId: res.data.id,
+        });
+      } else if (prompt.type === 'referral_tier' && prompt.tierIndex) {
+        const res = await http.post<{ id: string }>('/rewarded-ads', {
+          purpose: 'referral_tier',
+          target_id: String(prompt.tierIndex),
+        });
+        setActiveAd({
+          purpose: 'referral_tier',
+          tierIndex: prompt.tierIndex,
+          adEventId: res.data.id,
+        });
+      }
     } catch (err) {
       feedback.error(getApiErrorMessage(err, 'Rewarded ads are currently unavailable.'));
     } finally {
@@ -289,15 +327,12 @@ export const ReferralProgramSection = () => {
       await http.post(`/rewarded-ads/${activeAd.adEventId}/mock-verify`);
 
       // 2. Consume based on purpose
-      if (activeAd.purpose === 'coins') {
-        const res = await http.post('/transactions/ad-watch', {
+      if (activeAd.purpose === 'referral_tier' && activeAd.tierIndex) {
+        const res = await http.post(`/referrals/tiers/${activeAd.tierIndex}/watch-ad`, {
           ad_event_id: activeAd.adEventId,
         });
-        setAdCooldownSeconds(res.data.cooldown_remaining || 60);
-        if (res.data.user) updateUser(res.data.user);
-        queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
         queryClient.invalidateQueries({ queryKey: ['referralMilestones', user?.id] });
-        feedback.success(`Earned ${res.data.rewardCoins || 2} Reader Coins & contributed to milestone!`);
+        feedback.success(res.data.message || `Tier ${activeAd.tierIndex} ad progress recorded!`);
       } else if (activeAd.purpose === 'author_commission' && activeAd.commissionId) {
         const res = await http.post(`/referrals/author-commissions/${activeAd.commissionId}/watch-ad`, {
           ad_event_id: activeAd.adEventId,
@@ -327,7 +362,6 @@ export const ReferralProgramSection = () => {
     }
   };
 
-  const tiers = milestonesData?.tiers || [];
   const commissions = commissionsData?.commissions || [];
   const commissionSummary = commissionsData?.summary;
 
@@ -606,7 +640,7 @@ export const ReferralProgramSection = () => {
                       ) : isPending ? (
                         <button
                           type="button"
-                          onClick={() => handleStartCommissionAd(comm.id)}
+                          onClick={() => handlePromptCommissionAd(comm)}
                           disabled={startingAd}
                           className="w-full sm:w-auto px-3.5 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
                         >
@@ -625,34 +659,35 @@ export const ReferralProgramSection = () => {
         )}
       </div>
 
-      {/* ACTIVITY MILESTONE REWARDS (TASK 4) */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-xs">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+      {/* ACTIVITY MILESTONE REWARDS */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
             <h3 className="font-bold text-base sm:text-lg text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Coins className="w-5 h-5 text-amber-500" />
               Activity Milestone Rewards
             </h3>
             <p className="text-xs text-gray-500">
-              Track chapters read and ads watched by your referred friends. Claim coins as milestones unlock!
+              Track chapters read and ads watched by your referred friends. Each friend has independent tier milestones!
             </p>
           </div>
 
           {milestonesData && (
             <div className="flex gap-4 text-xs font-semibold text-gray-600 dark:text-gray-400">
+              <span>Friends: <strong className="text-primary">{milestonesData.referrals?.length ?? milestonesData.referralCount}</strong></span>
               <span>Chapters: <strong className="text-primary">{milestonesData.totalChaptersRead}</strong></span>
               <span>Ads: <strong className="text-primary">{milestonesData.totalAdsWatched}</strong></span>
             </div>
           )}
         </div>
 
-        {/* INTERACTIVE ACTION AREA: CONTRIBUTE & PROGRESS MILESTONES (TASK 4) */}
-        <div className="mb-6 p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-900/40">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        {/* SECTION 1: SUPPORTING INVITER (IF REFEREE) OR LINK FORM */}
+        <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-900/40">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-3">
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-900 dark:text-gray-100">
-                  Contribute to Milestones
+                  Your Support Contribution
                 </span>
                 {user?.referredBy ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
@@ -668,165 +703,191 @@ export const ReferralProgramSection = () => {
               </div>
               <p className="text-[11px] text-gray-500 mt-1 max-w-xl">
                 {user?.referredBy
-                  ? `Watching ads and reading chapters directly contributes to @${user.referredBy}'s milestone progress while earning you instant Reader Coins!`
-                  : 'Link a referral username to unlock milestone ad watching and support your inviter as you read and watch ads.'}
+                  ? `Reading chapters and watching milestone ads contributes to unlocking coins for @${user.referredBy}. Advance your current active tier below!`
+                  : 'Link your inviter to contribute to milestone tiers and support them as you read and watch ads.'}
               </p>
             </div>
 
-            {/* Action Buttons / Link Form */}
-            <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-              {user?.referredBy ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleStartMilestoneAd}
-                    disabled={startingAd || adCooldown > 0}
-                    className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-green-600 transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
-                  >
-                    {startingAd ? (
-                      <LoaderCircle className="w-4 h-4 animate-spin" />
-                    ) : adCooldown > 0 ? (
-                      <Clock className="w-4 h-4" />
-                    ) : (
-                      <Tv className="w-4 h-4" />
-                    )}
-                    {adCooldown > 0
-                      ? `Cooldown (${adCooldown}s)`
-                      : 'Watch Ad (+2 Coins & Support)'}
-                  </button>
-
-                  <Link
-                    to="/explore"
-                    className="px-3.5 py-2 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold hover:bg-gray-50 dark:hover:bg-slate-700 transition flex items-center gap-1.5"
-                  >
-                    <BookOpen className="w-4 h-4 text-primary" />
-                    Read Stories (+1 Ch)
-                  </Link>
-                </>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (inlineInviterCode.trim()) {
-                        linkInviterMutation.mutate(inlineInviterCode);
+            {/* If no inviter linked, show linking form */}
+            {!user?.referredBy && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (inlineInviterCode.trim()) {
+                      linkInviterMutation.mutate(inlineInviterCode);
+                    }
+                  }}
+                  className="flex gap-1.5"
+                >
+                  <input
+                    type="text"
+                    placeholder="Inviter's username"
+                    value={inlineInviterCode}
+                    onChange={(e) => setInlineInviterCode(parseReferralInput(e.target.value))}
+                    onPaste={(e) => {
+                      const pasted = e.clipboardData.getData('text');
+                      const parsed = parseReferralInput(pasted);
+                      if (parsed && parsed !== pasted) {
+                        e.preventDefault();
+                        setInlineInviterCode(parsed);
                       }
                     }}
-                    className="flex gap-1.5"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Inviter's username"
-                      value={inlineInviterCode}
-                      onChange={(e) => setInlineInviterCode(parseReferralInput(e.target.value))}
-                      onPaste={(e) => {
-                        const pasted = e.clipboardData.getData('text');
-                        const parsed = parseReferralInput(pasted);
-                        if (parsed && parsed !== pasted) {
-                          e.preventDefault();
-                          setInlineInviterCode(parsed);
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-xs border border-gray-200 dark:border-slate-700 placeholder:text-gray-400 focus:outline-none w-36 sm:w-44"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!inlineInviterCode.trim() || linkInviterMutation.isPending}
-                      className="px-3 py-1.5 bg-gray-900 text-white dark:bg-slate-700 rounded-lg text-xs font-bold hover:bg-black transition disabled:opacity-50 cursor-pointer flex items-center gap-1 shrink-0"
-                    >
-                      {linkInviterMutation.isPending ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : 'Link'}
-                    </button>
-                  </form>
-
+                    className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-xs border border-gray-200 dark:border-slate-700 placeholder:text-gray-400 focus:outline-none w-36 sm:w-44"
+                  />
                   <button
-                    type="button"
-                    disabled
-                    title="Link a referral username first to unlock ad watching for milestones"
-                    className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-400 rounded-xl text-xs font-medium border border-gray-200 dark:border-slate-700 flex items-center gap-1.5 cursor-not-allowed opacity-75"
+                    type="submit"
+                    disabled={!inlineInviterCode.trim() || linkInviterMutation.isPending}
+                    className="px-3 py-1.5 bg-gray-900 text-white dark:bg-slate-700 rounded-lg text-xs font-bold hover:bg-black transition disabled:opacity-50 cursor-pointer flex items-center gap-1 shrink-0"
                   >
-                    <Lock className="w-3.5 h-3.5" />
-                    Watch Ad (Locked)
+                    {linkInviterMutation.isPending ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : 'Link'}
                   </button>
-                </div>
-              )}
-            </div>
+                </form>
+              </div>
+            )}
           </div>
+
+          {/* If user is supporting someone, show their supporting tiers table */}
+          {user?.referredBy && milestonesData?.supporting && (
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Active Tier: <strong className="text-gray-900 dark:text-gray-100 font-semibold">Tier {milestonesData.supporting.activeTier}</strong></span>
+                <Link
+                  to="/explore"
+                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs"
+                >
+                  <BookOpen className="w-3.5 h-3.5" /> Read Stories to progress
+                </Link>
+              </div>
+              <ReferralMilestoneTable
+                tiers={milestonesData.supporting.tiers}
+                mode="referee"
+                onWatchAd={handlePromptTierAd}
+                isStartingAd={startingAd}
+              />
+            </div>
+          )}
         </div>
 
-        {/* MILESTONE TIERS TABLE */}
-        {loadingMilestones ? (
-          <div className="text-center py-8 text-xs text-gray-500">Loading milestone progress...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-slate-700 text-gray-400 uppercase tracking-wider">
-                  <th className="py-3 px-3 font-semibold">Tier</th>
-                  <th className="py-3 px-3 font-semibold">Requirements</th>
-                  <th className="py-3 px-3 font-semibold">Progress</th>
-                  <th className="py-3 px-3 font-semibold">Reward</th>
-                  <th className="py-3 px-3 font-semibold text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700/60">
-                {tiers.map((tier: any) => (
-                  <tr key={tier.tier} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="py-3.5 px-3 font-bold text-gray-900 dark:text-gray-100">
-                      Tier {tier.tier}
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-600 dark:text-gray-300">
-                      {tier.targetChapters} chapters + {tier.targetAds} ads
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 sm:w-28 h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all"
-                            style={{
-                              width: `${Math.min(
-                                100,
-                                ((tier.currentChapters / tier.targetChapters) * 50) +
-                                ((tier.currentAds / tier.targetAds) * 50)
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-[10px] whitespace-nowrap">
-                          {tier.currentChapters}/{tier.targetChapters} ch • {tier.currentAds}/{tier.targetAds} ads
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3 font-bold text-amber-500 flex items-center gap-1">
-                      <Coins className="w-3.5 h-3.5" />
-                      +{tier.coins} Coins
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      {tier.isClaimed ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400">
-                          Claimed <Check className="w-3 h-3" />
-                        </span>
-                      ) : tier.canClaim ? (
-                        <button
-                          type="button"
-                          onClick={() => claimMilestoneMutation.mutate(tier.tier)}
-                          disabled={claimMilestoneMutation.isPending}
-                          className="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition shadow-xs cursor-pointer disabled:opacity-50"
-                        >
-                          Claim Reward
-                        </button>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-gray-50 text-gray-400 border border-gray-200 dark:border-slate-700">
-                          In Progress
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* SECTION 2: REFERRED FRIENDS' PROGRESS (REFERRER VIEW) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Referred Friends' Milestone Progress
+            </h4>
+            <span className="text-xs text-gray-400">
+              {milestonesData?.referrals?.length ?? 0} friends invited
+            </span>
           </div>
-        )}
+
+          {loadingMilestones ? (
+            <div className="text-center py-8 text-xs text-gray-500">Loading milestone progress...</div>
+          ) : !milestonesData?.referrals || milestonesData.referrals.length === 0 ? (
+            <div className="text-center py-8 px-4 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/30">
+              <Users className="w-8 h-8 text-gray-400 mx-auto mb-2 opacity-50" />
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">No Referred Friends Yet</p>
+              <p className="text-[11px] text-gray-500 max-w-md mx-auto mt-1">
+                Share your referral link above! Each friend who joins and reads unlocks milestone rewards across 6 tiers up to 550 coins.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {milestonesData.referrals.map((referee) => {
+                const isExpanded = expandedUserIds[referee.id] ?? true;
+                const completedCount = referee.tiers.filter((t) => t.isClaimed).length;
+                const canClaimAny = referee.tiers.some((t) => t.canClaim);
+
+                return (
+                  <div
+                    key={referee.id}
+                    className="border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 transition-shadow hover:shadow-xs"
+                  >
+                    {/* Header / Accordion trigger */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedUserIds((prev) => ({
+                          ...prev,
+                          [referee.id]: !isExpanded,
+                        }))
+                      }
+                      className="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-gray-50/70 dark:hover:bg-slate-700/40 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0 overflow-hidden border border-primary/20 text-xs">
+                          {referee.profileImageUrl ? (
+                            <img src={referee.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            (referee.username || 'U')[0].toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">
+                              @{referee.username}
+                            </span>
+                            {referee.isVerified && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                            )}
+                          </div>
+                          <span className="text-[10px] text-gray-400">
+                            {completedCount}/6 Tiers Completed {referee.activeTier <= 6 ? `• Active: Tier ${referee.activeTier}` : '• All Completed'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {canClaimAny && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 animate-pulse">
+                            <Sparkles className="w-3 h-3" /> Reward Ready
+                          </span>
+                        )}
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Body: Milestone Table */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-slate-700/50 bg-gray-50/20 dark:bg-slate-900/20">
+                        <ReferralMilestoneTable
+                          tiers={referee.tiers}
+                          mode="referrer"
+                          onClaim={(tier) =>
+                            claimMilestoneMutation.mutate({
+                              referredUserId: referee.id,
+                              tierIndex: tier,
+                            })
+                          }
+                          isClaiming={claimMilestoneMutation.isPending}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* EXPLANATION MODAL (BEFORE WATCHING AD) */}
+      {pendingAdPrompt && (
+        <RewardAdPromptModal
+          isOpen={!!pendingAdPrompt}
+          onClose={() => setPendingAdPrompt(null)}
+          onWatchAd={handleStartPromptedAd}
+          title={pendingAdPrompt.title}
+          rewardTitle={pendingAdPrompt.rewardTitle}
+          rewardDescription={pendingAdPrompt.rewardDescription}
+          confirmLabel={pendingAdPrompt.confirmLabel || 'Watch Ad to Claim'}
+          isPending={startingAd}
+        />
+      )}
 
       {/* REWARDED AD MODAL (for milestone ads or author commission ads) */}
       {activeAd && (

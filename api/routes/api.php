@@ -146,6 +146,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/referrals/link', [ReferralController::class, 'linkReferrer']);
         Route::get('/referrals/milestones', [ReferralController::class, 'milestones']);
         Route::post('/referrals/claim-milestone', [ReferralController::class, 'claimMilestone']);
+        Route::post('/referrals/tiers/{tierIndex}/watch-ad', [ReferralController::class, 'watchTierAd']);
         Route::get('/referrals/author-commissions', [AuthorCommissionController::class, 'index']);
         Route::post('/referrals/author-commissions/{id}/watch-ad', [AuthorCommissionController::class, 'watchAd']);
         Route::post('/referrals/author-commissions/{id}/claim', [AuthorCommissionController::class, 'claim']);

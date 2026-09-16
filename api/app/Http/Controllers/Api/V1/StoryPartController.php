@@ -140,6 +140,8 @@ class StoryPartController extends Controller
 
             if ($read->wasRecentlyCreated) {
                 $part->increment('readCount');
+                Story::where('id', $part->storyId)->increment('readCount');
+                app(\App\Services\ReferralService::class)->recordChapterRead($userId);
             }
 
             $sessionIds = ReadingSession::query()
@@ -159,9 +161,14 @@ class StoryPartController extends Controller
                     ->delete();
             }
 
+            $partReadCount = (int) DB::table('story_parts')->where('id', $partId)->value('readCount');
+            $storyReadCount = (int) DB::table('stories')->where('id', $part->storyId)->value('readCount');
+
             return response()->json([
                 'success' => true,
                 'alreadyCompleted' => ! $read->wasRecentlyCreated,
+                'partReadCount' => $partReadCount,
+                'storyReadCount' => $storyReadCount,
             ]);
         }, 3);
     }

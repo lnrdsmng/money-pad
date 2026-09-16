@@ -4,6 +4,7 @@ import { Tv, Sparkles, Clock, LoaderCircle } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { MockRewardedAd } from '../MockRewardedAd';
+import { RewardAdPromptModal } from '../RewardAdPromptModal';
 import { useFeedback } from '../feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -22,6 +23,7 @@ export function WatchAdsTaskSection() {
 
   const [adEventId, setAdEventId] = useState<string | null>(null);
   const [startingAd, setStartingAd] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState<number | null>(null);
 
@@ -117,7 +119,7 @@ export function WatchAdsTaskSection() {
           ) : (
             <button
               type="button"
-              onClick={() => void startAd()}
+              onClick={() => setShowPrompt(true)}
               disabled={isLoading || startingAd || watchAdMutation.isPending || !status?.can_watch}
               className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-primary-hover active:scale-98 transition-all disabled:opacity-50 cursor-pointer"
             >
@@ -137,11 +139,27 @@ export function WatchAdsTaskSection() {
         </div>
       </div>
 
+      <RewardAdPromptModal
+        isOpen={showPrompt}
+        onClose={() => setShowPrompt(false)}
+        onWatchAd={() => {
+          setShowPrompt(false);
+          void startAd();
+        }}
+        title="Watch an Ad and Claim 2 Coins!"
+        rewardTitle="+2 Reader Coins"
+        rewardDescription="Earn 2 Reader Coins added straight to your balance!"
+        confirmLabel="Watch Ad to Claim"
+        isPending={startingAd}
+      />
+
       {showAd && (
         <MockRewardedAd
           onComplete={() => watchAdMutation.mutate()}
           onCancel={() => setShowAd(false)}
           isCompleting={watchAdMutation.isPending}
+          completingLabel="Crediting coins..."
+          claimLabel="Claim 2 coins"
         />
       )}
     </section>

@@ -55,6 +55,17 @@ class RewardedAdService
                 $commission = AuthorReferralCommission::whereKey($target)->where('referrer_id', $user->id)->firstOrFail();
                 abort_if($commission->status === 'claimed', 422, 'The commission has already been claimed.');
                 abort_if($commission->ads_watched >= $commission->required_ads, 422, 'All required ads have already been watched.');
+            } elseif ($purpose === 'referral_tier') {
+                abort_unless($user->referrer_id, 422, 'No referral linked to this account.');
+                $tierIndex = (int) $target;
+                $tierConfig = config("moneypad.referral_milestones.{$tierIndex}");
+                abort_unless($tierConfig, 422, 'Invalid milestone tier.');
+
+                $activeTier = app(ReferralService::class)->getActiveTierForReferee($user->referrer_id, $user->id);
+                abort_if($tierIndex !== $activeTier, 422, 'This tier is not currently active for ad watching.');
+
+                $progress = app(ReferralService::class)->getProgressForTier($user->referrer_id, $user->id, $tierIndex);
+                abort_if($progress && $progress->ads_watched >= $tierConfig['ads'], 422, 'All required ads for this tier have already been watched.');
             }
             $existing = RewardedAdEvent::where('user_id', $user->id)->where('purpose', $purpose)
                 ->where('target_id', $target)->whereNull('consumed_at')->where('expires_at', '>', now())->first();

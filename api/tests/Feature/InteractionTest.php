@@ -37,7 +37,10 @@ class InteractionTest extends TestCase
         $res = $this->actingAs($reader)->postJson("/api/v1/stories/{$story->id}/like", [
             'userId' => $reader->id,
         ]);
-        $res->assertOk()->assertJsonPath('newLikes', 1);
+        $res->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('isLiked', true)
+            ->assertJsonPath('newLikes', 1);
 
         $story->refresh();
         $this->assertEquals(1, $story->likes);
@@ -50,7 +53,7 @@ class InteractionTest extends TestCase
             'storyId' => $story->id,
         ]);
 
-        // Check isLiked
+        // Check isLiked endpoint
         $isLikedRes = $this->actingAs($reader)->getJson("/api/v1/stories/{$story->id}/is-liked?userId={$reader->id}");
         $isLikedRes->assertOk()->assertJsonPath('isLiked', true);
 
@@ -58,9 +61,38 @@ class InteractionTest extends TestCase
         $unlikeRes = $this->actingAs($reader)->postJson("/api/v1/stories/{$story->id}/like", [
             'userId' => $reader->id,
         ]);
-        $unlikeRes->assertOk()->assertJsonPath('newLikes', 0);
+        $unlikeRes->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('isLiked', false)
+            ->assertJsonPath('newLikes', 0);
         $story->refresh();
         $this->assertEquals(0, $story->likes);
+
+        // Like again (verify toggle back works and deletes/inserts composite key properly)
+        $relikeRes = $this->actingAs($reader)->postJson("/api/v1/stories/{$story->id}/like", [
+            'userId' => $reader->id,
+        ]);
+        $relikeRes->assertOk()
+            ->assertJsonPath('isLiked', true)
+            ->assertJsonPath('newLikes', 1);
+        $story->refresh();
+        $this->assertEquals(1, $story->likes);
+
+        // Second user likes -> count becomes 2
+        $reader2 = User::factory()->create(['username' => 'reader2_like']);
+        $reader2Res = $this->actingAs($reader2)->postJson("/api/v1/stories/{$story->id}/like", [
+            'userId' => $reader2->id,
+        ]);
+        $reader2Res->assertOk()
+            ->assertJsonPath('isLiked', true)
+            ->assertJsonPath('newLikes', 2);
+        $this->assertEquals(2, $story->fresh()->likes);
+
+        // Reader 1 unlikes -> count becomes 1, Reader 2 is still liked
+        $this->actingAs($reader)->postJson("/api/v1/stories/{$story->id}/like", ['userId' => $reader->id]);
+        $this->assertEquals(1, $story->fresh()->likes);
+        $this->actingAs($reader2)->getJson("/api/v1/stories/{$story->id}/is-liked?userId={$reader2->id}")
+            ->assertOk()->assertJsonPath('isLiked', true);
     }
 
     public function test_story_reviews_submission_and_notification(): void

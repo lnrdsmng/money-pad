@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import http from '../api/http';
 import { X, Play, FastForward, CheckCircle, LoaderCircle, Sparkles, PartyPopper } from 'lucide-react';
 import { MockRewardedAd } from './MockRewardedAd';
+import { RewardAdPromptModal } from './RewardAdPromptModal';
 import { useFeedback } from './feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
 import type { WithdrawalPolicy, WithdrawalRequest } from '../types/withdrawals';
@@ -10,6 +11,7 @@ import type { WithdrawalPolicy, WithdrawalRequest } from '../types/withdrawals';
 export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string; onClose: () => void }) => {
   const [adEventId, setAdEventId] = useState<string | null>(null);
   const [startingAd, setStartingAd] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const feedback = useFeedback();
 
@@ -167,9 +169,9 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
 
               <div className="space-y-3">
                 <button
-                  onClick={() => void startAd()}
+                  onClick={() => setShowPrompt(true)}
                   disabled={startingAd || !policy?.rewarded_ads_available || skipAdsMutation.isPending || watchAdMutation.isPending}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-bold text-white text-sm hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-bold text-white text-sm hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60 transition-colors cursor-pointer"
                 >
                   <Play className="w-4 h-4" />
                   <span>{policy?.rewarded_ads_available ? 'Complete In-App Task (Ad)' : 'Rewarded ads unavailable'}</span>
@@ -189,11 +191,27 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
         </div>
       </div>
 
+      <RewardAdPromptModal
+        isOpen={showPrompt}
+        onClose={() => setShowPrompt(false)}
+        onWatchAd={() => {
+          setShowPrompt(false);
+          void startAd();
+        }}
+        title="Complete Task to Waive Fee!"
+        rewardTitle="Waive Platform Fee"
+        rewardDescription={`Complete in-app tasks (${(req?.ads_watched_count || 0) + 1}/10) to waive the ₱${platformFee.toFixed(2)} fee!`}
+        confirmLabel="Watch Ad to Claim"
+        isPending={startingAd}
+      />
+
       {showAd && (
         <MockRewardedAd
           onComplete={() => watchAdMutation.mutate()}
           onCancel={() => setShowAd(false)}
           isCompleting={watchAdMutation.isPending}
+          completingLabel="Recording task..."
+          claimLabel="Confirm task completion"
         />
       )}
     </div>

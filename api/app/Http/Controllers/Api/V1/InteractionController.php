@@ -317,37 +317,56 @@ class InteractionController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $story = Story::findOrFail($storyId);
         $userId = $validated['userId'];
 
-        $existingLike = UserStoryLike::where('userId', $userId)->where('storyId', $storyId)->first();
+        return DB::transaction(function () use ($request, $storyId, $userId) {
+            $story = Story::whereKey($storyId)->lockForUpdate()->firstOrFail();
+            $deleted = DB::table('user_story_likes')
+                ->where('userId', $userId)
+                ->where('storyId', $storyId)
+                ->delete();
 
-        if ($existingLike) {
-            $existingLike->delete();
-            $story->decrement('likes');
-        } else {
-            UserStoryLike::create(['userId' => $userId, 'storyId' => $storyId]);
-            $story->increment('likes');
-
-            if ($story->authorId !== $userId) {
-                Notification::create([
-                    'id' => Str::uuid()->toString(),
-                    'userId' => $story->authorId,
-                    'type' => 'LIKE',
-                    'actorId' => $userId,
-                    'actorName' => $request->user()->username,
-                    'actorProfileImageUrl' => $request->user()->profileImageUrl,
-                    'storyId' => $story->id,
-                    'storyTitle' => $story->title,
-                    'content' => $request->user()->username.' liked your story "'.$story->title.'"',
-                    'timestamp' => time() * 1000,
-                    'isRead' => false,
-                    'isActorVerified' => (bool) $request->user()->isVerified,
+            if ($deleted > 0) {
+                DB::table('stories')
+                    ->where('id', $storyId)
+                    ->update(['likes' => DB::raw('CASE WHEN likes > 0 THEN likes - 1 ELSE 0 END')]);
+                $isLiked = false;
+            } else {
+                DB::table('user_story_likes')->insertOrIgnore([
+                    'userId' => $userId,
+                    'storyId' => $storyId,
                 ]);
-            }
-        }
+                DB::table('stories')
+                    ->where('id', $storyId)
+                    ->increment('likes');
+                $isLiked = true;
 
-        return response()->json(['success' => true, 'newLikes' => $story->likes]);
+                if ($story->authorId !== $userId) {
+                    Notification::create([
+                        'id' => Str::uuid()->toString(),
+                        'userId' => $story->authorId,
+                        'type' => 'LIKE',
+                        'actorId' => $userId,
+                        'actorName' => $request->user()->username,
+                        'actorProfileImageUrl' => $request->user()->profileImageUrl,
+                        'storyId' => $story->id,
+                        'storyTitle' => $story->title,
+                        'content' => $request->user()->username.' liked your story "'.$story->title.'"',
+                        'timestamp' => time() * 1000,
+                        'isRead' => false,
+                        'isActorVerified' => (bool) $request->user()->isVerified,
+                    ]);
+                }
+            }
+
+            $newLikes = (int) DB::table('stories')->where('id', $storyId)->value('likes');
+
+            return response()->json([
+                'success' => true,
+                'isLiked' => $isLiked,
+                'newLikes' => $newLikes,
+            ]);
+        }, 3);
     }
 
     public function isStoryLiked(Request $request, $storyId)

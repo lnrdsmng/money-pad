@@ -69,7 +69,7 @@ export default function StoryPartsPage() {
         <div>
           <Link to="/writer" className="text-xs sm:text-sm text-gray-500 hover:text-primary mb-1 sm:mb-2 inline-block">&larr; Back to Dashboard</Link>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 break-words">
-            Chapters: {story?.title}
+            {story?.title}
           </h1>
         </div>
         <button

@@ -72,6 +72,14 @@ export default function StoryPage() {
 
       return { prevStory, prevLikeStatus };
     },
+    onSuccess: (data) => {
+      if (typeof data?.isLiked === 'boolean') {
+        queryClient.setQueryData(['story', storyId, 'isLiked', user?.id], { isLiked: data.isLiked });
+      }
+      if (typeof data?.newLikes === 'number') {
+        queryClient.setQueryData(['story', storyId], (prev: any) => (prev ? { ...prev, likes: data.newLikes } : prev));
+      }
+    },
     onError: (_err, _vars, context) => {
       if (context?.prevStory) {
         queryClient.setQueryData(['story', storyId], context.prevStory);

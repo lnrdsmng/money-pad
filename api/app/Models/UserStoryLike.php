@@ -13,4 +13,17 @@ class UserStoryLike extends Pivot
     public $timestamps = false;
 
     protected $fillable = ['userId', 'storyId'];
+
+    /**
+     * Set the keys for a save or delete query on this composite key model.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function setKeysForSaveQuery($query)
+    {
+        return $query
+            ->where('userId', $this->getAttribute('userId') ?? ($this->original['userId'] ?? null))
+            ->where('storyId', $this->getAttribute('storyId') ?? ($this->original['storyId'] ?? null));
+    }
 }

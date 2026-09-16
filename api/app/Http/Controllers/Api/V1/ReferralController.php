@@ -36,9 +36,20 @@ class ReferralController extends Controller
 
     public function claimMilestone(Request $request): JsonResponse
     {
-        $data = $request->validate(['tier_index' => 'required|integer|min:1|max:6']);
-        $user = $this->referrals->claimMilestone($request->user(), (int) $data['tier_index']);
+        $data = $request->validate([
+            'tier_index' => 'required|integer|min:1|max:6',
+            'referred_user_id' => 'nullable|string|max:50',
+        ]);
+        $user = $this->referrals->claimMilestone($request->user(), $data['referred_user_id'] ?? null, (int) $data['tier_index']);
 
         return response()->json(['success' => true, 'message' => 'Milestone claimed successfully.', 'readerCoins' => $user->readerCoins]);
+    }
+
+    public function watchTierAd(Request $request, int $tierIndex): JsonResponse
+    {
+        $data = $request->validate(['ad_event_id' => 'required|string|max:50']);
+        $result = $this->referrals->recordTierAd($request->user(), $tierIndex, $data['ad_event_id']);
+
+        return response()->json($result);
     }
 }

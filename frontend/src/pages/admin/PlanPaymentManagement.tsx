@@ -31,6 +31,7 @@ export function PlanPaymentManagement() {
   const deferredSearch = useDeferredValue(search);
   const [purchaseToReject, setPurchaseToReject] = useState<AdminPurchase | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [purchaseToApprove, setPurchaseToApprove] = useState<AdminPurchase | null>(null);
   const [openingProofId, setOpeningProofId] = useState<string | null>(null);
   const purchasesQuery = useQuery<{ data: AdminPurchase[] }>({
     queryKey: ['admin', 'plan-purchases', status, deferredSearch],
@@ -46,6 +47,7 @@ export function PlanPaymentManagement() {
       (await http.post(`/admin/plan-purchases/${id}/${action}`, reason ? { reason } : {})).data,
     onSuccess: async (_data, variables) => {
       setPurchaseToReject(null);
+      setPurchaseToApprove(null);
       setRejectionReason('');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'plan-purchases'] });
       feedback.success(variables.action === 'approve' ? 'Plan payment approved.' : 'Plan payment rejected.');
@@ -157,7 +159,7 @@ export function PlanPaymentManagement() {
                   <td className="px-4 py-4"><p className="font-medium capitalize">{purchase.plan_type.replaceAll('_', ' ')}</p><p className="text-slate-500 dark:text-slate-400">₱{Number(purchase.amount).toFixed(2)}</p></td>
                   <td className="px-4 py-4"><p className="font-medium uppercase">{purchase.payment_method}</p>{purchase.payment_reference ? <p className="break-all text-slate-600 dark:text-slate-300 text-xs">Ref: <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{purchase.payment_reference}</span></p> : <p className="text-xs text-slate-400 dark:text-slate-500">No ref provided</p>}</td>
                   <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{new Date(purchase.submitted_at).toLocaleString()}</td>
-                  <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><button type="button" disabled={openingProofId !== null} aria-busy={openingProofId === purchase.id} onClick={() => void openProof(purchase)} className="inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer">{openingProofId === purchase.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}{openingProofId === purchase.id ? 'Opening...' : 'Proof'}</button>{status === 'pending_review' && <><button type="button" disabled={reviewMutation.isPending} aria-busy={reviewMutation.isPending && reviewMutation.variables?.id === purchase.id && reviewMutation.variables.action === 'approve'} onClick={() => reviewMutation.mutate({ id: purchase.id, action: 'approve' })} className="inline-flex items-center gap-1 rounded bg-emerald-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer">{reviewMutation.isPending && reviewMutation.variables?.id === purchase.id && reviewMutation.variables.action === 'approve' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Approve</button><button type="button" disabled={reviewMutation.isPending} onClick={() => reject(purchase)} className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"><XCircle className="h-4 w-4" />Reject</button></>}</div>{purchase.rejection_reason && <p className="mt-2 max-w-xs text-xs text-red-700 dark:text-red-400">{purchase.rejection_reason}</p>}</td>
+                  <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><button type="button" disabled={openingProofId !== null} aria-busy={openingProofId === purchase.id} onClick={() => void openProof(purchase)} className="inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer">{openingProofId === purchase.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}{openingProofId === purchase.id ? 'Opening...' : 'Proof'}</button>{status === 'pending_review' && <><button type="button" disabled={reviewMutation.isPending} onClick={() => setPurchaseToApprove(purchase)} className="inline-flex items-center gap-1 rounded bg-emerald-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"><CheckCircle2 className="h-4 w-4" />Approve</button><button type="button" disabled={reviewMutation.isPending} onClick={() => reject(purchase)} className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"><XCircle className="h-4 w-4" />Reject</button></>}</div>{purchase.rejection_reason && <p className="mt-2 max-w-xs text-xs text-red-700 dark:text-red-400">{purchase.rejection_reason}</p>}</td>
                 </tr>
               ))}
             </tbody>
@@ -237,6 +239,30 @@ export function PlanPaymentManagement() {
         onConfirm={() => {
           if (purchaseToReject && rejectionReason.trim()) {
             reviewMutation.mutate({ id: purchaseToReject.id, action: 'reject', reason: rejectionReason.trim() });
+          }
+        }}
+      />
+
+      <ActionDialog
+        open={Boolean(purchaseToApprove)}
+        title="Approve plan payment?"
+        description={
+          purchaseToApprove
+            ? `Are you sure you want to approve ${purchaseToApprove.user.username}'s payment of ₱${Number(purchaseToApprove.amount).toFixed(2)} for the ${purchaseToApprove.plan_type.replaceAll('_', ' ')} plan?`
+            : ''
+        }
+        confirmLabel="Approve payment"
+        pendingLabel="Approving..."
+        tone="default"
+        isPending={reviewMutation.isPending && reviewMutation.variables?.action === 'approve'}
+        onCancel={() => {
+          if (!reviewMutation.isPending) {
+            setPurchaseToApprove(null);
+          }
+        }}
+        onConfirm={() => {
+          if (purchaseToApprove) {
+            reviewMutation.mutate({ id: purchaseToApprove.id, action: 'approve' });
           }
         }}
       />

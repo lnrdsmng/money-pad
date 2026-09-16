@@ -5,9 +5,17 @@ interface MockRewardedAdProps {
   onComplete: () => void;
   onCancel?: () => void;
   isCompleting?: boolean;
+  completingLabel?: string;
+  claimLabel?: string;
 }
 
-export const MockRewardedAd = ({ onComplete, onCancel, isCompleting = false }: MockRewardedAdProps) => {
+export const MockRewardedAd = ({
+  onComplete,
+  onCancel,
+  isCompleting = false,
+  completingLabel = 'Verifying reward...',
+  claimLabel = 'Claim reward',
+}: MockRewardedAdProps) => {
   const [timeLeft, setTimeLeft] = useState(5);
   const [playing, setPlaying] = useState(false);
   const [done, setDone] = useState(false);
@@ -65,7 +73,7 @@ export const MockRewardedAd = ({ onComplete, onCancel, isCompleting = false }: M
             className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-2 font-bold text-black disabled:opacity-60"
           >
             {isCompleting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-            {isCompleting ? 'Crediting income...' : 'Claim reward'}
+            {isCompleting ? completingLabel : claimLabel}
           </button>
         </div>
       )}
