@@ -200,6 +200,37 @@ class ReferralService
         }, 3);
     }
 
+    /** Count a completed rewarded task inside the ad consumption transaction. */
+    public function recordCompletedAd(User $user): void
+    {
+        $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+        if (! $user->referrer_id) {
+            return;
+        }
+
+        $activeTier = $this->getActiveTierForReferee($user->referrer_id, $user->id);
+        $tierConfig = config("moneypad.referral_milestones.{$activeTier}");
+        if (! $tierConfig) {
+            return;
+        }
+
+        $progress = $this->ensureProgressRow($user->referrer_id, $user->id, $activeTier);
+        $progress = ReferralMilestoneProgress::whereKey($progress->id)->lockForUpdate()->firstOrFail();
+        if ($progress->ads_watched >= $tierConfig['ads']) {
+            return;
+        }
+
+        $progress->increment('ads_watched');
+        $progress->refresh();
+
+        if ($progress->chapters_read >= $tierConfig['chapters'] && $progress->ads_watched >= $tierConfig['ads']) {
+            $progress->update([
+                'is_completed' => true,
+                'completed_at' => now(),
+            ]);
+        }
+    }
+
     /**
      * Record an ad watched by the referred user for their active referral tier.
      * Tier ads only advance tier progress and do not pay the flat 2 coins.

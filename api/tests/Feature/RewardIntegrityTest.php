@@ -49,7 +49,8 @@ class RewardIntegrityTest extends TestCase
 
     public function test_unverified_expired_and_foreign_events_are_rejected(): void
     {
-        $user = User::factory()->create(['readerCoins' => 0]);
+        $inviter = User::factory()->create();
+        $user = User::factory()->create(['readerCoins' => 0, 'referrer_id' => $inviter->id]);
         $other = User::factory()->create();
         $foreign = $this->event($other);
         $this->actingAs($user)->postJson('/api/v1/transactions/ad-watch', ['ad_event_id' => $foreign->id])->assertNotFound();
@@ -59,6 +60,11 @@ class RewardIntegrityTest extends TestCase
         $event->update(['verified_at' => now(), 'expires_at' => now()->subSecond()]);
         $this->postJson('/api/v1/transactions/ad-watch', ['ad_event_id' => $event->id])->assertUnprocessable();
         $this->assertSame('0.000', $user->fresh()->readerCoins);
+        $this->assertDatabaseMissing('referral_milestone_progress', [
+            'referrer_id' => $inviter->id,
+            'referred_user_id' => $user->id,
+            'ads_watched' => 1,
+        ]);
     }
 
     public function test_production_rejects_mock_rewards_even_if_misconfigured(): void

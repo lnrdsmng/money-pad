@@ -76,7 +76,13 @@ class AuthorReferralCommissionTest extends TestCase
 
     public function test_referrer_can_watch_ads_and_claim_commission_to_php_balance(): void
     {
-        $referrer = User::factory()->create(['username' => 'promoter', 'balance' => 10.00]);
+        $inviter = User::factory()->create(['username' => 'senior_promoter']);
+        $referrer = User::factory()->create([
+            'username' => 'promoter',
+            'balance' => 10.00,
+            'referrer_id' => $inviter->id,
+            'referredBy' => $inviter->username,
+        ]);
         $author = User::factory()->create(['username' => 'storyteller', 'referrer_id' => $referrer->id]);
 
         $withdrawal = WithdrawalRequest::create([
@@ -148,6 +154,13 @@ class AuthorReferralCommissionTest extends TestCase
         $watch2Res->assertOk()
             ->assertJsonPath('commission.ads_watched', 2)
             ->assertJsonPath('commission.status', 'ready_to_claim');
+
+        $this->assertDatabaseHas('referral_milestone_progress', [
+            'referrer_id' => $inviter->id,
+            'referred_user_id' => $referrer->id,
+            'tier_index' => 1,
+            'ads_watched' => 2,
+        ]);
 
         // Claim commission to PHP balance
         $claimRes = $this->actingAs($referrer)->postJson("/api/v1/referrals/author-commissions/{$commission->id}/claim");

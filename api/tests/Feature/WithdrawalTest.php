@@ -150,10 +150,13 @@ class WithdrawalTest extends TestCase
 
     public function test_fee_waiver_tasks_and_net_payout_recalculation(): void
     {
+        $inviter = User::factory()->create();
         $user = User::factory()->create([
             'readerCoins' => 1000,
             'payment_method' => 'GCash',
             'payment_account_info' => '09171234567',
+            'referrer_id' => $inviter->id,
+            'referredBy' => $inviter->username,
         ]);
         $service = app(WithdrawalService::class);
         $req = $service->evaluateAndCreate($user);
@@ -166,6 +169,13 @@ class WithdrawalTest extends TestCase
                 ->assertOk()
                 ->assertJson(['count' => $i, 'fee_waived' => false]);
         }
+
+        $this->assertDatabaseHas('referral_milestone_progress', [
+            'referrer_id' => $inviter->id,
+            'referred_user_id' => $user->id,
+            'tier_index' => 1,
+            'ads_watched' => 3,
+        ]);
 
         // 10th ad waives fee
         $res = $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/watch-ad", ['ad_event_id' => $this->verifiedAd($user, 'withdrawal', $req->id)])

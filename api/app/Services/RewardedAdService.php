@@ -106,6 +106,10 @@ class RewardedAdService
         }
         $event->update(['consumed_at' => now()]);
 
+        if ($purpose !== 'referral_tier') {
+            app(ReferralService::class)->recordCompletedAd($user);
+        }
+
         return true;
     }
 
