@@ -63,12 +63,12 @@ interface MoneyPadDao {
     @Query("""
         SELECT SUM(
             CASE 
-                WHEN read_count >= 110 THEN 550
-                WHEN read_count >= 80 THEN 330
-                WHEN read_count >= 40 THEN 170
-                WHEN read_count >= 25 THEN 90
-                WHEN read_count >= 15 THEN 40
-                WHEN read_count >= 5 THEN 10
+                WHEN read_count >= 110 THEN 200
+                WHEN read_count >= 80 THEN 130
+                WHEN read_count >= 40 THEN 70
+                WHEN read_count >= 25 THEN 35
+                WHEN read_count >= 15 THEN 15
+                WHEN read_count >= 5 THEN 5
                 ELSE 0 
             END
         )

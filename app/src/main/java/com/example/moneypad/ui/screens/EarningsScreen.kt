@@ -403,15 +403,15 @@ fun EarningsScreen(viewModel: EarningsViewModel) {
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            ReferralRewardRow("Read 5 chapters + Watch 3 ads", "10 Coins")
-                            ReferralRewardRow("Read 15 chapters + Watch 5 ads", "30 Coins")
-                            ReferralRewardRow("Read 25 chapters + Watch 7 ads", "50 Coins")
-                            ReferralRewardRow("Read 40 chapters + Watch 10 ads", "80 Coins")
-                            ReferralRewardRow("Read 80 chapters + Watch 15 ads", "160 Coins")
-                            ReferralRewardRow("Read 110 chapters + Watch 20 ads", "220 Coins")
+                            ReferralRewardRow("Read 5 chapters + Watch 3 ads", "5 Coins")
+                            ReferralRewardRow("Read 15 chapters + Watch 5 ads", "10 Coins")
+                            ReferralRewardRow("Read 25 chapters + Watch 7 ads", "20 Coins")
+                            ReferralRewardRow("Read 40 chapters + Watch 10 ads", "35 Coins")
+                            ReferralRewardRow("Read 80 chapters + Watch 15 ads", "60 Coins")
+                            ReferralRewardRow("Read 110 chapters + Watch 20 ads", "70 Coins")
                         }
                         Text(
-                            "(Total of 550 coins/referral)",
+                            "(Total of 200 coins/referral)",
                             fontSize = 11.sp,
                             color = Color.Gray,
                             modifier = Modifier.padding(start = 24.dp)

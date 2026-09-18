@@ -196,12 +196,12 @@ switch ($action) {
         $stmtCoins = $pdo->prepare("
             SELECT SUM(
                 CASE 
-                    WHEN read_count >= 110 AND ad_count >= 20 THEN 550
-                    WHEN read_count >= 80 AND ad_count >= 15 THEN 330
-                    WHEN read_count >= 40 AND ad_count >= 10 THEN 170
-                    WHEN read_count >= 25 AND ad_count >= 7 THEN 90
-                    WHEN read_count >= 15 AND ad_count >= 5 THEN 40
-                    WHEN read_count >= 5 AND ad_count >= 3 THEN 10
+                    WHEN read_count >= 110 AND ad_count >= 20 THEN 200
+                    WHEN read_count >= 80 AND ad_count >= 15 THEN 130
+                    WHEN read_count >= 40 AND ad_count >= 10 THEN 70
+                    WHEN read_count >= 25 AND ad_count >= 7 THEN 35
+                    WHEN read_count >= 15 AND ad_count >= 5 THEN 15
+                    WHEN read_count >= 5 AND ad_count >= 3 THEN 5
                     ELSE 0 
                 END
             )
