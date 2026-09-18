@@ -104,6 +104,31 @@ export function PlanPaymentManagement() {
     setRejectionReason('');
   };
 
+  const renderReviewActions = (purchase: AdminPurchase) => (
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        disabled={openingProofId !== null}
+        aria-busy={openingProofId === purchase.id}
+        onClick={() => void openProof(purchase)}
+        className="inline-flex items-center gap-1 rounded border border-slate-300 px-3 py-2 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+      >
+        {openingProofId === purchase.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+        {openingProofId === purchase.id ? 'Opening...' : 'Proof'}
+      </button>
+      {status === 'pending_review' && (
+        <>
+          <button type="button" disabled={reviewMutation.isPending} onClick={() => setPurchaseToApprove(purchase)} className="inline-flex items-center gap-1 rounded bg-emerald-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60">
+            <CheckCircle2 className="h-4 w-4" /> Approve
+          </button>
+          <button type="button" disabled={reviewMutation.isPending} onClick={() => reject(purchase)} className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60">
+            <XCircle className="h-4 w-4" /> Reject
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8">
       <div><h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Plan payments</h1><p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">Review private payment proofs and configure wallet destinations.</p></div>
@@ -149,7 +174,7 @@ export function PlanPaymentManagement() {
             )}
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/80 text-left text-xs uppercase text-slate-500 dark:text-slate-400"><tr><th className="px-4 py-3">User</th><th className="px-4 py-3">Plan / amount</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3">Submitted</th><th className="px-4 py-3">Actions</th></tr></thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-900 dark:text-slate-100">
@@ -159,7 +184,7 @@ export function PlanPaymentManagement() {
                   <td className="px-4 py-4"><p className="font-medium capitalize">{purchase.plan_type.replaceAll('_', ' ')}</p><p className="text-slate-500 dark:text-slate-400">₱{Number(purchase.amount).toFixed(2)}</p></td>
                   <td className="px-4 py-4"><p className="font-medium uppercase">{purchase.payment_method}</p>{purchase.payment_reference ? <p className="break-all text-slate-600 dark:text-slate-300 text-xs">Ref: <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{purchase.payment_reference}</span></p> : <p className="text-xs text-slate-400 dark:text-slate-500">No ref provided</p>}</td>
                   <td className="px-4 py-4 text-slate-500 dark:text-slate-400">{new Date(purchase.submitted_at).toLocaleString()}</td>
-                  <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><button type="button" disabled={openingProofId !== null} aria-busy={openingProofId === purchase.id} onClick={() => void openProof(purchase)} className="inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer">{openingProofId === purchase.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}{openingProofId === purchase.id ? 'Opening...' : 'Proof'}</button>{status === 'pending_review' && <><button type="button" disabled={reviewMutation.isPending} onClick={() => setPurchaseToApprove(purchase)} className="inline-flex items-center gap-1 rounded bg-emerald-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"><CheckCircle2 className="h-4 w-4" />Approve</button><button type="button" disabled={reviewMutation.isPending} onClick={() => reject(purchase)} className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"><XCircle className="h-4 w-4" />Reject</button></>}</div>{purchase.rejection_reason && <p className="mt-2 max-w-xs text-xs text-red-700 dark:text-red-400">{purchase.rejection_reason}</p>}</td>
+                  <td className="px-4 py-4">{renderReviewActions(purchase)}{purchase.rejection_reason && <p className="mt-2 max-w-xs text-xs text-red-700 dark:text-red-400">{purchase.rejection_reason}</p>}</td>
                 </tr>
               ))}
             </tbody>
@@ -170,6 +195,49 @@ export function PlanPaymentManagement() {
           )}
           {!purchasesQuery.isLoading && !purchasesQuery.isError && !(purchasesQuery.data?.data.length) && (
             <p className="p-8 text-center text-slate-500 dark:text-slate-400">
+              {search.trim() ? `No payments found matching "${search.trim()}".` : `No ${status.replace('_', ' ')} payments.`}
+            </p>
+          )}
+        </div>
+        <div className="space-y-3 p-3 lg:hidden sm:p-4">
+          {(purchasesQuery.data?.data ?? []).map((purchase) => (
+            <article key={purchase.id} className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-100">
+              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 pb-3 dark:border-slate-700">
+                <div className="min-w-0">
+                  <h2 className="break-words font-semibold">{purchase.user.username}</h2>
+                  <p className="break-all text-xs text-slate-500 dark:text-slate-400">{purchase.user.email}</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                  {purchase.status.replaceAll('_', ' ')}
+                </span>
+              </div>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-slate-500 dark:text-slate-400">Plan / Amount</dt>
+                  <dd className="font-semibold capitalize">{purchase.plan_type.replaceAll('_', ' ')} · ₱{Number(purchase.amount).toFixed(2)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-500 dark:text-slate-400">Payment</dt>
+                  <dd className="font-medium uppercase">{purchase.payment_method}</dd>
+                  <dd className="break-all text-xs text-slate-600 dark:text-slate-300">
+                    {purchase.payment_reference ? `Ref: ${purchase.payment_reference}` : 'No ref provided'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-500 dark:text-slate-400">Submitted</dt>
+                  <dd>{new Date(purchase.submitted_at).toLocaleString()}</dd>
+                </div>
+              </dl>
+              <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700">
+                {renderReviewActions(purchase)}
+                {purchase.rejection_reason && <p className="mt-2 break-words text-xs text-red-700 dark:text-red-400">{purchase.rejection_reason}</p>}
+              </div>
+            </article>
+          ))}
+          {purchasesQuery.isLoading && <p role="status" className="py-8 text-center text-slate-500 dark:text-slate-400">Loading payments...</p>}
+          {purchasesQuery.isError && <p role="alert" className="py-8 text-center text-red-600 dark:text-red-400">Payments could not be loaded.</p>}
+          {!purchasesQuery.isLoading && !purchasesQuery.isError && !(purchasesQuery.data?.data.length) && (
+            <p className="py-8 text-center text-slate-500 dark:text-slate-400">
               {search.trim() ? `No payments found matching "${search.trim()}".` : `No ${status.replace('_', ' ')} payments.`}
             </p>
           )}

@@ -15,7 +15,62 @@ export function ReferralMilestoneTable({
   claimingTier = null,
 }: ReferralMilestoneTableProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/50">
+    <>
+      <div className="space-y-3 lg:hidden">
+        {tiers.map((tier) => {
+          const chapterPercent = Math.min(100, Math.round((tier.currentChapters / Math.max(1, tier.targetChapters)) * 100));
+          const adPercent = Math.min(100, Math.round((tier.currentAds / Math.max(1, tier.targetAds)) * 100));
+          const totalPercent = Math.round((chapterPercent + adPercent) / 2);
+          const isCurrentClaiming = isClaiming && claimingTier === tier.tier;
+
+          return (
+            <article key={tier.tier} className={`rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/50 ${tier.isLocked ? 'opacity-60' : ''}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <h4 className="flex items-center gap-1.5 font-bold text-gray-900 dark:text-gray-100">
+                  {tier.isLocked && <Lock className="h-4 w-4 text-gray-400" />}
+                  Tier {tier.tier}
+                </h4>
+                <span className="inline-flex items-center gap-1 font-bold text-amber-500">
+                  <Coins className="h-4 w-4" /> +{tier.coins} Coins
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                Requirement: {tier.targetChapters} chapters + {tier.targetAds} ads
+              </p>
+              <div className="mt-3">
+                <div className="mb-1 flex flex-wrap justify-between gap-x-2 text-xs text-gray-600 dark:text-gray-300">
+                  <span>Progress</span>
+                  <span>{tier.currentChapters}/{tier.targetChapters} chapters · {tier.currentAds}/{tier.targetAds} ads</span>
+                </div>
+                <div role="progressbar" aria-label={`Tier ${tier.tier} progress`} aria-valuenow={totalPercent} aria-valuemin={0} aria-valuemax={100} className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
+                  <div className={`h-full rounded-full ${tier.isCompleted ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${totalPercent}%` }} />
+                </div>
+              </div>
+              <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-800">
+                {tier.isClaimed ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    Claimed <Check className="h-3 w-3" />
+                  </span>
+                ) : tier.canClaim && onClaim ? (
+                  <button type="button" onClick={() => onClaim(tier.tier)} disabled={isClaiming} className="inline-flex items-center gap-1 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950 hover:bg-amber-500 disabled:opacity-50">
+                    {isCurrentClaiming ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    Claim +{tier.coins}
+                  </button>
+                ) : tier.isLocked ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs text-gray-500 dark:border-slate-700 dark:bg-slate-800">
+                    <Lock className="h-3 w-3" /> Locked
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    {tier.isCompleted ? 'Completed' : 'In Progress'}
+                  </span>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <div className="hidden lg:block overflow-x-auto rounded-xl border border-gray-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/50">
       <table className="w-full text-left text-xs">
         <thead>
           <tr className="border-b border-gray-200 dark:border-slate-700 text-gray-400 uppercase tracking-wider bg-gray-50/50 dark:bg-slate-800/40">
@@ -121,5 +176,6 @@ export function ReferralMilestoneTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }

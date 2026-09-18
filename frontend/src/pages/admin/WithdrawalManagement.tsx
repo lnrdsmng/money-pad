@@ -74,6 +74,98 @@ export const WithdrawalManagement = () => {
     onError: (error) => feedback.error(getApiErrorMessage(error, 'The withdrawal could not be rejected.')),
   });
 
+  const renderWithdrawalActions = (req: WithdrawalRequest, showActions: 'pending' | 'approved' | 'none') => {
+    if (showActions === 'pending') {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={approveMutation.isPending || rejectMutation.isPending} onClick={() => approveMutation.mutate(req.id)} className="rounded bg-emerald-600 px-3 py-2 text-xs text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+            Approve
+          </button>
+          <button type="button" disabled={approveMutation.isPending || rejectMutation.isPending} onClick={() => setRequestToReject(req)} className="rounded bg-red-600 px-3 py-2 text-xs text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">
+            Reject
+          </button>
+        </div>
+      );
+    }
+
+    if (showActions === 'approved') {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={completeMutation.isPending || rejectMutation.isPending} onClick={() => setRequestToComplete(req)} className="flex items-center gap-1 rounded bg-blue-600 px-3 py-2 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+            <SendHorizontal className="h-3 w-3" /> Mark Sent
+          </button>
+          <button type="button" disabled={completeMutation.isPending || rejectMutation.isPending} onClick={() => setRequestToReject(req)} className="rounded bg-red-600 px-3 py-2 text-xs text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">
+            Reject
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+        req.status === 'completed'
+          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+          : req.status === 'rejected'
+            ? 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300'
+            : 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-300'
+      }`}>
+        {req.status.toUpperCase()}
+      </span>
+    );
+  };
+
+  const renderWithdrawalCard = (req: WithdrawalRequest, showActions: 'pending' | 'approved' | 'none') => {
+    const gross = req.gross_amount || req.amount;
+    const net = req.net_amount || req.amount;
+    const isSundayDeferred = req.earliest_review_at && req.triggered_at &&
+      new Date(req.earliest_review_at).getDate() !== new Date(req.triggered_at).getDate();
+
+    return (
+      <article key={req.id} className="rounded-xl border border-gray-200 bg-white p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-800/40">
+        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 pb-3 dark:border-slate-700">
+          <div className="min-w-0">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{req.user?.username || 'User'}</h2>
+            <p className="break-all text-xs text-gray-500 dark:text-gray-400">{req.user?.email || req.userId.substring(0, 8)}</p>
+          </div>
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium capitalize text-gray-700 dark:bg-slate-700 dark:text-slate-200">
+            {req.status.replaceAll('_', ' ')}
+          </span>
+        </div>
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-gray-500 dark:text-gray-400">Net Payout / Gross</dt>
+            <dd className="font-bold text-gray-900 dark:text-gray-100">₱{net}</dd>
+            <dd className="text-xs text-gray-500 dark:text-gray-400">Gross: ₱{gross}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-xs text-gray-500 dark:text-gray-400">Destination</dt>
+            <dd className="font-medium text-gray-900 dark:text-gray-100">{req.payment_method}</dd>
+            <dd className="break-all font-mono text-xs text-gray-600 dark:text-gray-300">{req.payment_account_info}</dd>
+            {req.bank_name && <dd className="text-xs text-purple-600 dark:text-purple-400">Bank: {req.bank_name}</dd>}
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500 dark:text-gray-400">Fees & Waiver</dt>
+            <dd className={req.fee_waived ? 'text-xs font-medium text-emerald-600 dark:text-emerald-400' : 'text-xs font-medium text-red-600 dark:text-red-400'}>
+              {req.fee_waived
+                ? `₱${req.platform_fee} Platform Waived (${req.ads_watched_count}/10)`
+                : `-₱${req.platform_fee} Platform Fee`}
+            </dd>
+            {Number(req.bank_fee) > 0 && <dd className="text-xs text-purple-600 dark:text-purple-400">-₱{req.bank_fee} Bank Fee</dd>}
+          </div>
+          <div>
+            <dt className="text-xs text-gray-500 dark:text-gray-400">Schedule</dt>
+            <dd className="text-xs text-gray-700 dark:text-gray-300">Queued: {new Date(req.created_at).toLocaleDateString()}</dd>
+            {isSundayDeferred && <dd className="text-xs font-medium text-purple-700 dark:text-purple-300">Sunday Deferral</dd>}
+            {req.estimated_deadline_at && <dd className="text-xs text-gray-500 dark:text-gray-400">Deadline: {new Date(req.estimated_deadline_at).toLocaleDateString()}</dd>}
+          </div>
+        </dl>
+        <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-700">
+          {renderWithdrawalActions(req, showActions)}
+        </div>
+      </article>
+    );
+  };
+
   const renderWithdrawalRow = (req: WithdrawalRequest, showActions: 'pending' | 'approved' | 'none') => {
     const gross = req.gross_amount || req.amount;
     const net = req.net_amount || req.amount;
@@ -142,62 +234,7 @@ export const WithdrawalManagement = () => {
 
         {/* Actions / Status */}
         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-          {showActions === 'pending' && (
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                disabled={approveMutation.isPending || rejectMutation.isPending}
-                onClick={() => approveMutation.mutate(req.id)}
-                className="rounded bg-emerald-600 px-3 py-1 text-xs text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                disabled={approveMutation.isPending || rejectMutation.isPending}
-                onClick={() => setRequestToReject(req)}
-                className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
-              >
-                Reject
-              </button>
-            </div>
-          )}
-
-          {showActions === 'approved' && (
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                disabled={completeMutation.isPending || rejectMutation.isPending}
-                onClick={() => setRequestToComplete(req)}
-                className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm flex items-center gap-1"
-              >
-                <SendHorizontal className="w-3 h-3" />
-                Mark Sent
-              </button>
-              <button
-                type="button"
-                disabled={completeMutation.isPending || rejectMutation.isPending}
-                onClick={() => setRequestToReject(req)}
-                className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
-              >
-                Reject
-              </button>
-            </div>
-          )}
-
-          {showActions === 'none' && (
-            <span
-              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                req.status === 'completed'
-                  ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
-                  : req.status === 'rejected'
-                  ? 'bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300'
-                  : 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300'
-              }`}
-            >
-              {req.status.toUpperCase()}
-            </span>
-          )}
+          {renderWithdrawalActions(req, showActions)}
         </td>
       </tr>
     );
@@ -254,7 +291,8 @@ export const WithdrawalManagement = () => {
             {isLoadingPending && <p role="status" className="p-8 text-center text-gray-500 dark:text-gray-400">Loading pending review queue...</p>}
             {isPendingError && <p role="alert" className="p-8 text-center text-red-600 dark:text-red-400">Pending withdrawals could not be loaded.</p>}
             {!isLoadingPending && !isPendingError && (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
                   <thead className="bg-gray-50 dark:bg-slate-800/80">
                     <tr>
@@ -278,6 +316,13 @@ export const WithdrawalManagement = () => {
                   </tbody>
                 </table>
               </div>
+              <div className="space-y-3 p-3 lg:hidden sm:p-4">
+                {pending?.map((req) => renderWithdrawalCard(req, 'pending'))}
+                {(!pending || pending.length === 0) && (
+                  <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No pending payouts for review.</p>
+                )}
+              </div>
+              </>
             )}
           </div>
         )}
@@ -287,7 +332,8 @@ export const WithdrawalManagement = () => {
             {isLoadingApproved && <p role="status" className="p-8 text-center text-gray-500 dark:text-gray-400">Loading approved queue...</p>}
             {isApprovedError && <p role="alert" className="p-8 text-center text-red-600 dark:text-red-400">Approved withdrawals could not be loaded.</p>}
             {!isLoadingApproved && !isApprovedError && (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
                   <thead className="bg-gray-50 dark:bg-slate-800/80">
                     <tr>
@@ -311,6 +357,13 @@ export const WithdrawalManagement = () => {
                   </tbody>
                 </table>
               </div>
+              <div className="space-y-3 p-3 lg:hidden sm:p-4">
+                {approved?.map((req) => renderWithdrawalCard(req, 'approved'))}
+                {(!approved || approved.length === 0) && (
+                  <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No payouts currently in processing.</p>
+                )}
+              </div>
+              </>
             )}
           </div>
         )}
@@ -320,7 +373,8 @@ export const WithdrawalManagement = () => {
             {isLoadingHistory && <p role="status" className="p-8 text-center text-gray-500 dark:text-gray-400">Loading history...</p>}
             {isHistoryError && <p role="alert" className="p-8 text-center text-red-600 dark:text-red-400">Withdrawal history could not be loaded.</p>}
             {!isLoadingHistory && !isHistoryError && (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
                   <thead className="bg-gray-50 dark:bg-slate-800/80">
                     <tr>
@@ -344,6 +398,13 @@ export const WithdrawalManagement = () => {
                   </tbody>
                 </table>
               </div>
+              <div className="space-y-3 p-3 lg:hidden sm:p-4">
+                {history?.map((req) => renderWithdrawalCard(req, 'none'))}
+                {(!history || history.length === 0) && (
+                  <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No completed or rejected payouts yet.</p>
+                )}
+              </div>
+              </>
             )}
           </div>
         )}
