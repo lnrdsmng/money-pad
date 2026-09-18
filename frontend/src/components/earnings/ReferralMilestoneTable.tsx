@@ -1,26 +1,18 @@
-import { Coins, Check, Lock, Tv, LoaderCircle, Sparkles } from 'lucide-react';
+import { Coins, Check, Lock, LoaderCircle, Sparkles } from 'lucide-react';
 import type { ReferralTier } from '../../types/referrals';
 
 interface ReferralMilestoneTableProps {
   tiers: ReferralTier[];
   onClaim?: (tier: number) => void;
-  onWatchAd?: (tier: number) => void;
   isClaiming?: boolean;
   claimingTier?: number | null;
-  isStartingAd?: boolean;
-  startingAdTier?: number | null;
-  mode?: 'referrer' | 'referee';
 }
 
 export function ReferralMilestoneTable({
   tiers,
   onClaim,
-  onWatchAd,
   isClaiming = false,
   claimingTier = null,
-  isStartingAd = false,
-  startingAdTier = null,
-  mode = 'referrer',
 }: ReferralMilestoneTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/50">
@@ -41,7 +33,6 @@ export function ReferralMilestoneTable({
             const totalPercent = Math.round((chPercent + adPercent) / 2);
 
             const isCurrentClaiming = isClaiming && claimingTier === tier.tier;
-            const isCurrentStartingAd = isStartingAd && startingAdTier === tier.tier;
 
             return (
               <tr
@@ -96,7 +87,7 @@ export function ReferralMilestoneTable({
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
                       Claimed <Check className="w-3 h-3" />
                     </span>
-                  ) : mode === 'referrer' && tier.canClaim && onClaim ? (
+                  ) : tier.canClaim && onClaim ? (
                     <button
                       type="button"
                       onClick={() => onClaim(tier.tier)}
@@ -109,20 +100,6 @@ export function ReferralMilestoneTable({
                         <Sparkles className="w-3.5 h-3.5" />
                       )}
                       <span>Claim +{tier.coins}</span>
-                    </button>
-                  ) : mode === 'referee' && tier.canWatchAd && onWatchAd ? (
-                    <button
-                      type="button"
-                      onClick={() => onWatchAd(tier.tier)}
-                      disabled={isStartingAd}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-bold shadow-xs active:scale-98 transition cursor-pointer disabled:opacity-50"
-                    >
-                      {isCurrentStartingAd ? (
-                        <LoaderCircle className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Tv className="w-3.5 h-3.5" />
-                      )}
-                      <span>Watch Ad</span>
                     </button>
                   ) : tier.isLocked ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-slate-700">

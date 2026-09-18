@@ -187,7 +187,7 @@ export const EarningsDashboard = () => {
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-0.5 sm:mb-1">Referral Network</p>
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{user?.referralCount || 0} <span className="text-sm font-normal text-gray-500">invites</span></h2>
-                <p className="text-[11px] sm:text-xs text-primary mt-0.5 sm:mt-1 font-medium">Up to 550 coins / friend + 5% comm.</p>
+                <p className="text-[11px] sm:text-xs text-primary mt-0.5 sm:mt-1 font-medium">Up to 200 coins / friend + 5% comm.</p>
               </div>
             </div>
           </div>

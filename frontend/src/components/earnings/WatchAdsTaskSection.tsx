@@ -66,6 +66,7 @@ export function WatchAdsTaskSection() {
       }
       queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['withdrawals', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['referralMilestones', user?.id] });
       feedback.success(`You earned ${data.rewardCoins || 2} Reader Coins!`);
     },
     onError: (error) => {

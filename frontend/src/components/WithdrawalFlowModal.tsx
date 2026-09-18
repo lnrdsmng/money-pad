@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
 import { X, Play, FastForward, CheckCircle, LoaderCircle, Sparkles, PartyPopper } from 'lucide-react';
 import { MockRewardedAd } from './MockRewardedAd';
@@ -14,6 +14,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
   const [showPrompt, setShowPrompt] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const feedback = useFeedback();
+  const queryClient = useQueryClient();
 
   const { data: req, error: requestError, isError: isRequestError, refetch } = useQuery<WithdrawalRequest>({
     queryKey: ['withdrawalRequest', requestId],
@@ -45,6 +46,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
     onSuccess: async () => {
       setShowAd(false);
       await refetch();
+      queryClient.invalidateQueries({ queryKey: ['referralMilestones'] });
       feedback.success('Task recorded and fee calculation updated.');
     },
     onError: (error) => feedback.error(getApiErrorMessage(error, 'The task completion could not be recorded.')),

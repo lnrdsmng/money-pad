@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import {
   Gift,
   Copy,
@@ -12,8 +11,6 @@ import {
   Award,
   LoaderCircle,
   Tv,
-  BookOpen,
-  Lock,
   DollarSign,
   CheckCircle2,
   ChevronDown,
@@ -57,13 +54,13 @@ interface AuthorCommissionsResponse {
   };
 }
 
-interface AdWatchStatus {
-  reward_coins: number;
-  cooldown_seconds: number;
-  cooldown_remaining: number;
-  can_watch: boolean;
-  available: boolean;
-}
+const commissionAdTiers = [
+  { amount: 'Up to ₱10', ads: '1 ad' },
+  { amount: '₱10.01–₱25', ads: '2 ads' },
+  { amount: '₱25.01–₱50', ads: '3 ads' },
+  { amount: '₱50.01–₱100', ads: '4 ads' },
+  { amount: 'Over ₱100', ads: '5 ads' },
+];
 
 export const ReferralProgramSection = () => {
   const { user, updateUser } = useAuth();
@@ -74,25 +71,18 @@ export const ReferralProgramSection = () => {
   const [welcomeCode, setWelcomeCode] = useState(() => localStorage.getItem('pending_referral_code') || '');
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
 
-  // Milestone inline inviter link form state
-  const [inlineInviterCode, setInlineInviterCode] = useState('');
-
   // Expanded referrals accordion state
   const [expandedUserIds, setExpandedUserIds] = useState<Record<string, boolean>>({});
 
   // Ad watching state
   const [activeAd, setActiveAd] = useState<{
-    purpose: 'author_commission' | 'referral_tier';
     commissionId?: string;
-    tierIndex?: number;
     adEventId: string;
   } | null>(null);
 
   // Ad explanation modal prompt state
   const [pendingAdPrompt, setPendingAdPrompt] = useState<{
-    type: 'author_commission' | 'referral_tier';
     commissionId?: string;
-    tierIndex?: number;
     title: string;
     rewardTitle: string;
     rewardDescription: string;
@@ -101,7 +91,6 @@ export const ReferralProgramSection = () => {
 
   const [startingAd, setStartingAd] = useState(false);
   const [completingAd, setCompletingAd] = useState(false);
-  const [adCooldownSeconds, setAdCooldownSeconds] = useState<number | null>(null);
 
   // 24-hour grace period calculation
   const signupTimestamp = (user?.signupTimestamp && Number(user.signupTimestamp) > 0)
@@ -155,31 +144,6 @@ export const ReferralProgramSection = () => {
     enabled: !!user,
   });
 
-  // Ad watch status (for cooldown)
-  const { data: adWatchStatus } = useQuery<AdWatchStatus>({
-    queryKey: ['ad-watch-status', user?.id],
-    queryFn: async () => (await http.get('/transactions/ad-watch/status')).data,
-    enabled: !!user,
-  });
-
-  const adCooldown = adCooldownSeconds ?? (adWatchStatus?.cooldown_remaining ?? 0);
-
-  useEffect(() => {
-    if (adCooldown <= 0) return;
-    const interval = setInterval(() => {
-      setAdCooldownSeconds((prev) => {
-        const current = (prev ?? (adWatchStatus?.cooldown_remaining ?? 0)) - 1;
-        if (current <= 0) {
-          clearInterval(interval);
-          queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
-          return 0;
-        }
-        return current;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [adCooldown, queryClient, adWatchStatus?.cooldown_remaining, user?.id]);
-
   // Claim welcome bonus mutation
   const claimWelcomeMutation = useMutation({
     mutationFn: async () => {
@@ -197,26 +161,6 @@ export const ReferralProgramSection = () => {
     },
     onError: (error) => {
       feedback.error(getApiErrorMessage(error, 'Could not claim welcome bonus.'));
-    },
-  });
-
-  // Link inviter mutation (for milestone participation anytime)
-  const linkInviterMutation = useMutation({
-    mutationFn: async (code: string) => {
-      const res = await http.post('/referrals/link', {
-        referral_code: code.trim(),
-      });
-      return res.data;
-    },
-    onSuccess: (data) => {
-      feedback.success(data.message || 'Referral linked successfully!');
-      if (data.user) updateUser(data.user);
-      setInlineInviterCode('');
-      localStorage.removeItem('pending_referral_code');
-      queryClient.invalidateQueries({ queryKey: ['referralMilestones', user?.id] });
-    },
-    onError: (error) => {
-      feedback.error(getApiErrorMessage(error, 'Could not link referral username.'));
     },
   });
 
@@ -257,22 +201,9 @@ export const ReferralProgramSection = () => {
     },
   });
 
-  // Prompt ad for milestone support
-  const handlePromptTierAd = (tierIndex: number) => {
-    setPendingAdPrompt({
-      type: 'referral_tier',
-      tierIndex,
-      title: `Watch Ad to Advance Tier ${tierIndex}!`,
-      rewardTitle: `Support @${user?.referredBy || 'Inviter'}`,
-      rewardDescription: `Contribute 1 ad toward Tier ${tierIndex} milestone requirements!`,
-      confirmLabel: 'Watch Ad to Claim',
-    });
-  };
-
   // Prompt ad for author commission
   const handlePromptCommissionAd = (comm: AuthorCommission) => {
     setPendingAdPrompt({
-      type: 'author_commission',
       commissionId: comm.id,
       title: 'Watch Ad for Author Commission!',
       rewardTitle: `5% Commission (₱${Number(comm.commission_amount).toFixed(2)})`,
@@ -289,24 +220,13 @@ export const ReferralProgramSection = () => {
     setStartingAd(true);
 
     try {
-      if (prompt.type === 'author_commission' && prompt.commissionId) {
+      if (prompt.commissionId) {
         const res = await http.post<{ id: string }>('/rewarded-ads', {
           purpose: 'author_commission',
           target_id: prompt.commissionId,
         });
         setActiveAd({
-          purpose: 'author_commission',
           commissionId: prompt.commissionId,
-          adEventId: res.data.id,
-        });
-      } else if (prompt.type === 'referral_tier' && prompt.tierIndex) {
-        const res = await http.post<{ id: string }>('/rewarded-ads', {
-          purpose: 'referral_tier',
-          target_id: String(prompt.tierIndex),
-        });
-        setActiveAd({
-          purpose: 'referral_tier',
-          tierIndex: prompt.tierIndex,
           adEventId: res.data.id,
         });
       }
@@ -326,18 +246,12 @@ export const ReferralProgramSection = () => {
       // 1. Verify mock ad
       await http.post(`/rewarded-ads/${activeAd.adEventId}/mock-verify`);
 
-      // 2. Consume based on purpose
-      if (activeAd.purpose === 'referral_tier' && activeAd.tierIndex) {
-        const res = await http.post(`/referrals/tiers/${activeAd.tierIndex}/watch-ad`, {
-          ad_event_id: activeAd.adEventId,
-        });
-        queryClient.invalidateQueries({ queryKey: ['referralMilestones', user?.id] });
-        feedback.success(res.data.message || `Tier ${activeAd.tierIndex} ad progress recorded!`);
-      } else if (activeAd.purpose === 'author_commission' && activeAd.commissionId) {
+      if (activeAd.commissionId) {
         const res = await http.post(`/referrals/author-commissions/${activeAd.commissionId}/watch-ad`, {
           ad_event_id: activeAd.adEventId,
         });
         queryClient.invalidateQueries({ queryKey: ['authorCommissions', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['referralMilestones', user?.id] });
         feedback.success(res.data.message || 'Ad progress recorded for commission!');
       }
       setActiveAd(null);
@@ -374,7 +288,7 @@ export const ReferralProgramSection = () => {
           Referral Rewards & Milestone Program
         </h2>
         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Invite friends to earn up to 550 Reader Coins per active reader + dynamic 5% lifetime author commissions!
+          Invite friends to earn up to 200 Reader Coins per active reader + dynamic 5% lifetime author commissions!
         </p>
       </div>
 
@@ -529,23 +443,27 @@ export const ReferralProgramSection = () => {
           </div>
         </div>
 
-        {/* Dynamic Ad Tiers Scale Banner */}
-        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-900/40 text-[11px] text-amber-900 dark:text-amber-200 mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-medium">
-            <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Dynamic Ad Scale per Withdrawal:</span>
+        {/* Commission ad requirements */}
+        <div className="mb-5 rounded-xl border border-amber-200/70 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20 sm:p-5">
+          <div className="flex items-start gap-2">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <h4 id="commission-ad-tiers-title" className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+                Ads needed to claim a commission
+              </h4>
+              <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-200">
+                The number of ads depends on the referred author’s withdrawal amount.
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] text-amber-800 dark:text-amber-300">
-            <span>≤₱10: <strong>1 ad</strong></span>
-            <span>•</span>
-            <span>₱10.01–₱25: <strong>2 ads</strong></span>
-            <span>•</span>
-            <span>₱25.01–₱50: <strong>3 ads</strong></span>
-            <span>•</span>
-            <span>₱50.01–₱100: <strong>4 ads</strong></span>
-            <span>•</span>
-            <span>&gt;₱100: <strong>5 ads</strong></span>
-          </div>
+          <dl aria-labelledby="commission-ad-tiers-title" className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {commissionAdTiers.map(({ amount, ads }) => (
+              <div key={amount} className="flex items-center justify-between gap-3 rounded-lg border border-amber-200/70 bg-white px-3 py-2.5 dark:border-amber-900/50 dark:bg-slate-900/60 xl:flex-col xl:items-start xl:gap-1">
+                <dt className="text-xs font-medium text-gray-600 dark:text-gray-300">{amount}</dt>
+                <dd className="text-sm font-bold text-amber-800 dark:text-amber-200">{ads}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
 
         {/* Commissions List */}
@@ -668,108 +586,13 @@ export const ReferralProgramSection = () => {
               Activity Milestone Rewards
             </h3>
             <p className="text-xs text-gray-500">
-              Track chapters read and ads watched by your referred friends. Each friend has independent tier milestones!
+              Track chapters read and rewarded ads completed by your referred friends. Each friend has independent tier milestones!
             </p>
           </div>
 
-          {milestonesData && (
-            <div className="flex gap-4 text-xs font-semibold text-gray-600 dark:text-gray-400">
-              <span>Friends: <strong className="text-primary">{milestonesData.referrals?.length ?? milestonesData.referralCount}</strong></span>
-              <span>Chapters: <strong className="text-primary">{milestonesData.totalChaptersRead}</strong></span>
-              <span>Ads: <strong className="text-primary">{milestonesData.totalAdsWatched}</strong></span>
-            </div>
-          )}
         </div>
 
-        {/* SECTION 1: SUPPORTING INVITER (IF REFEREE) OR LINK FORM */}
-        <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-900/40">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">
-                  Your Support Contribution
-                </span>
-                {user?.referredBy ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Supporting @{user.referredBy}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                    <Lock className="w-3 h-3" />
-                    No Inviter Linked
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1 max-w-xl">
-                {user?.referredBy
-                  ? `Reading chapters and watching milestone ads contributes to unlocking coins for @${user.referredBy}. Advance your current active tier below!`
-                  : 'Link your inviter to contribute to milestone tiers and support them as you read and watch ads.'}
-              </p>
-            </div>
-
-            {/* If no inviter linked, show linking form */}
-            {!user?.referredBy && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (inlineInviterCode.trim()) {
-                      linkInviterMutation.mutate(inlineInviterCode);
-                    }
-                  }}
-                  className="flex gap-1.5"
-                >
-                  <input
-                    type="text"
-                    placeholder="Inviter's username"
-                    value={inlineInviterCode}
-                    onChange={(e) => setInlineInviterCode(parseReferralInput(e.target.value))}
-                    onPaste={(e) => {
-                      const pasted = e.clipboardData.getData('text');
-                      const parsed = parseReferralInput(pasted);
-                      if (parsed && parsed !== pasted) {
-                        e.preventDefault();
-                        setInlineInviterCode(parsed);
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-xs border border-gray-200 dark:border-slate-700 placeholder:text-gray-400 focus:outline-none w-36 sm:w-44"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inlineInviterCode.trim() || linkInviterMutation.isPending}
-                    className="px-3 py-1.5 bg-gray-900 text-white dark:bg-slate-700 rounded-lg text-xs font-bold hover:bg-black transition disabled:opacity-50 cursor-pointer flex items-center gap-1 shrink-0"
-                  >
-                    {linkInviterMutation.isPending ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : 'Link'}
-                  </button>
-                </form>
-              </div>
-            )}
-          </div>
-
-          {/* If user is supporting someone, show their supporting tiers table */}
-          {user?.referredBy && milestonesData?.supporting && (
-            <div className="mt-3 space-y-3">
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Active Tier: <strong className="text-gray-900 dark:text-gray-100 font-semibold">Tier {milestonesData.supporting.activeTier}</strong></span>
-                <Link
-                  to="/explore"
-                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs"
-                >
-                  <BookOpen className="w-3.5 h-3.5" /> Read Stories to progress
-                </Link>
-              </div>
-              <ReferralMilestoneTable
-                tiers={milestonesData.supporting.tiers}
-                mode="referee"
-                onWatchAd={handlePromptTierAd}
-                isStartingAd={startingAd}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* SECTION 2: REFERRED FRIENDS' PROGRESS (REFERRER VIEW) */}
+        {/* REFERRED FRIENDS' PROGRESS */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -788,7 +611,7 @@ export const ReferralProgramSection = () => {
               <Users className="w-8 h-8 text-gray-400 mx-auto mb-2 opacity-50" />
               <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">No Referred Friends Yet</p>
               <p className="text-[11px] text-gray-500 max-w-md mx-auto mt-1">
-                Share your referral link above! Each friend who joins and reads unlocks milestone rewards across 6 tiers up to 550 coins.
+                Share your referral link above! Each friend who joins and reads unlocks milestone rewards across 6 tiers up to 200 coins.
               </p>
             </div>
           ) : (
@@ -856,7 +679,6 @@ export const ReferralProgramSection = () => {
                       <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-slate-700/50 bg-gray-50/20 dark:bg-slate-900/20">
                         <ReferralMilestoneTable
                           tiers={referee.tiers}
-                          mode="referrer"
                           onClaim={(tier) =>
                             claimMilestoneMutation.mutate({
                               referredUserId: referee.id,
@@ -889,7 +711,7 @@ export const ReferralProgramSection = () => {
         />
       )}
 
-      {/* REWARDED AD MODAL (for milestone ads or author commission ads) */}
+      {/* REWARDED AD MODAL */}
       {activeAd && (
         <MockRewardedAd
           onComplete={handleAdComplete}
