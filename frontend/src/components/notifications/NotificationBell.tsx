@@ -21,6 +21,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { WithdrawalFlowModal } from '../WithdrawalFlowModal';
 import { useFeedback } from '../feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { UserAvatar } from '../common/UserAvatar';
 
 export const NotificationBell = () => {
   const { user } = useAuth();
@@ -84,7 +85,7 @@ export const NotificationBell = () => {
       await http.put(`/notifications/${notificationId}/read`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 
@@ -93,7 +94,7 @@ export const NotificationBell = () => {
       await http.post('/notifications/read-all');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       refetchActivity();
     },
   });
@@ -133,6 +134,7 @@ export const NotificationBell = () => {
       case 'LIKE':
       case 'CONVERSATION_LIKE':
       case 'CHAT_LIKE':
+      case 'COMMENT_LIKE':
         return <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />;
       case 'FOLLOW':
         return <UserPlus className="w-4 h-4 text-blue-500" />;
@@ -146,6 +148,7 @@ export const NotificationBell = () => {
       case 'MENTION':
       case 'CHAT_REPLY':
       case 'CHAT_MENTION':
+      case 'COMMENT_REPLY':
         return <MessageSquare className="w-4 h-4 text-purple-500" />;
       case 'VERIFIED':
         return <ShieldCheck className="w-4 h-4 text-emerald-500" />;
@@ -268,8 +271,11 @@ export const NotificationBell = () => {
                       !item.isRead ? 'bg-primary/5 dark:bg-primary/10' : ''
                     }`}
                   >
-                    <div className="p-2 rounded-full bg-gray-100 dark:bg-slate-800 shrink-0 mt-0.5">
-                      {getNotificationIcon(item.type)}
+                    <div className="relative mt-0.5 shrink-0">
+                      <UserAvatar username={item.actorName || 'System'} imageUrl={item.actorProfileImageUrl} className="h-9 w-9 text-xs" />
+                      <span className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-gray-100 p-0.5 dark:border-slate-900 dark:bg-slate-800">
+                        {getNotificationIcon(item.type)}
+                      </span>
                     </div>
 
                     <div className="flex-1 min-w-0">

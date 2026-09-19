@@ -7,6 +7,7 @@ use App\Models\Story;
 use App\Models\StoryPart;
 use App\Models\UserReadingProgress;
 use App\Models\UserReadPart;
+use App\Services\ActivityNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
 
 class StoryController extends Controller
 {
+    public function __construct(private readonly ActivityNotificationService $activityNotifications) {}
+
     public function index(Request $request)
     {
         return $this->page(Story::where('isPublished', true)->orderByDesc('lastUpdatedAt')->orderBy('id'), $request);
@@ -122,7 +125,12 @@ class StoryController extends Controller
 
         Gate::authorize('update', $story);
 
+        $wasPublished = $story->isPublished;
         $story->update(['isPublished' => true, 'lastUpdatedAt' => time() * 1000]);
+
+        if (! $wasPublished) {
+            $this->activityNotifications->notifyStoryPublished($story, $request->user());
+        }
 
         return response()->json(['success' => true]);
     }

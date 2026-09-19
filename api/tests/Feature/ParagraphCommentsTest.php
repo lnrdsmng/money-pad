@@ -61,6 +61,32 @@ class ParagraphCommentsTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('content');
     }
 
+    public function test_reply_and_heart_notify_the_comment_author(): void
+    {
+        [$commentAuthor, $part] = $this->createReaderAndPart();
+        $actor = User::factory()->create();
+        $comment = $this->createComment($commentAuthor, $part, 'comment-notifications');
+
+        $this->actingAs($actor)->postJson("/api/v1/parts/{$part->id}/annotations", [
+            'parentId' => $comment->id,
+            'content' => 'Thanks for this note',
+        ])->assertOk();
+        $this->actingAs($actor)->postJson("/api/v1/annotations/{$comment->id}/heart")->assertOk();
+
+        $this->assertDatabaseHas('notifications', [
+            'userId' => $commentAuthor->id,
+            'actorId' => $actor->id,
+            'type' => 'COMMENT_REPLY',
+            'partId' => $part->id,
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'userId' => $commentAuthor->id,
+            'actorId' => $actor->id,
+            'type' => 'COMMENT_LIKE',
+            'partId' => $part->id,
+        ]);
+    }
+
     private function createReaderAndPart(): array
     {
         $author = User::factory()->create();

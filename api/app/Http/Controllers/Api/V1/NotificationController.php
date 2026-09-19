@@ -16,10 +16,18 @@ class NotificationController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $notifications = Notification::where('userId', $targetUserId)
+        $notifications = Notification::with('actor:id,username,profileImageUrl,isVerified')->where('userId', $targetUserId)
             ->orderByDesc('is_pinned')
             ->orderByDesc('timestamp')
-            ->get();
+            ->get()
+            ->each(function (Notification $notification): void {
+                if ($notification->actor) {
+                    $notification->actorName = $notification->actor->username;
+                    $notification->actorProfileImageUrl = $notification->actor->profileImageUrl;
+                    $notification->isActorVerified = (bool) $notification->actor->isVerified;
+                }
+                $notification->makeHidden('actor');
+            });
 
         return response()->json($notifications);
     }

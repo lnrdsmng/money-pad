@@ -113,8 +113,16 @@ class InteractionController extends Controller
     {
         $conversations = Conversation::where('authorId', $authorId)
             ->whereNull('parentId')
+            ->with('sender:id,username,profileImageUrl,isVerified')
             ->orderByDesc('timestamp')
             ->get();
+
+        $conversations->each(function (Conversation $conversation): void {
+            $conversation->senderName = $conversation->sender?->username ?? $conversation->senderName;
+            $conversation->senderProfileImageUrl = $conversation->sender?->profileImageUrl;
+            $conversation->isSenderVerified = (bool) ($conversation->sender?->isVerified ?? $conversation->isSenderVerified);
+            $conversation->makeHidden('sender');
+        });
 
         return response()->json($conversations);
     }
@@ -202,7 +210,13 @@ class InteractionController extends Controller
 
     public function replies($parentId)
     {
-        $replies = Conversation::where('parentId', $parentId)->orderBy('timestamp')->get();
+        $replies = Conversation::where('parentId', $parentId)->with('sender:id,username,profileImageUrl,isVerified')->orderBy('timestamp')->get();
+        $replies->each(function (Conversation $conversation): void {
+            $conversation->senderName = $conversation->sender?->username ?? $conversation->senderName;
+            $conversation->senderProfileImageUrl = $conversation->sender?->profileImageUrl;
+            $conversation->isSenderVerified = (bool) ($conversation->sender?->isVerified ?? $conversation->isSenderVerified);
+            $conversation->makeHidden('sender');
+        });
 
         return response()->json($replies);
     }
@@ -242,7 +256,13 @@ class InteractionController extends Controller
 
     public function reviews($storyId)
     {
-        $reviews = Review::where('storyId', $storyId)->orderByDesc('timestamp')->get();
+        $reviews = Review::where('storyId', $storyId)->with('user:id,username,profileImageUrl,isVerified')->orderByDesc('timestamp')->get();
+        $reviews->each(function (Review $review): void {
+            $review->username = $review->user?->username ?? $review->username;
+            $review->userProfileImageUrl = $review->user?->profileImageUrl;
+            $review->isUserVerified = (bool) ($review->user?->isVerified ?? $review->isUserVerified);
+            $review->makeHidden('user');
+        });
 
         return response()->json($reviews);
     }
@@ -485,23 +505,36 @@ class InteractionController extends Controller
         ]);
 
         $part = StoryPart::with('story')->find($partId);
-        if ($part && $part->story && $part->story->authorId !== $user->id) {
+        $notifiedUserId = null;
+        if ($parent && $parent->userId !== $user->id) {
             Notification::create([
                 'id' => Str::uuid()->toString(),
-                'userId' => $part->story->authorId,
-                'type' => ($parent ? 'COMMENT' : $validated['type']) === 'LIKE' ? 'LIKE' : 'REVIEW',
+                'userId' => $parent->userId,
+                'type' => 'COMMENT_REPLY',
                 'actorId' => $user->id,
                 'actorName' => $user->username,
                 'actorProfileImageUrl' => $user->profileImageUrl,
-                'storyId' => $part->story->id,
-                'storyTitle' => $part->story->title,
-                'partId' => $part->id,
-                'partTitle' => $part->title,
-                'content' => ($parent ? 'COMMENT' : $validated['type']) === 'LIKE'
-                    ? $user->username.' liked a passage in "'.$part->title.'"'
-                    : $user->username.' commented on a passage in "'.$part->title.'"',
+                'storyId' => $part?->story?->id,
+                'storyTitle' => $part?->story?->title,
+                'partId' => $part?->id,
+                'partTitle' => $part?->title,
+                'content' => $user->username.' replied to your comment in "'.$part?->title.'"',
                 'timestamp' => time() * 1000,
                 'isRead' => false,
+                'isActorVerified' => (bool) $user->isVerified,
+            ]);
+            $notifiedUserId = $parent->userId;
+        }
+
+        if ($part && $part->story && $part->story->authorId !== $user->id && $part->story->authorId !== $notifiedUserId) {
+            Notification::create([
+                'id' => Str::uuid()->toString(), 'userId' => $part->story->authorId,
+                'type' => ($parent ? 'COMMENT' : $validated['type']) === 'LIKE' ? 'LIKE' : 'REVIEW',
+                'actorId' => $user->id, 'actorName' => $user->username,
+                'actorProfileImageUrl' => $user->profileImageUrl, 'storyId' => $part->story->id,
+                'storyTitle' => $part->story->title, 'partId' => $part->id, 'partTitle' => $part->title,
+                'content' => $user->username.' commented on a passage in "'.$part->title.'"',
+                'timestamp' => time() * 1000, 'isRead' => false,
                 'isActorVerified' => (bool) $user->isVerified,
             ]);
         }
@@ -528,6 +561,21 @@ class InteractionController extends Controller
                 'createdAt' => now()->timestamp * 1000,
             ]);
             $isHearted = true;
+
+            if ($annotation->userId !== $request->user()->id) {
+                $part = StoryPart::with('story')->find($annotation->partId);
+                Notification::create([
+                    'id' => Str::uuid()->toString(), 'userId' => $annotation->userId,
+                    'type' => 'COMMENT_LIKE', 'actorId' => $request->user()->id,
+                    'actorName' => $request->user()->username,
+                    'actorProfileImageUrl' => $request->user()->profileImageUrl,
+                    'storyId' => $part?->story?->id, 'storyTitle' => $part?->story?->title,
+                    'partId' => $part?->id, 'partTitle' => $part?->title,
+                    'content' => $request->user()->username.' hearted your comment',
+                    'timestamp' => time() * 1000, 'isRead' => false,
+                    'isActorVerified' => (bool) $request->user()->isVerified,
+                ]);
+            }
         }
 
         return response()->json([

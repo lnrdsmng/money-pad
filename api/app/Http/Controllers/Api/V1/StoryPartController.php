@@ -8,6 +8,8 @@ use App\Models\Story;
 use App\Models\StoryPart;
 use App\Models\User;
 use App\Models\UserReadPart;
+use App\Services\ActivityNotificationService;
+use App\Services\ReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -15,6 +17,8 @@ use Illuminate\Support\Str;
 
 class StoryPartController extends Controller
 {
+    public function __construct(private readonly ActivityNotificationService $activityNotifications) {}
+
     public function index(Request $request, $storyId)
     {
         $story = Story::findOrFail($storyId);
@@ -90,13 +94,24 @@ class StoryPartController extends Controller
                 return response()->json(['message' => 'This chapter changed in another editor. Reload before saving.', 'revision' => $part->revision], 409);
             }
             unset($validated['revision']);
-            if (($validated['isPublished'] ?? false) && ! $part->isPublished) {
+            $isNewPublication = ($validated['isPublished'] ?? false) && ! $part->isPublished;
+            $wasStoryPublished = $part->story->isPublished;
+            if ($isNewPublication) {
                 $validated['publishedAt'] = time() * 1000;
                 $part->story->update(['isPublished' => true, 'lastUpdatedAt' => time() * 1000]);
             }
             $part->fill($validated);
             $part->revision++;
             $part->save();
+
+            if ($isNewPublication) {
+                $part->load('story');
+                if ($wasStoryPublished) {
+                    $this->activityNotifications->notifyPartPublished($part, $request->user());
+                } else {
+                    $this->activityNotifications->notifyStoryPublished($part->story, $request->user());
+                }
+            }
 
             return response()->json(['success' => true, 'revision' => $part->revision]);
         }, 3);
@@ -141,7 +156,7 @@ class StoryPartController extends Controller
             if ($read->wasRecentlyCreated) {
                 $part->increment('readCount');
                 Story::where('id', $part->storyId)->increment('readCount');
-                app(\App\Services\ReferralService::class)->recordChapterRead($userId);
+                app(ReferralService::class)->recordChapterRead($userId);
             }
 
             $sessionIds = ReadingSession::query()
