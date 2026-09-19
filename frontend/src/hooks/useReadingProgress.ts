@@ -50,10 +50,16 @@ export function useReadingProgress(storyId: string) {
   const userId = user?.id;
   const key = `${userId ?? ''}:${storyId}`;
   const currentStoredProgress = userId ? getStoredReadingProgress(userId, storyId) : null;
-  const [state, setState] = useState<{ key: string; progress: ReadingProgress | null; loaded: boolean }>({
+  const [state, setState] = useState<{
+    key: string;
+    progress: ReadingProgress | null;
+    loaded: boolean;
+    resolved: boolean;
+  }>({
     key,
     progress: currentStoredProgress,
     loaded: Boolean(currentStoredProgress),
+    resolved: !userId,
   });
   const saveRevision = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
@@ -74,12 +80,12 @@ export function useReadingProgress(storyId: string) {
           if (progress === res.data && res.data) {
             storeReadingProgress(userId, storyId, res.data, serverSavedAt);
           }
-          setState({ key, progress, loaded: true });
+          setState({ key, progress, loaded: true, resolved: true });
         }
       })
       .catch(() => {
         if (!controller.signal.aborted && saveRevision.current === revisionAtRequest) {
-          setState({ key, progress: storedProgress, loaded: true });
+          setState({ key, progress: storedProgress, loaded: true, resolved: true });
         }
       });
     return () => controller.abort();
@@ -94,7 +100,7 @@ export function useReadingProgress(storyId: string) {
     };
     storeReadingProgress(userId, storyId, progress);
     saveRevision.current += 1;
-    setState({ key, progress, loaded: true });
+    setState({ key, progress, loaded: true, resolved: true });
 
     const request = saveQueue.current
       .catch(() => undefined)
@@ -111,5 +117,8 @@ export function useReadingProgress(storyId: string) {
 
   const progress = state.key === key ? state.progress : currentStoredProgress;
   return { savedPartId: progress?.last_part_id ?? null, savedScrollPosition: progress?.last_scroll_position ?? 0,
-    saveProgress, loaded: !userId || Boolean(currentStoredProgress) || (state.key === key && state.loaded) };
+    saveProgress,
+    loaded: !userId || Boolean(currentStoredProgress) || (state.key === key && state.loaded),
+    resolved: !userId || (state.key === key && state.resolved),
+  };
 }

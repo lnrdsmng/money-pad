@@ -8,6 +8,7 @@ import { VerifiedBadge } from '../components/common/VerifiedBadge';
 import { StoryReviewsSection } from '../components/story/StoryReviewsSection';
 import { useFeedback } from '../components/feedback/feedback';
 import { ReadingListPicker } from '../components/story/ReadingListPicker';
+import { useReadingProgress } from '../hooks/useReadingProgress';
 
 export default function StoryPage() {
   const { storyId } = useParams();
@@ -15,6 +16,7 @@ export default function StoryPage() {
   const queryClient = useQueryClient();
   const feedback = useFeedback();
   const [showReadingListPicker, setShowReadingListPicker] = useState(false);
+  const { savedPartId, resolved: readingProgressResolved } = useReadingProgress(storyId!);
 
   const { data: story, isLoading: loadingStory } = useQuery({
     queryKey: ['story', storyId],
@@ -106,7 +108,15 @@ export default function StoryPage() {
   if (loadingStory || loadingParts) return <div className="text-center p-8">Loading...</div>;
   if (!story) return <div className="text-center p-8 text-accent">Story not found</div>;
 
-  const firstPart = parts?.[0];
+  const publishedParts = parts?.filter((part: any) => part.isPublished) ?? [];
+  const savedPartIndex = readingProgressResolved && savedPartId
+    ? publishedParts.findIndex((part: any) => part.id === savedPartId)
+    : -1;
+  const readingPartIndex = savedPartIndex >= 0 ? savedPartIndex : 0;
+  const readingPart = publishedParts[readingPartIndex];
+  const readingButtonLabel = savedPartIndex >= 0
+    ? `Continue Reading Chapter ${readingPartIndex + 1}`
+    : 'Start Reading Chapter 1';
 
   return (
     <div className="max-w-4xl mx-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-gray-200 dark:border-slate-800 overflow-hidden mt-4 p-4 sm:p-6">
@@ -170,16 +180,27 @@ export default function StoryPage() {
             </div>
 
             {/* Focal Hero Reading CTA */}
-            {firstPart && (
+            {readingPart && (
               <div className="mb-6">
-                <Link
-                  to={`/story/${story.id}/read/${firstPart.id}`}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-bold text-sm sm:text-base shadow-sm active:scale-98 transition cursor-pointer w-full sm:w-auto"
-                >
-                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Start Reading Chapter 1</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {readingProgressResolved ? (
+                  <Link
+                    to={`/story/${story.id}/read/${readingPart.id}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-bold text-sm sm:text-base shadow-sm active:scale-98 transition cursor-pointer w-full sm:w-auto"
+                  >
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>{readingButtonLabel}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent text-white font-bold text-sm sm:text-base shadow-sm opacity-70 cursor-wait w-full sm:w-auto"
+                  >
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Checking reading progress...</span>
+                  </button>
+                )}
               </div>
             )}
 
