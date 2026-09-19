@@ -88,7 +88,7 @@ class AdWatchTaskTest extends TestCase
         $progress = $referrals->milestones($inviter);
         $refereeProgress = collect($progress['referrals'])->firstWhere('id', $referee->id);
         $otherProgress = collect($progress['referrals'])->firstWhere('id', $other->id);
-        $this->assertSame(3, $refereeProgress['tiers'][0]['currentAds']);
+        $this->assertSame(2, $refereeProgress['tiers'][0]['currentAds']);
         $this->assertTrue($refereeProgress['tiers'][0]['canClaim']);
         $this->assertSame(0, $otherProgress['tiers'][0]['currentAds']);
         $this->assertSame('8.000', $referee->fresh()->readerCoins);
@@ -108,7 +108,7 @@ class AdWatchTaskTest extends TestCase
         $this->postJson('/api/v1/transactions/ad-watch', ['ad_event_id' => $nextEventId])->assertOk();
 
         $nextProgress = collect($referrals->milestones($inviter)['referrals'])->firstWhere('id', $referee->id);
-        $this->assertSame(3, $nextProgress['tiers'][0]['currentAds']);
+        $this->assertSame(2, $nextProgress['tiers'][0]['currentAds']);
         $this->assertSame(1, $nextProgress['tiers'][1]['currentAds']);
     }
 }

@@ -40,7 +40,7 @@ export function ReferralMilestoneTable({
               <div className="mt-3">
                 <div className="mb-1 flex flex-wrap justify-between gap-x-2 text-xs text-gray-600 dark:text-gray-300">
                   <span>Progress</span>
-                  <span>{tier.currentChapters}/{tier.targetChapters} chapters · {tier.currentAds}/{tier.targetAds} ads</span>
+                  <span>{tier.targetChapters} ch • {tier.targetAds} ads</span>
                 </div>
                 <div role="progressbar" aria-label={`Tier ${tier.tier} progress`} aria-valuenow={totalPercent} aria-valuemin={0} aria-valuemax={100} className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                   <div className={`h-full rounded-full ${tier.isCompleted ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${totalPercent}%` }} />
@@ -123,7 +123,7 @@ export function ReferralMilestoneTable({
                       />
                     </div>
                     <span className="text-[10px] text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {tier.currentChapters}/{tier.targetChapters} ch • {tier.currentAds}/{tier.targetAds} ads
+                      {tier.targetChapters} ch • {tier.targetAds} ads
                     </span>
                   </div>
                 </td>

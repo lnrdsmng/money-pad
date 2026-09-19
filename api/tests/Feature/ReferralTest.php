@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Story;
+use App\Models\StoryPart;
 use App\Models\User;
+use App\Services\ReferralService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -10,6 +13,15 @@ use Tests\TestCase;
 class ReferralTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_milestone_ad_requirements_match_each_tier(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->getJson('/api/v1/referrals/milestones')->assertOk();
+
+        $this->assertSame([2, 5, 7, 10, 12, 15], collect($response->json('tiers'))->pluck('targetAds')->all());
+    }
 
     public function test_user_can_claim_welcome_referral_bonus_within_24_hours(): void
     {
@@ -40,7 +52,7 @@ class ReferralTest extends TestCase
 
         $this->assertEquals('referrer123', $referee->referredBy);
         $this->assertTrue($referee->isReferralRewardClaimed);
-        $this->assertEquals(10.0, (float)$referee->readerCoins);
+        $this->assertEquals(10.0, (float) $referee->readerCoins);
         $this->assertEquals(1, $referrer->referralCount);
 
         $this->assertDatabaseHas('notifications', [
@@ -96,8 +108,8 @@ class ReferralTest extends TestCase
             'referredBy' => 'super_referrer',
         ]);
 
-        // Referee reads 5 chapters and watches 3 ads (Tier 1 requirement: 5 chapters + 3 ads = 10 coins)
-        \App\Models\Story::create([
+        // Referee reads 5 chapters and watches ads (Tier 1 requirement: 5 chapters + 2 ads).
+        Story::create([
             'id' => 'story_1',
             'authorId' => $referrer->id,
             'authorName' => $referrer->username,
@@ -107,10 +119,10 @@ class ReferralTest extends TestCase
         ]);
 
         for ($i = 1; $i <= 5; $i++) {
-            \App\Models\StoryPart::create([
-                'id' => 'part_' . $i,
+            StoryPart::create([
+                'id' => 'part_'.$i,
                 'storyId' => 'story_1',
-                'title' => 'Part ' . $i,
+                'title' => 'Part '.$i,
                 'content' => 'Content',
                 'order' => $i,
                 'isPublished' => true,
@@ -118,7 +130,7 @@ class ReferralTest extends TestCase
 
             DB::table('user_read_parts')->insert([
                 'userId' => $referee->id,
-                'partId' => 'part_' . $i,
+                'partId' => 'part_'.$i,
                 'storyId' => 'story_1',
                 'readAt' => time(),
             ]);
@@ -126,7 +138,7 @@ class ReferralTest extends TestCase
 
         for ($i = 1; $i <= 3; $i++) {
             DB::table('ad_watch_events')->insert([
-                'id' => 'ad_' . $i,
+                'id' => 'ad_'.$i,
                 'userId' => $referee->id,
                 'rewardCoins' => 0.5,
                 'watchedAt' => time(),
@@ -136,7 +148,7 @@ class ReferralTest extends TestCase
         $res = $this->actingAs($referrer)->getJson('/api/v1/referrals/milestones');
         $res->assertOk()
             ->assertJsonPath('totalChaptersRead', 5)
-            ->assertJsonPath('totalAdsWatched', 3)
+            ->assertJsonPath('totalAdsWatched', 2)
             ->assertJsonPath('tiers.0.canClaim', true);
 
         // Claim tier 1
@@ -145,7 +157,7 @@ class ReferralTest extends TestCase
         ]);
 
         $claimRes->assertOk()->assertJsonPath('success', true);
-        $this->assertEquals(5.0, (float)$referrer->fresh()->readerCoins);
+        $this->assertEquals(5.0, (float) $referrer->fresh()->readerCoins);
 
         // Attempt duplicate claim
         $dupRes = $this->actingAs($referrer)->postJson('/api/v1/referrals/claim-milestone', [
@@ -157,7 +169,7 @@ class ReferralTest extends TestCase
     public function test_empty_username_does_not_leak_unreferred_milestones(): void
     {
         $unrelatedAuthor = User::factory()->create();
-        $unrelatedStory = \App\Models\Story::create([
+        $unrelatedStory = Story::create([
             'id' => 's_unrelated_1',
             'authorId' => $unrelatedAuthor->id,
             'authorName' => $unrelatedAuthor->username,
@@ -165,7 +177,7 @@ class ReferralTest extends TestCase
             'overview' => 'Overview',
             'isPublished' => true,
         ]);
-        $unrelatedPart = \App\Models\StoryPart::create([
+        $unrelatedPart = StoryPart::create([
             'id' => 'p_unrelated_1',
             'storyId' => $unrelatedStory->id,
             'title' => 'Part 1',
@@ -335,14 +347,14 @@ class ReferralTest extends TestCase
         $userB = User::factory()->create(['username' => 'friend_b', 'referredBy' => 'shared_host', 'referrer_id' => $referrer->id]);
         $userC = User::factory()->create(['username' => 'friend_c', 'referredBy' => 'shared_host', 'referrer_id' => $referrer->id]);
 
-        $referralService = app(\App\Services\ReferralService::class);
+        $referralService = app(ReferralService::class);
 
-        // User B completes 5 chapters and 3 ads (Tier 1 requirement)
+        // User B completes the Tier 1 chapter and ad requirements.
         for ($i = 0; $i < 5; $i++) {
             $referralService->recordChapterRead($userB->id);
         }
         $bRow = $referralService->ensureProgressRow($referrer->id, $userB->id, 1);
-        $bRow->update(['ads_watched' => 3, 'is_completed' => true]);
+        $bRow->update(['ads_watched' => 2, 'is_completed' => true]);
 
         // Check milestones from host's perspective
         $res = $this->actingAs($referrer)->getJson('/api/v1/referrals/milestones');
@@ -358,7 +370,7 @@ class ReferralTest extends TestCase
         // User B should have tier 1 completed and claimable
         $this->assertTrue($bProgress['tiers'][0]['canClaim']);
         $this->assertEquals(5, $bProgress['tiers'][0]['currentChapters']);
-        $this->assertEquals(3, $bProgress['tiers'][0]['currentAds']);
+        $this->assertEquals(2, $bProgress['tiers'][0]['currentAds']);
 
         // User C should NOT have tier 1 completed (isolated)
         $this->assertFalse($cProgress['tiers'][0]['canClaim']);
@@ -390,14 +402,14 @@ class ReferralTest extends TestCase
         $referrer = User::factory()->create(['username' => 'lock_host']);
         $userB = User::factory()->create(['username' => 'lock_reader', 'referredBy' => 'lock_host', 'referrer_id' => $referrer->id]);
 
-        $referralService = app(\App\Services\ReferralService::class);
+        $referralService = app(ReferralService::class);
 
-        // Complete Tier 1 (5 chapters + 3 ads)
+        // Complete Tier 1 (5 chapters + 2 ads)
         for ($i = 0; $i < 5; $i++) {
             $referralService->recordChapterRead($userB->id);
         }
         $bRow = $referralService->ensureProgressRow($referrer->id, $userB->id, 1);
-        $bRow->update(['ads_watched' => 3, 'is_completed' => true]);
+        $bRow->update(['ads_watched' => 2, 'is_completed' => true]);
 
         // Active tier is still 1 (because host hasn't claimed Tier 1 yet)
         $this->assertEquals(1, $referralService->getActiveTierForReferee($referrer->id, $userB->id));
@@ -458,7 +470,7 @@ class ReferralTest extends TestCase
         $this->assertEquals(10.0, (float) $userB->fresh()->readerCoins);
 
         // Verify tier 1 ad count incremented
-        $referralService = app(\App\Services\ReferralService::class);
+        $referralService = app(ReferralService::class);
         $milestones = $referralService->milestones($referrer);
         $bProgress = collect($milestones['referrals'])->firstWhere('id', $userB->id);
         $this->assertEquals(1, $bProgress['tiers'][0]['currentAds']);
@@ -470,4 +482,3 @@ class ReferralTest extends TestCase
         $replayRes->assertStatus(422);
     }
 }
-

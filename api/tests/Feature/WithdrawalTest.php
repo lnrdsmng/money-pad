@@ -174,7 +174,7 @@ class WithdrawalTest extends TestCase
             'referrer_id' => $inviter->id,
             'referred_user_id' => $user->id,
             'tier_index' => 1,
-            'ads_watched' => 3,
+            'ads_watched' => 2,
         ]);
 
         // 10th ad waives fee

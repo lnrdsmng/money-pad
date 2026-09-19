@@ -30,6 +30,7 @@ export function ReadingCoinIndicator({
 
   const displayTotal =
     pendingEarned % 1 === 0 ? pendingEarned.toString() : pendingEarned.toFixed(2);
+  const progressPercentage = Math.round((isEndOfChapter ? 1 : Math.min(1, Math.max(0, progress))) * 100);
 
   const awardText =
     latestAward !== null
@@ -110,6 +111,9 @@ export function ReadingCoinIndicator({
             data-testid="reading-coin-total"
           >
             {displayTotal}
+          </span>
+          <span className="mt-0.5 text-[9px] font-semibold leading-none text-gray-500 dark:text-gray-400">
+            {progressPercentage}%
           </span>
         </div>
       </div>

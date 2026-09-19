@@ -4,12 +4,12 @@ $usesDevelopmentAds = in_array(env('APP_ENV', 'production'), ['local', 'testing'
 
 return [
     'referral_milestones' => [
-        1 => ['tier' => 1, 'chapters' => 5, 'ads' => 3, 'coins' => 5],
+        1 => ['tier' => 1, 'chapters' => 5, 'ads' => 2, 'coins' => 5],
         2 => ['tier' => 2, 'chapters' => 15, 'ads' => 5, 'coins' => 10],
         3 => ['tier' => 3, 'chapters' => 25, 'ads' => 7, 'coins' => 20],
         4 => ['tier' => 4, 'chapters' => 40, 'ads' => 10, 'coins' => 35],
-        5 => ['tier' => 5, 'chapters' => 80, 'ads' => 15, 'coins' => 60],
-        6 => ['tier' => 6, 'chapters' => 110, 'ads' => 20, 'coins' => 70],
+        5 => ['tier' => 5, 'chapters' => 80, 'ads' => 12, 'coins' => 60],
+        6 => ['tier' => 6, 'chapters' => 110, 'ads' => 15, 'coins' => 70],
     ],
 
     'author_commission' => [
