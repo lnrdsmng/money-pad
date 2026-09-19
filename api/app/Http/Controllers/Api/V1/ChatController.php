@@ -8,6 +8,7 @@ use App\Models\ChatMessageReaction;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ChatController extends Controller
@@ -17,7 +18,7 @@ class ChatController extends Controller
         $since = $request->query('since');
         $userId = $request->user()?->id;
 
-        $query = ChatMessage::with(['replyTo:id,userId,username,message'])
+        $query = ChatMessage::with(['user:id,username,profileImageUrl', 'replyTo.user:id,username,profileImageUrl'])
             ->withCount(['reactions as heart_count' => function ($q) {
                 $q->where('reaction_type', 'heart');
             }])
@@ -33,9 +34,28 @@ class ChatController extends Controller
             $query->where('created_at', '>', date('Y-m-d H:i:s', $since));
         }
 
-        $messages = $query->limit(50)->get()->reverse()->values();
+        $messages = $query->limit(50)->get();
+        if ($request->filled('message_id') && ! $messages->contains('id', $request->query('message_id'))) {
+            $target = ChatMessage::with(['user:id,username,profileImageUrl', 'replyTo.user:id,username,profileImageUrl'])
+                ->withCount(['reactions as heart_count' => fn ($q) => $q->where('reaction_type', 'heart')])
+                ->withExists(['reactions as user_has_hearted' => fn ($q) => $q->where('user_id', $userId)->where('reaction_type', 'heart')])
+                ->find($request->query('message_id'));
+            if ($target) {
+                $messages->push($target);
+            }
+        }
+        $messages = $messages->sortBy('created_at')->values();
 
-        if (!$userId) {
+        $messages->each(function (ChatMessage $message): void {
+            $message->profile_image_url = $message->user?->profileImageUrl;
+            if ($message->replyTo) {
+                $message->replyTo->profile_image_url = $message->replyTo->user?->profileImageUrl;
+                $message->replyTo->makeHidden('user');
+            }
+            $message->makeHidden('user');
+        });
+
+        if (! $userId) {
             $messages->each(function ($msg) {
                 $msg->user_has_hearted = false;
             });
@@ -66,7 +86,7 @@ class ChatController extends Controller
         $notifiedUserIds = [];
 
         // Notify parent message author if threaded reply
-        if (!empty($validated['reply_to_id'])) {
+        if (! empty($validated['reply_to_id'])) {
             $parent = ChatMessage::find($validated['reply_to_id']);
             if ($parent && $parent->userId !== $user->id) {
                 Notification::create([
@@ -77,10 +97,10 @@ class ChatController extends Controller
                     'actorName' => $user->username,
                     'actorProfileImageUrl' => $user->profileImageUrl,
                     'partId' => $msg->id,
-                    'content' => 'replied to your chat: "' . Str::limit($validated['message'], 50) . '"',
+                    'content' => 'replied to your chat: "'.Str::limit($validated['message'], 50).'"',
                     'timestamp' => time() * 1000,
                     'isRead' => false,
-                    'isActorVerified' => (bool)$user->isVerified,
+                    'isActorVerified' => (bool) $user->isVerified,
                 ]);
                 $notifiedUserIds[] = $parent->userId;
             }
@@ -103,10 +123,10 @@ class ChatController extends Controller
                     'actorName' => $user->username,
                     'actorProfileImageUrl' => $user->profileImageUrl,
                     'partId' => $msg->id,
-                    'content' => 'mentioned you in Community Lounge: "' . Str::limit($validated['message'], 50) . '"',
+                    'content' => 'mentioned you in Community Lounge: "'.Str::limit($validated['message'], 50).'"',
                     'timestamp' => time() * 1000,
                     'isRead' => false,
-                    'isActorVerified' => (bool)$user->isVerified,
+                    'isActorVerified' => (bool) $user->isVerified,
                 ]);
             }
         }
@@ -122,12 +142,6 @@ class ChatController extends Controller
     {
         $user = $request->user();
         $chatMessage = ChatMessage::findOrFail($id);
-
-        if ($chatMessage->userId === $user->id) {
-            return response()->json([
-                'message' => 'You cannot react to your own message.',
-            ], 422);
-        }
 
         $reaction = ChatMessageReaction::where('chat_message_id', $chatMessage->id)
             ->where('user_id', $user->id)
@@ -146,19 +160,21 @@ class ChatController extends Controller
             ]);
             $reacted = true;
 
-            Notification::create([
-                'id' => Str::uuid()->toString(),
-                'userId' => $chatMessage->userId,
-                'type' => 'CHAT_LIKE',
-                'actorId' => $user->id,
-                'actorName' => $user->username,
-                'actorProfileImageUrl' => $user->profileImageUrl,
-                'partId' => $chatMessage->id,
-                'content' => 'liked your message in Community Lounge',
-                'timestamp' => time() * 1000,
-                'isRead' => false,
-                'isActorVerified' => (bool)$user->isVerified,
-            ]);
+            if ($chatMessage->userId !== $user->id) {
+                Notification::create([
+                    'id' => Str::uuid()->toString(),
+                    'userId' => $chatMessage->userId,
+                    'type' => 'CHAT_LIKE',
+                    'actorId' => $user->id,
+                    'actorName' => $user->username,
+                    'actorProfileImageUrl' => $user->profileImageUrl,
+                    'partId' => $chatMessage->id,
+                    'content' => 'liked your message in Community Lounge',
+                    'timestamp' => time() * 1000,
+                    'isRead' => false,
+                    'isActorVerified' => (bool) $user->isVerified,
+                ]);
+            }
         }
 
         $heartCount = ChatMessageReaction::where('chat_message_id', $chatMessage->id)
@@ -169,5 +185,50 @@ class ChatController extends Controller
             'reacted' => $reacted,
             'heart_count' => $heartCount,
         ]);
+    }
+
+    public function unreadCount(Request $request)
+    {
+        $user = $request->user();
+        $count = ChatMessage::where('userId', '!=', $user->id)
+            ->when($user->community_read_at, fn ($query, $readAt) => $query->where('created_at', '>', $readAt))
+            ->count();
+
+        return response()->json(['count' => $count]);
+    }
+
+    public function markRead(Request $request)
+    {
+        $request->user()->forceFill(['community_read_at' => now()])->save();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function pinned()
+    {
+        $message = ChatMessage::with('user:id,username,profileImageUrl')->whereNotNull('pinned_at')->latest('pinned_at')->first();
+        if ($message) {
+            $message->profile_image_url = $message->user?->profileImageUrl;
+            $message->makeHidden('user');
+        }
+
+        return response()->json($message);
+    }
+
+    public function pin(Request $request, ChatMessage $message)
+    {
+        DB::transaction(function () use ($request, $message): void {
+            ChatMessage::whereNotNull('pinned_at')->update(['pinned_at' => null, 'pinned_by' => null]);
+            $message->update(['pinned_at' => now(), 'pinned_by' => $request->user()->id]);
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    public function unpin(ChatMessage $message)
+    {
+        $message->update(['pinned_at' => null, 'pinned_by' => null]);
+
+        return response()->json(['success' => true]);
     }
 }

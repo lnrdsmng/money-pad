@@ -95,6 +95,9 @@ Route::prefix('v1')->group(function () {
 
         // Chat
         Route::get('/chat/messages', [ChatController::class, 'index']);
+        Route::get('/chat/unread-count', [ChatController::class, 'unreadCount']);
+        Route::get('/chat/pinned', [ChatController::class, 'pinned']);
+        Route::post('/chat/read', [ChatController::class, 'markRead']);
         Route::post('/chat/messages', [ChatController::class, 'store']);
         Route::post('/chat/messages/{id}/react', [ChatController::class, 'toggleReaction']);
 
@@ -204,6 +207,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/withdrawals/{id}/reject', [AdminController::class, 'rejectWithdrawal']);
         Route::post('/messages/send', [AdminController::class, 'sendMessage']);
         Route::post('/messages/broadcast', [AdminController::class, 'broadcastMessage']);
+        Route::put('/chat/messages/{message}/pin', [ChatController::class, 'pin']);
+        Route::delete('/chat/messages/{message}/pin', [ChatController::class, 'unpin']);
         Route::get('/users', [AdminController::class, 'users']);
         Route::get('/plan-purchases', [AdminPlanPurchaseController::class, 'index']);
         Route::get('/plan-purchases/{planPurchase}/proof', [AdminPlanPurchaseController::class, 'proof']);

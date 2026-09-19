@@ -17,12 +17,14 @@ class ChatMessage extends Model
 
     protected $fillable = [
         'id', 'userId', 'username', 'profile_image_url', 'message', 'reply_to_id', 'is_system',
+        'pinned_at', 'pinned_by',
     ];
 
     protected function casts(): array
     {
         return [
             'is_system' => 'boolean',
+            'pinned_at' => 'datetime',
         ];
     }
 

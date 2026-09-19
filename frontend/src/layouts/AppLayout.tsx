@@ -5,11 +5,13 @@ import BottomNavBar from '../components/BottomNavBar';
 import UserMenu from '../components/UserMenu';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 import { useDailyLoginReward } from '../hooks/useDailyLoginReward';
+import { useCommunityUnread } from '../hooks/useCommunityUnread';
 
 export default function AppLayout() {
   const { user } = useAuth();
   const location = useLocation();
   const { hasAvailableReward } = useDailyLoginReward();
+  const communityUnread = useCommunityUnread();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -46,13 +48,18 @@ export default function AppLayout() {
 
                   <Link
                     to="/community"
-                    className={`text-sm font-medium transition-colors ${
+                    className={`relative text-sm font-medium transition-colors ${
                       location.pathname.startsWith('/community')
                         ? 'text-primary'
                         : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
                     }`}
                   >
                     Community
+                    {communityUnread > 0 && (
+                      <span className="absolute -right-5 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white">
+                        {communityUnread > 99 ? '99+' : communityUnread}
+                      </span>
+                    )}
                   </Link>
 
                   <Link

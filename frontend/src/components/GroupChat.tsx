@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
-import { Send, MessageCircle, LoaderCircle, Shield, Heart, Reply, X } from 'lucide-react';
+import { Send, MessageCircle, LoaderCircle, Shield, Heart, Reply, X, Pin, PinOff } from 'lucide-react';
 import { useFeedback } from './feedback/feedback';
 import { getApiErrorMessage } from '../utils/apiError';
+import { UserAvatar } from './common/UserAvatar';
 
 interface ReplyingToState {
   id: string;
@@ -26,16 +27,25 @@ export const GroupChat = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const feedback = useFeedback();
+  const queryClient = useQueryClient();
+  const lastMarkedReadRef = useRef<string | null>(null);
 
   const { data: messages, refetch } = useQuery({
     queryKey: ['groupChat', user?.id],
     queryFn: async () => {
-      const res = await http.get('/chat/messages');
+      const res = await http.get('/chat/messages', { params: { message_id: targetMessageId || undefined } });
       return res.data;
     },
     enabled: !!user,
     refetchInterval: 3000,
     refetchIntervalInBackground: false, // Stops polling when tab/window is inactive
+  });
+
+  const { data: pinnedMessage, refetch: refetchPinned } = useQuery({
+    queryKey: ['groupChat', 'pinned'],
+    queryFn: async () => (await http.get('/chat/pinned')).data,
+    enabled: !!user,
+    refetchInterval: 10_000,
   });
 
   const sendMutation = useMutation({
@@ -56,6 +66,25 @@ export const GroupChat = () => {
     },
     onError: (error) => feedback.error(getApiErrorMessage(error, 'Could not update reaction.')),
   });
+
+  const pinMutation = useMutation({
+    mutationFn: ({ id, isPinned }: { id: string; isPinned: boolean }) => (
+      isPinned ? http.delete(`/admin/chat/messages/${id}/pin`) : http.put(`/admin/chat/messages/${id}/pin`)
+    ),
+    onSuccess: async () => {
+      await Promise.all([refetch(), refetchPinned()]);
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'Could not update the pinned message.')),
+  });
+
+  useEffect(() => {
+    const latestMessageId = messages?.at(-1)?.id;
+    if (!latestMessageId || document.visibilityState !== 'visible' || lastMarkedReadRef.current === latestMessageId) return;
+    lastMarkedReadRef.current = latestMessageId;
+    http.post('/chat/read').then(() => {
+      queryClient.invalidateQueries({ queryKey: ['community', 'unread-count', user?.id] });
+    }).catch(() => undefined);
+  }, [messages, queryClient, user?.id]);
 
   // Handle scrolling to target message from notification or default to bottom
   useEffect(() => {
@@ -179,6 +208,17 @@ export const GroupChat = () => {
         </span>
       </div>
 
+      {pinnedMessage && (
+        <button
+          type="button"
+          onClick={() => scrollToMessage(pinnedMessage.id)}
+          className="flex w-full items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-left text-xs text-amber-950 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+        >
+          <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0 fill-current" />
+          <span className="min-w-0"><strong>{pinnedMessage.username}</strong>: <span className="line-clamp-2">{pinnedMessage.message}</span></span>
+        </button>
+      )}
+
       {/* Messages Feed */}
       <div
         ref={messagesContainerRef}
@@ -194,6 +234,9 @@ export const GroupChat = () => {
               id={`chat-msg-${msg.id}`}
               className={`flex ${isMe ? 'justify-end' : 'justify-start'} min-w-0 transition-transform duration-300`}
             >
+              {!isMe && !msg.is_system && (
+                <UserAvatar username={msg.username} imageUrl={msg.profile_image_url} className="mr-2 mt-1 h-8 w-8 text-xs" />
+              )}
               <div
                 className={`max-w-[85%] sm:max-w-[75%] min-w-0 rounded-2xl px-3.5 sm:px-4 py-2.5 shadow-xs transition-all duration-300 ${
                   isHighlighted ? 'ring-4 ring-primary ring-offset-2 scale-[1.02] shadow-lg animate-pulse' : ''
@@ -254,35 +297,26 @@ export const GroupChat = () => {
                 {/* Footer: Reactions, Reply Action, Timestamp */}
                 <div className="flex items-center justify-between gap-2 mt-1.5 pt-1 border-t border-black/5 dark:border-white/5 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    {/* Heart Reaction on others' messages */}
-                    {!isMe && !msg.is_system && (
+                    {!msg.is_system && (
                       <button
                         type="button"
                         onClick={() => reactMutation.mutate(msg.id)}
                         disabled={reactMutation.isPending}
                         className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition cursor-pointer ${
                           msg.user_has_hearted
-                            ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 font-semibold'
-                            : 'text-gray-400 hover:text-rose-500 hover:bg-gray-100 dark:hover:bg-slate-700'
+                            ? isMe ? 'bg-white/20 text-rose-200' : 'text-rose-500 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 font-semibold'
+                            : isMe ? 'text-white/80 hover:bg-white/20' : 'text-gray-400 hover:text-rose-500 hover:bg-gray-100 dark:hover:bg-slate-700'
                         }`}
                         title={msg.user_has_hearted ? 'Unlike' : 'Heart react'}
                         aria-label={msg.user_has_hearted ? 'Unlike message' : 'Heart react to message'}
                       >
                         <Heart
                           className={`w-3.5 h-3.5 transition-transform active:scale-125 ${
-                            msg.user_has_hearted ? 'fill-rose-500 text-rose-500' : ''
+                            msg.user_has_hearted ? isMe ? 'fill-rose-200 text-rose-200' : 'fill-rose-500 text-rose-500' : ''
                           }`}
                         />
                         {msg.heart_count > 0 && <span className="text-[11px]">{msg.heart_count}</span>}
                       </button>
-                    )}
-
-                    {/* Read-only heart badge on own message */}
-                    {isMe && msg.heart_count > 0 && (
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] text-white/90 bg-white/20">
-                        <Heart className="w-3 h-3 fill-rose-200 text-rose-200" />
-                        <span>{msg.heart_count}</span>
-                      </span>
                     )}
 
                     {/* Reply Action Button */}
@@ -302,6 +336,18 @@ export const GroupChat = () => {
                         <span className="hidden sm:inline">Reply</span>
                       </button>
                     )}
+                    {user?.role === 'admin' && (
+                      <button
+                        type="button"
+                        onClick={() => pinMutation.mutate({ id: msg.id, isPinned: Boolean(msg.pinned_at) })}
+                        disabled={pinMutation.isPending}
+                        className={`rounded-full p-1 ${isMe ? 'text-white/80 hover:bg-white/20' : 'text-gray-400 hover:bg-gray-100 hover:text-amber-600 dark:hover:bg-slate-700'}`}
+                        aria-label={msg.pinned_at ? 'Unpin message' : 'Pin message'}
+                        title={msg.pinned_at ? 'Unpin message' : 'Pin message'}
+                      >
+                        {msg.pinned_at ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                      </button>
+                    )}
                   </div>
 
                   {/* Timestamp */}
@@ -314,6 +360,9 @@ export const GroupChat = () => {
                   </span>
                 </div>
               </div>
+              {isMe && !msg.is_system && (
+                <UserAvatar username={msg.username} imageUrl={msg.profile_image_url} className="ml-2 mt-1 h-8 w-8 text-xs" />
+              )}
             </div>
           );
         })}

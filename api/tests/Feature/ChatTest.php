@@ -47,7 +47,7 @@ class ChatTest extends TestCase
         $this->assertCount(2, $listRes);
         $firstMsg = collect($listRes)->firstWhere('id', 'msg-1');
         $this->assertEquals(1, $firstMsg['heart_count']);
-        $this->assertTrue((bool)$firstMsg['user_has_hearted']);
+        $this->assertTrue((bool) $firstMsg['user_has_hearted']);
     }
 
     public function test_replying_to_a_message_sends_notification_to_original_author(): void
@@ -93,7 +93,7 @@ class ChatTest extends TestCase
         ]);
     }
 
-    public function test_heart_reaction_toggle_and_cannot_heart_own_message(): void
+    public function test_heart_reaction_toggle_including_own_message(): void
     {
         $userA = User::factory()->create(['username' => 'alice']);
         $userB = User::factory()->create(['username' => 'bob']);
@@ -106,10 +106,18 @@ class ChatTest extends TestCase
             'is_system' => false,
         ]);
 
-        // User A cannot react to own message
+        // Users can react to their own messages without generating a notification.
         $this->actingAs($userA)->postJson("/api/v1/chat/messages/{$msgA->id}/react")
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'You cannot react to your own message.');
+            ->assertOk()
+            ->assertJson(['reacted' => true, 'heart_count' => 1]);
+        $this->assertDatabaseMissing('notifications', [
+            'userId' => $userA->id,
+            'type' => 'CHAT_LIKE',
+            'actorId' => $userA->id,
+        ]);
+        $this->actingAs($userA)->postJson("/api/v1/chat/messages/{$msgA->id}/react")
+            ->assertOk()
+            ->assertJson(['reacted' => false, 'heart_count' => 0]);
 
         // User B can react
         $this->actingAs($userB)->postJson("/api/v1/chat/messages/{$msgA->id}/react")
@@ -133,5 +141,30 @@ class ChatTest extends TestCase
                 'reacted' => false,
                 'heart_count' => 0,
             ]);
+    }
+
+    public function test_unread_count_ignores_own_messages_and_can_be_cleared(): void
+    {
+        $viewer = User::factory()->create();
+        $other = User::factory()->create();
+        ChatMessage::create(['id' => 'other-1', 'userId' => $other->id, 'username' => $other->username, 'message' => 'Unread']);
+        ChatMessage::create(['id' => 'own-1', 'userId' => $viewer->id, 'username' => $viewer->username, 'message' => 'Mine']);
+
+        $this->actingAs($viewer)->getJson('/api/v1/chat/unread-count')->assertOk()->assertJsonPath('count', 1);
+        $this->actingAs($viewer)->postJson('/api/v1/chat/read')->assertOk();
+        $this->actingAs($viewer)->getJson('/api/v1/chat/unread-count')->assertOk()->assertJsonPath('count', 0);
+    }
+
+    public function test_only_admin_can_pin_a_message(): void
+    {
+        $user = User::factory()->create();
+        $admin = User::factory()->create(['role' => 'admin']);
+        $message = ChatMessage::create(['id' => 'pin-me', 'userId' => $user->id, 'username' => $user->username, 'message' => 'Important']);
+
+        $this->actingAs($user)->putJson("/api/v1/admin/chat/messages/{$message->id}/pin")->assertForbidden();
+        $this->actingAs($admin)->putJson("/api/v1/admin/chat/messages/{$message->id}/pin")->assertOk();
+        $this->assertNotNull($message->fresh()->pinned_at);
+        $this->actingAs($admin)->deleteJson("/api/v1/admin/chat/messages/{$message->id}/pin")->assertOk();
+        $this->assertNull($message->fresh()->pinned_at);
     }
 }

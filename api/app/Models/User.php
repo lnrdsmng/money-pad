@@ -78,6 +78,7 @@ class User extends Authenticatable
         'referralCount',
         'isReferralRewardClaimed',
         'has_received_first_withdrawal',
+        'community_read_at',
     ];
 
     /**
@@ -103,6 +104,7 @@ class User extends Authenticatable
             'plan' => PlanType::class,
             'readerCoins' => 'decimal:3',
             'totalReaderCoins' => 'decimal:3',
+            'community_read_at' => 'datetime',
         ];
     }
 

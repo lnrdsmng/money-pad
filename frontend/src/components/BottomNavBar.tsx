@@ -2,11 +2,14 @@ import { Link, useLocation } from 'react-router-dom';
 import { Compass, MessageCircle, PenTool, Wallet, UserCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { useDailyLoginReward } from '../hooks/useDailyLoginReward';
+import { useCommunityUnread } from '../hooks/useCommunityUnread';
+import { UserAvatar } from './common/UserAvatar';
 
 export default function BottomNavBar() {
   const { user } = useAuth();
   const location = useLocation();
   const { hasAvailableReward } = useDailyLoginReward();
+  const communityUnread = useCommunityUnread();
 
   if (!user) return null;
 
@@ -22,7 +25,7 @@ export default function BottomNavBar() {
 
   const tabs = [
     { name: 'Explore', path: '/explore', icon: Compass, hasBadge: hasAvailableReward },
-    { name: 'Community', path: '/community', icon: MessageCircle, hasBadge: false },
+    { name: 'Community', path: '/community', icon: MessageCircle, hasBadge: false, count: communityUnread },
     { name: 'Write', path: '/writer', icon: PenTool, hasBadge: false },
     { name: 'Earnings', path: '/earnings', icon: Wallet, hasBadge: hasAvailableReward },
     { name: 'Profile', path: '/profile', icon: UserCircle, hasBadge: false },
@@ -47,9 +50,18 @@ export default function BottomNavBar() {
               }`}
             >
               <div className="relative">
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                {tab.name === 'Profile' ? (
+                  <UserAvatar username={user.username} imageUrl={user.profileImageUrl} className="h-[22px] w-[22px] text-[10px]" />
+                ) : (
+                  <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                )}
                 {tab.hasBadge && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent ring-2 ring-white dark:ring-slate-900 animate-pulse" />
+                )}
+                {'count' in tab && Number(tab.count) > 0 && (
+                  <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
+                    {Number(tab.count) > 99 ? '99+' : tab.count}
+                  </span>
                 )}
               </div>
               <span className="text-[10px] font-medium tracking-tight">{tab.name}</span>
@@ -60,4 +72,3 @@ export default function BottomNavBar() {
     </nav>
   );
 }
-
