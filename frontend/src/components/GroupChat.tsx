@@ -234,7 +234,7 @@ export const GroupChat = () => {
               id={`chat-msg-${msg.id}`}
               className={`flex ${isMe ? 'justify-end' : 'justify-start'} min-w-0 transition-transform duration-300`}
             >
-              {!isMe && !msg.is_system && (
+              {!isMe && (
                 <UserAvatar username={msg.username} imageUrl={msg.profile_image_url} className="mr-2 mt-1 h-8 w-8 text-xs" />
               )}
               <div
@@ -360,7 +360,7 @@ export const GroupChat = () => {
                   </span>
                 </div>
               </div>
-              {isMe && !msg.is_system && (
+              {isMe && (
                 <UserAvatar username={msg.username} imageUrl={msg.profile_image_url} className="ml-2 mt-1 h-8 w-8 text-xs" />
               )}
             </div>

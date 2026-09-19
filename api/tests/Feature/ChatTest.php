@@ -76,6 +76,28 @@ class ChatTest extends TestCase
         ]);
     }
 
+    public function test_admin_chat_messages_include_the_admin_profile_image(): void
+    {
+        $admin = User::factory()->create([
+            'username' => 'admin',
+            'role' => 'admin',
+            'profileImageUrl' => 'https://example.com/admin-avatar.jpg',
+        ]);
+        $viewer = User::factory()->create();
+
+        $message = $this->actingAs($admin)->postJson('/api/v1/chat/messages', [
+            'message' => 'Community announcement',
+        ])->assertOk()->json();
+
+        $this->actingAs($viewer)->getJson('/api/v1/chat/messages')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $message['id'],
+                'profile_image_url' => 'https://example.com/admin-avatar.jpg',
+                'is_system' => true,
+            ]);
+    }
+
     public function test_mentioning_a_user_sends_notification(): void
     {
         $userA = User::factory()->create(['username' => 'alice']);
