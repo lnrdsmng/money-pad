@@ -4,6 +4,7 @@ import { Star, MessageSquarePlus } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { VerifiedBadge } from '../common/VerifiedBadge';
+import { UserAvatar } from '../common/UserAvatar';
 import { ReviewModal } from './ReviewModal';
 
 interface StoryReviewsSectionProps {
@@ -120,13 +121,7 @@ export const StoryReviewsSection = ({ storyId, storyTitle }: StoryReviewsSection
             >
               <div className="flex justify-between items-start gap-3 mb-2">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase overflow-hidden shrink-0">
-                    {review.userProfileImageUrl ? (
-                      <img src={review.userProfileImageUrl} alt={review.username} className="w-full h-full object-cover" />
-                    ) : (
-                      review.username?.[0] || 'U'
-                    )}
-                  </div>
+                  <UserAvatar username={review.username || 'User'} imageUrl={review.userProfileImageUrl} className="h-8 w-8 text-xs" />
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">

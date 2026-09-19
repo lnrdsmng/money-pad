@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import type { PaginatedPassageComments, ParagraphAnchor, PassageComment } from '../../types/annotations';
 import { VerifiedBadge } from '../common/VerifiedBadge';
 import { useFeedback } from '../feedback/feedback';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface ChapterAnnotationsDrawerProps {
   partId: string;
@@ -102,13 +103,7 @@ export const ChapterAnnotationsDrawer = ({ partId, paragraph, onClose }: Chapter
       className={`rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-slate-700 dark:bg-slate-800/70 ${isReply ? 'ml-6 mt-2' : ''}`}
     >
       <div className="flex items-center gap-2">
-        {comment.userProfileImageUrl ? (
-          <img src={comment.userProfileImageUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-            {comment.username.slice(0, 1).toUpperCase()}
-          </div>
-        )}
+        <UserAvatar username={comment.username} imageUrl={comment.userProfileImageUrl} className="h-7 w-7 text-xs" />
         <span className="text-xs font-semibold text-gray-800 dark:text-gray-100">{comment.username}</span>
         {comment.isUserVerified && <VerifiedBadge size={12} />}
         <time className="ml-auto text-[10px] text-gray-400">

@@ -6,6 +6,7 @@ import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { VerifiedBadge } from '../common/VerifiedBadge';
 import { useFeedback } from '../feedback/feedback';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface UserListModalProps {
   userId: string;
@@ -88,13 +89,7 @@ export const UserListModal = ({ userId, type, onClose }: UserListModalProps) => 
                   onClick={onClose}
                   className="flex items-center gap-3 min-w-0"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center font-bold text-sm text-gray-600 dark:text-gray-300 overflow-hidden shrink-0">
-                    {u.profileImageUrl ? (
-                      <img src={u.profileImageUrl} alt={u.username} className="w-full h-full object-cover" />
-                    ) : (
-                      u.username?.[0]?.toUpperCase() || 'U'
-                    )}
-                  </div>
+                  <UserAvatar username={u.username || 'User'} imageUrl={u.profileImageUrl} className="h-10 w-10 text-sm" />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1">
                       <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">

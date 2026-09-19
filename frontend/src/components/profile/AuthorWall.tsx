@@ -6,6 +6,7 @@ import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
 import { VerifiedBadge } from '../common/VerifiedBadge';
 import { useFeedback } from '../feedback/feedback';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface AuthorWallProps {
   authorId: string;
@@ -251,13 +252,7 @@ const ConversationItem = ({
     <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-gray-100 dark:border-slate-700 shadow-xs">
       <div className="flex items-start gap-3">
         <Link to={`/profile/${conversation.senderName}`} className="shrink-0">
-          <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm uppercase overflow-hidden">
-            {conversation.senderProfileImageUrl ? (
-              <img src={conversation.senderProfileImageUrl} alt={conversation.senderName} className="w-full h-full object-cover" />
-            ) : (
-              conversation.senderName?.[0] || 'U'
-            )}
-          </div>
+          <UserAvatar username={conversation.senderName || 'User'} imageUrl={conversation.senderProfileImageUrl} className="h-10 w-10 text-sm" />
         </Link>
 
         <div className="flex-1 min-w-0">
