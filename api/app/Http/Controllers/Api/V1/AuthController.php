@@ -11,7 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
@@ -71,15 +73,9 @@ class AuthController extends Controller
         $request->validate([
             'username' => 'required|string|min:3|max:50|regex:/^[A-Za-z0-9_]+$/|unique:users',
             'email' => 'required|email|max:100|unique:users',
-            'password' => 'required|string|min:8',
+            'password' => ['required', 'string', PasswordRule::min(8)->mixedCase()->numbers()],
             'referral_code' => 'nullable|string|max:255',
         ]);
-
-        $pwd = $request->password;
-        // Simple strength check: must have at least one upper, one lower, one number
-        if (! preg_match('/[A-Z]/', $pwd) || ! preg_match('/[a-z]/', $pwd) || ! preg_match('/[0-9]/', $pwd)) {
-            return response()->json(['message' => 'Password is too weak. Must contain uppercase, lowercase, and numbers.'], 400);
-        }
 
         $user = DB::transaction(function () use ($request, $rewardService, $referralService): User {
             $user = User::create([
@@ -147,7 +143,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required|string',
-            'new_password' => 'required|string|min:8',
+            'new_password' => ['required', 'string', PasswordRule::min(8)->mixedCase()->numbers()],
         ]);
 
         $user = $request->user();
@@ -157,10 +153,6 @@ class AuthController extends Controller
         }
 
         $pwd = $request->new_password;
-        if (! preg_match('/[A-Z]/', $pwd) || ! preg_match('/[a-z]/', $pwd) || ! preg_match('/[0-9]/', $pwd)) {
-            return response()->json(['message' => 'Password is too weak. Must contain uppercase, lowercase, and numbers.'], 400);
-        }
-
         $user->password = Hash::make($pwd);
         $user->save();
         $user->tokens()->delete();
@@ -174,5 +166,38 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Password changed successfully.',
         ]);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $data = $request->validate(['email' => ['required', 'email']]);
+        Password::sendResetLink($data);
+
+        return response()->json([
+            'message' => 'If an account exists for that email, a password reset link has been sent.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()],
+        ]);
+
+        $status = Password::reset($data, function (User $user, string $password): void {
+            $user->forceFill([
+                'password' => Hash::make($password),
+            ])->save();
+            $user->tokens()->delete();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        });
+
+        if ($status !== Password::PasswordReset) {
+            return response()->json(['message' => __($status)], 422);
+        }
+
+        return response()->json(['message' => 'Password reset successfully.']);
     }
 }

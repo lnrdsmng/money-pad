@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
 import { LoaderCircle } from 'lucide-react';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -12,7 +12,15 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const feedback = useFeedback();
+
+  useEffect(() => {
+    if ((location.state as { passwordReset?: boolean } | null)?.passwordReset) {
+      feedback.success('Password reset successfully. You can now sign in.');
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [feedback, location.pathname, location.state, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +63,9 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          <Link to="/forgot-password" className="mt-2 block text-right text-sm font-medium text-primary hover:underline">
+            Forgot password?
+          </Link>
         </div>
         <button
           type="submit"

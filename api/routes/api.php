@@ -33,6 +33,8 @@ Route::prefix('v1')->group(function () {
     // Public Routes
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/auth/signup', [AuthController::class, 'signup'])->middleware('throttle:signup');
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:forgot-password');
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:reset-password');
     Route::get('/users/search', [UserController::class, 'search']);
     Route::get('/users/{userId}', [UserController::class, 'show']);
 
@@ -92,6 +94,9 @@ Route::prefix('v1')->group(function () {
         // System Messages
         Route::get('/users/{userId}/system-messages', [SystemMessageController::class, 'index']);
         Route::put('/system-messages/{id}/read', [SystemMessageController::class, 'markAsRead']);
+        Route::put('/system-messages/read-all', [SystemMessageController::class, 'markAllAsRead']);
+        Route::delete('/system-messages/delete-all', [SystemMessageController::class, 'destroyAll']);
+        Route::delete('/system-messages/{id}', [SystemMessageController::class, 'destroy']);
 
         // Chat
         Route::get('/chat/messages', [ChatController::class, 'index']);
@@ -176,6 +181,8 @@ Route::prefix('v1')->group(function () {
         Route::put('/notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('/notifications/delete-all', [NotificationController::class, 'destroyAll']);
+        Route::delete('/notifications/{notificationId}', [NotificationController::class, 'destroy']);
         Route::get('/users/{userId}/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications', [NotificationController::class, 'store']);
         Route::get('/users/{userId}/notifications/unread-count', [NotificationController::class, 'unreadCount']);

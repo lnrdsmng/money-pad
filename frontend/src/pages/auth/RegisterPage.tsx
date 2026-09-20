@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { BookOpen } from 'lucide-react';
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator';
 import { PasswordInput } from '../../components/common/PasswordInput';
+import { getPasswordStrength } from '../../utils/password';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { parseReferralInput } from '../../utils/referral';
@@ -55,17 +56,6 @@ export default function RegisterPage() {
       setReferralUsername(parsed);
       localStorage.setItem('pending_referral_code', parsed);
     }
-  };
-
-  const getPasswordStrength = (pwd: string) => {
-    let score = 0;
-    if (pwd.length >= 8) score += 1;
-    if (pwd.length >= 12) score += 1;
-    if (/[A-Z]/.test(pwd)) score += 1;
-    if (/[a-z]/.test(pwd)) score += 1;
-    if (/[0-9]/.test(pwd)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
-    return score < 3 || pwd.length < 8 ? 'Weak' : score < 5 ? 'Moderate' : 'Strong';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
