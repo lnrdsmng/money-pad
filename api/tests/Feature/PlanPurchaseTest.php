@@ -25,14 +25,14 @@ class PlanPurchaseTest extends TestCase
         $response = $this->actingAs($user)->post('/api/v1/plan-purchases', [
             'plan_type' => PlanType::MegaPremium->value,
             'payment_method' => 'gcash',
-            'payment_reference' => 'GCASH-123456789',
+            'payment_reference' => '6789',
             'payment_proof' => $this->paymentProof(),
         ]);
 
         $response
             ->assertCreated()
             ->assertJsonPath('purchase.status', PlanPurchaseStatus::PendingReview->value)
-            ->assertJsonPath('purchase.payment_reference', 'GCASH-123456789')
+            ->assertJsonPath('purchase.payment_reference', '6789')
             ->assertJsonMissingPath('purchase.payment_proof_path');
 
         $purchase = PlanPurchase::query()->sole();
@@ -57,7 +57,7 @@ class PlanPurchaseTest extends TestCase
         $this->actingAs($user)->withHeader('Accept', 'application/json')->post('/api/v1/plan-purchases', [
             'plan_type' => PlanType::Standard->value,
             'payment_method' => 'gcash',
-            'payment_reference' => 'SECOND',
+            'payment_reference' => '2222',
             'payment_proof' => $this->paymentProof(),
         ])->assertUnprocessable()->assertJsonValidationErrors('purchase');
     }

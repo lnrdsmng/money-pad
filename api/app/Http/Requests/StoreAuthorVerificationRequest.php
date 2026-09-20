@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\PlanType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StorePlanPurchaseRequest extends FormRequest
+class StoreAuthorVerificationRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -15,16 +14,6 @@ class StorePlanPurchaseRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user() !== null;
-    }
-
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('payment_reference')) {
-            $this->merge(['payment_reference' => trim((string) $this->input('payment_reference'))]);
-        }
-        if ($this->filled('account_name') && ! $this->filled('payment_reference')) {
-            $this->merge(['payment_reference' => trim((string) $this->input('account_name'))]);
-        }
     }
 
     /**
@@ -35,25 +24,12 @@ class StorePlanPurchaseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'plan_type' => [
-                'required',
-                Rule::enum(PlanType::class)->except([PlanType::Free, PlanType::AuthorVerification]),
-            ],
             'payment_method' => [
                 'required',
                 'string',
                 Rule::exists('payment_method_settings', 'id')->where('is_active', true),
             ],
-            'payment_reference' => [
-                'required',
-                'string',
-                'regex:/^\d{4}$/',
-            ],
-            'account_name' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
+            'payment_reference' => ['required', 'string', 'regex:/^\d{4}$/'],
             'payment_proof' => [
                 'required',
                 'image',
@@ -61,6 +37,14 @@ class StorePlanPurchaseRequest extends FormRequest
                 'extensions:jpg,jpeg,png,webp',
                 'max:5120',
             ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'payment_reference.regex' => 'Enter exactly the last 4 digits of the payment reference.',
+            'payment_proof.required' => 'A payment screenshot is required.',
         ];
     }
 }

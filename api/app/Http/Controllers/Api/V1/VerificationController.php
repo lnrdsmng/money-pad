@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreAuthorVerificationRequest;
 use App\Models\AuthorVerificationRequest;
 use App\Models\Notification;
 use App\Models\PlanPurchase;
@@ -10,16 +11,20 @@ use App\Models\Story;
 use App\Models\User;
 use App\PlanPurchaseStatus;
 use App\PlanType;
-use App\Services\VerificationService;
+use App\Services\WithdrawalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class VerificationController extends Controller
 {
+    public function __construct(private readonly WithdrawalService $withdrawals) {}
+
     public function status(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -91,7 +96,7 @@ class VerificationController extends Controller
         ]);
     }
 
-    public function apply(Request $request): JsonResponse
+    public function apply(StoreAuthorVerificationRequest $request): JsonResponse
     {
         $user = $request->user();
 
@@ -114,35 +119,7 @@ class VerificationController extends Controller
             ], 422);
         }
 
-        $validated = $request->validate([
-            'payment_method' => 'required|string|in:balance,gcash,maya,bank_transfer',
-            'payment_reference' => 'nullable|string|max:255',
-            'payment_proof' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:10240',
-        ]);
-
-        if ($validated['payment_method'] === 'balance') {
-            if ((float) $user->authorIncome < (float) config('moneypad.fees.verification_fee')) {
-                return response()->json([
-                    'message' => 'Insufficient author income balance. PHP '.number_format(config('moneypad.fees.verification_fee'), 2).' required.',
-                ], 422);
-            }
-
-            $user = app(VerificationService::class)->payFromBalance($user);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Congratulations! You are now a verified author.',
-                'isVerified' => true,
-                'user' => $user->fresh(),
-            ]);
-        }
-
-        // Receipt upload flow (GCash, Maya, Bank Transfer)
-        if (! $request->hasFile('payment_proof') || empty($validated['payment_reference'])) {
-            return response()->json([
-                'message' => 'Proof of payment receipt and payment reference number are required for manual payment.',
-            ], 422);
-        }
+        $validated = $request->validated();
 
         $pendingRequest = AuthorVerificationRequest::where('user_id', $user->id)
             ->where('status', 'pending')
@@ -161,29 +138,54 @@ class VerificationController extends Controller
 
         $storedPath = $request->file('payment_proof')->store($user->id, 'payment_proofs');
 
-        PlanPurchase::create([
-            'id' => (string) Str::uuid(),
-            'userId' => $user->id,
-            'plan_type' => PlanType::AuthorVerification,
-            'amount' => config('moneypad.fees.verification_fee'),
-            'currency' => config('moneypad.currency', 'PHP'),
-            'provider' => 'manual',
-            'payment_method' => $validated['payment_method'],
-            'reference_number' => 'MP-VERIF-'.strtoupper(Str::random(16)),
-            'payment_reference' => $validated['payment_reference'],
-            'payment_proof_path' => $storedPath,
-            'status' => PlanPurchaseStatus::PendingReview,
-            'submitted_at' => now(),
-        ]);
+        try {
+            $verificationRequest = DB::transaction(function () use ($user, $validated, $storedPath) {
+                User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+                $hasPending = AuthorVerificationRequest::query()
+                    ->where('user_id', $user->id)
+                    ->where('status', 'pending')
+                    ->exists()
+                    || PlanPurchase::query()
+                        ->where('userId', $user->id)
+                        ->where('plan_type', PlanType::AuthorVerification)
+                        ->where('status', PlanPurchaseStatus::PendingReview)
+                        ->exists();
 
-        $verificationRequest = AuthorVerificationRequest::create([
-            'id' => Str::uuid()->toString(),
-            'user_id' => $user->id,
-            'payment_method' => $validated['payment_method'],
-            'payment_reference' => $validated['payment_reference'],
-            'receipt_url' => $storedPath,
-            'status' => 'pending',
-        ]);
+                if ($hasPending) {
+                    throw ValidationException::withMessages([
+                        'verification' => 'You already have a payment waiting for review.',
+                    ]);
+                }
+
+                PlanPurchase::create([
+                    'id' => (string) Str::uuid(),
+                    'userId' => $user->id,
+                    'plan_type' => PlanType::AuthorVerification,
+                    'amount' => config('moneypad.fees.verification_fee'),
+                    'currency' => config('moneypad.currency', 'PHP'),
+                    'provider' => 'manual',
+                    'payment_method' => $validated['payment_method'],
+                    'reference_number' => 'MP-VERIF-'.strtoupper(Str::random(16)),
+                    'payment_reference' => $validated['payment_reference'],
+                    'payment_proof_path' => $storedPath,
+                    'status' => PlanPurchaseStatus::PendingReview,
+                    'submitted_at' => now(),
+                ]);
+
+                return AuthorVerificationRequest::create([
+                    'id' => Str::uuid()->toString(),
+                    'user_id' => $user->id,
+                    'payment_method' => $validated['payment_method'],
+                    'payment_reference' => $validated['payment_reference'],
+                    'receipt_url' => $storedPath,
+                    'status' => 'pending',
+                ]);
+            }, 3);
+        } catch (Throwable $exception) {
+            Storage::disk('payment_proofs')->delete($storedPath);
+
+            throw $exception;
+        }
 
         return response()->json([
             'success' => true,
@@ -261,6 +263,8 @@ class VerificationController extends Controller
                 'isActorVerified' => true,
             ]);
         });
+
+        $this->withdrawals->evaluateAndCreate(User::findOrFail($verification->user_id));
 
         return response()->json([
             'success' => true,

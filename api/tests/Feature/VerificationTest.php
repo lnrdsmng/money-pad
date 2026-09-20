@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\PlanPurchase;
 use App\Models\Story;
 use App\Models\StoryPart;
 use App\Models\User;
@@ -14,7 +15,7 @@ class VerificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_author_verification_eligibility_and_balance_deduction(): void
+    public function test_author_income_cannot_be_used_for_verification(): void
     {
         $author = User::factory()->create([
             'username' => 'writer1',
@@ -25,11 +26,11 @@ class VerificationTest extends TestCase
         // Create 2 stories with 10 published parts each
         for ($s = 1; $s <= 2; $s++) {
             $story = Story::create([
-                'id' => 'story_' . $s,
+                'id' => 'story_'.$s,
                 'authorId' => $author->id,
                 'authorName' => $author->username,
-                'title' => 'Story ' . $s,
-                'overview' => 'Overview ' . $s,
+                'title' => 'Story '.$s,
+                'overview' => 'Overview '.$s,
                 'isPublished' => true,
             ]);
 
@@ -52,19 +53,18 @@ class VerificationTest extends TestCase
             ->assertJsonPath('qualifyingStoriesCount', 2)
             ->assertJsonPath('isVerified', false);
 
-        // Apply via balance deduction (149 PHP)
+        // Verification must use one of the configured external payment methods.
         $applyRes = $this->actingAs($author)->postJson('/api/v1/authors/verify', [
             'payment_method' => 'balance',
         ]);
 
-        $applyRes->assertOk()->assertJsonPath('isVerified', true);
+        $applyRes->assertUnprocessable()
+            ->assertJsonValidationErrors(['payment_method', 'payment_reference', 'payment_proof']);
 
         $author->refresh();
-        $this->assertTrue($author->isVerified);
-        $this->assertEquals(51.00, (float)$author->authorIncome);
-
-        // Verify stories updated to verified
-        $this->assertTrue(Story::find('story_1')->isAuthorVerified);
+        $this->assertFalse($author->isVerified);
+        $this->assertSame(200.0, (float) $author->authorIncome);
+        $this->assertFalse(Story::find('story_1')->isAuthorVerified);
     }
 
     public function test_author_verification_via_receipt_upload(): void
@@ -80,10 +80,10 @@ class VerificationTest extends TestCase
         // Create 2 stories with 10 published parts each
         for ($s = 1; $s <= 2; $s++) {
             $story = Story::create([
-                'id' => 'story_b_' . $s,
+                'id' => 'story_b_'.$s,
                 'authorId' => $author->id,
                 'authorName' => $author->username,
-                'title' => 'Story B ' . $s,
+                'title' => 'Story B '.$s,
                 'overview' => 'Overview',
                 'isPublished' => true,
             ]);
@@ -104,7 +104,7 @@ class VerificationTest extends TestCase
 
         $response = $this->actingAs($author)->post('/api/v1/authors/verify', [
             'payment_method' => 'gcash',
-            'payment_reference' => 'GCASH123456',
+            'payment_reference' => '3456',
             'payment_proof' => $file,
         ]);
 
@@ -125,7 +125,7 @@ class VerificationTest extends TestCase
 
         // Admin approves via standard plan payments admin endpoint
         $admin = User::factory()->create(['role' => 'admin']);
-        $purchase = \App\Models\PlanPurchase::where('userId', $author->id)->first();
+        $purchase = PlanPurchase::where('userId', $author->id)->first();
 
         $approveRes = $this->actingAs($admin)->postJson("/api/v1/admin/plan-purchases/{$purchase->id}/approve");
         $approveRes->assertOk();
@@ -160,6 +160,6 @@ class VerificationTest extends TestCase
         // Search selects author_is_verified
         $searchRes = $this->actingAs($verifiedAuthor)->getJson('/api/v1/stories/search?query=Brand+New+Novel');
         $searchRes->assertOk();
-        $this->assertTrue((bool)$searchRes->json('0.author_is_verified'));
+        $this->assertTrue((bool) $searchRes->json('0.author_is_verified'));
     }
 }

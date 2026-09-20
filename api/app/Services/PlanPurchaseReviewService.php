@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class PlanPurchaseReviewService
 {
+    public function __construct(private readonly WithdrawalService $withdrawals) {}
+
     public function approve(PlanPurchase $purchase, User $admin): PlanPurchase
     {
         return DB::transaction(function () use ($purchase, $admin): PlanPurchase {
@@ -76,6 +78,8 @@ class PlanPurchaseReviewService
                     'isRead' => false,
                     'isActorVerified' => true,
                 ]);
+
+                $this->withdrawals->evaluateAndCreate($user->fresh());
 
                 return $lockedPurchase->fresh(['user', 'reviewer']);
             }
@@ -140,7 +144,7 @@ class PlanPurchaseReviewService
                 'type' => 'custom',
                 'title' => 'Plan activated',
                 'content' => config("moneypad.plans.{$lockedPurchase->plan_type->value}.name")
-                    . ($expiresAt ? ' is active until ' . $expiresAt->format('F j, Y') . '.' : ' lifetime plan is now active.'),
+                    .($expiresAt ? ' is active until '.$expiresAt->format('F j, Y').'.' : ' lifetime plan is now active.'),
                 'action_type' => 'info',
                 'is_pinned' => true,
                 'is_read' => false,
@@ -184,7 +188,7 @@ class PlanPurchaseReviewService
                     'type' => 'SYSTEM',
                     'actorId' => $admin->id,
                     'actorName' => $admin->username,
-                    'content' => 'Your author verification request was rejected: ' . $reason,
+                    'content' => 'Your author verification request was rejected: '.$reason,
                     'timestamp' => time() * 1000,
                     'isRead' => false,
                 ]);

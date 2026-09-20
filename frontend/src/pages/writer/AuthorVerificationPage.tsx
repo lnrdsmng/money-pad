@@ -18,13 +18,14 @@ import { useAuth } from '../../auth/AuthProvider';
 import { VerifiedBadge } from '../../components/common/VerifiedBadge';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
+import type { PaymentMethodSetting } from '../../types/earnings';
 
 export default function AuthorVerificationPage() {
   const { user, updateUser } = useAuth();
   const queryClient = useQueryClient();
   const feedback = useFeedback();
 
-  const [paymentMethod, setPaymentMethod] = useState<'balance' | 'gcash' | 'maya'>('balance');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
@@ -40,11 +41,10 @@ export default function AuthorVerificationPage() {
   const isVerified = Boolean(statusData?.isVerified || user?.isVerified);
   const isEligible = Boolean(statusData?.isEligible);
   const qualifyingStoriesCount = Number(statusData?.qualifyingStoriesCount || 0);
-  const authorIncome = Number(statusData?.authorIncome ?? user?.authorIncome ?? 0);
   const pendingRequest = statusData?.pendingRequest;
   const latestRequest = statusData?.latestRequest;
 
-  const { data: paymentMethods = [] } = useQuery({
+  const { data: paymentMethods = [] } = useQuery<PaymentMethodSetting[]>({
     queryKey: ['payment-methods'],
     queryFn: async () => {
       const res = await http.get('/payment-methods');
@@ -52,29 +52,26 @@ export default function AuthorVerificationPage() {
     },
   });
 
-  const selectedDestination = paymentMethods.find(
-    (m: any) => m.id?.toLowerCase() === paymentMethod.toLowerCase()
-  );
+  const selectedPaymentMethod = paymentMethods.some((method) => method.id === paymentMethod)
+    ? paymentMethod
+    : paymentMethods[0]?.id ?? '';
+  const selectedDestination = paymentMethods.find((method) => method.id === selectedPaymentMethod);
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      if (paymentMethod === 'balance') {
-        const res = await http.post('/authors/verify', { payment_method: 'balance' });
-        return res.data;
-      } else {
-        if (!paymentProof) throw new Error('Please upload a screenshot of your payment receipt');
-        if (!paymentReference.trim()) throw new Error('Please enter the payment reference number');
+      if (!paymentProof) throw new Error('Please upload a screenshot of your payment receipt');
+      if (!/^\d{4}$/.test(paymentReference)) throw new Error('Please enter the last 4 digits of the payment reference');
+      if (!selectedPaymentMethod) throw new Error('Please select a payment method');
 
-        const formData = new FormData();
-        formData.append('payment_method', paymentMethod);
-        formData.append('payment_reference', paymentReference.trim());
-        formData.append('payment_proof', paymentProof);
+      const formData = new FormData();
+      formData.append('payment_method', selectedPaymentMethod);
+      formData.append('payment_reference', paymentReference);
+      formData.append('payment_proof', paymentProof);
 
-        const res = await http.post('/authors/verify', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        return res.data;
-      }
+      const res = await http.post('/authors/verify', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
     },
     onSuccess: (data) => {
       if (data.isVerified) {
@@ -175,7 +172,7 @@ export default function AuthorVerificationPage() {
               Reason: {latestRequest.rejection_reason || 'Payment verification could not be confirmed.'}
             </p>
             <p className="text-xs text-red-700 dark:text-red-400 mt-2">
-              You may submit a revised receipt or pay using author balance below.
+              You may submit a revised payment proof below.
             </p>
           </div>
         </div>
@@ -222,10 +219,10 @@ export default function AuthorVerificationPage() {
           <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100 mb-1">
               <DollarSign className="w-4 h-4 text-primary" />
-              $0.05 / 50 Views Tier
+              $0.10 / 50 Unique Views
             </div>
             <p className="text-xs text-gray-500">
-              Premium view monetization rates for eligible original serialized stories.
+              Unverified authors earn $0.05 per 50 unique views; verification doubles the rate.
             </p>
           </div>
         </div>
@@ -310,96 +307,49 @@ export default function AuthorVerificationPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Select Payment Method
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('balance')}
-                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-                      paymentMethod === 'balance'
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                        : 'border-gray-200 dark:border-slate-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="font-bold text-sm text-gray-900 dark:text-gray-100">Author Income</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Balance: ₱{authorIncome.toFixed(2)}
-                    </div>
-                    {authorIncome < 149 && (
-                      <span className="text-[10px] text-red-500 font-medium block mt-1">Insufficient</span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('gcash')}
-                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-                      paymentMethod === 'gcash'
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                        : 'border-gray-200 dark:border-slate-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="font-bold text-sm text-gray-900 dark:text-gray-100">GCash</div>
-                    <div className="text-xs text-gray-500 mt-1">Upload payment receipt</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('maya')}
-                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-                      paymentMethod === 'maya'
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                        : 'border-gray-200 dark:border-slate-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="font-bold text-sm text-gray-900 dark:text-gray-100">Maya</div>
-                    <div className="text-xs text-gray-500 mt-1">Upload payment receipt</div>
-                  </button>
-                </div>
+                <select
+                  required
+                  value={selectedPaymentMethod}
+                  onChange={(event) => setPaymentMethod(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-gray-100"
+                >
+                  {paymentMethods.map((method) => (
+                    <option key={method.id} value={method.id}>{method.label}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Balance Deduction Details */}
-              {paymentMethod === 'balance' && (
-                <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 text-xs space-y-2">
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Verification Fee:</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">₱149.00</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Your Author Income:</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">₱{authorIncome.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-gray-200 dark:border-slate-700 pt-2 flex justify-between font-bold text-gray-900 dark:text-gray-100">
-                    <span>Remaining Balance:</span>
-                    <span className={authorIncome >= 149 ? 'text-primary' : 'text-red-500'}>
-                      ₱{(authorIncome - 149).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Receipt Upload for GCash / Maya */}
-              {paymentMethod !== 'balance' && (
+              {selectedPaymentMethod && (
                 <div className="space-y-4 p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700">
                   <div className="text-xs text-gray-600 dark:text-gray-400">
-                    Send <strong>₱149.00</strong> via {selectedDestination?.label || paymentMethod.toUpperCase()} to{' '}
+                    Send <strong>₱149.00</strong> via {selectedDestination?.label || selectedPaymentMethod.toUpperCase()} to{' '}
                     <strong className="text-gray-900 dark:text-gray-100">
-                      {selectedDestination?.account_number
-                        ? `${selectedDestination.account_number} (${selectedDestination.account_name})`
-                        : '0917-123-4567 (MoneyPad Admin)'}
+                      {selectedDestination?.account_identifier
+                        ? `${selectedDestination.account_identifier} (${selectedDestination.account_name})`
+                        : 'the configured MoneyPad payment account'}
                     </strong>.
                     Upload the transaction screenshot below.
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Reference Number / Transaction ID
+                      Last 4 Digits of Reference Number
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 10029384812"
+                      inputMode="numeric"
+                      pattern="[0-9]{4}"
+                      minLength={4}
+                      maxLength={4}
+                      placeholder="e.g. 1234"
                       value={paymentReference}
-                      onChange={(e) => setPaymentReference(e.target.value)}
+                      onChange={(e) => setPaymentReference(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      onPaste={(event) => {
+                        event.preventDefault();
+                        const digits = event.clipboardData.getData('text').replace(/\D/g, '');
+                        if (digits) setPaymentReference(digits.slice(-4));
+                      }}
                       className="w-full text-xs p-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100"
                     />
                   </div>
@@ -414,7 +364,7 @@ export default function AuthorVerificationPage() {
                         Choose File
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp"
                           required
                           onChange={handleFileChange}
                           className="hidden"
@@ -437,8 +387,9 @@ export default function AuthorVerificationPage() {
                 type="submit"
                 disabled={
                   verifyMutation.isPending ||
-                  (paymentMethod === 'balance' && authorIncome < 149) ||
-                  (paymentMethod !== 'balance' && (!paymentProof || !paymentReference.trim()))
+                  !selectedPaymentMethod ||
+                  !paymentProof ||
+                  !/^\d{4}$/.test(paymentReference)
                 }
                 className="w-full sm:w-auto px-8 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-green-600 transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-md"
               >
@@ -447,9 +398,7 @@ export default function AuthorVerificationPage() {
                 ) : (
                   <ShieldCheck className="w-4 h-4" />
                 )}
-                {paymentMethod === 'balance'
-                  ? 'Pay ₱149 & Verify Instantly'
-                  : 'Submit Application for Review'}
+                Submit Application for Review
               </button>
             </form>
           )}
