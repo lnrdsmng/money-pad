@@ -72,10 +72,9 @@ export const EarningsDashboard = () => {
     onError: (error) => feedback.error(getApiErrorMessage(error, 'Your payment method could not be saved.')),
   });
 
-  // active request
-  const activeRequest = withdrawalRequests?.find((r) =>
+  const activeRequests = withdrawalRequests?.filter((r) =>
     ['eligible', 'pending_ad_choice', 'watching_ads', 'pending_review', 'approved'].includes(r.status)
-  );
+  ) ?? [];
 
   const formatCurrency = (val: number | string) => `₱${parseFloat((val as string) || '0').toFixed(2)}`;
 
@@ -176,7 +175,9 @@ export const EarningsDashboard = () => {
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-0.5 sm:mb-1">Author Income</p>
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(user?.authorIncome || 0)}</h2>
-                <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Earned from published stories</p>
+                <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">
+                  ${user?.isVerified ? '0.10' : '0.05'} per 50 unique story views · ₱{user?.isVerified ? '10' : '40'} minimum
+                </p>
               </div>
             </div>
 
@@ -193,13 +194,15 @@ export const EarningsDashboard = () => {
           </div>
 
           {/* Active Withdrawal Status Card */}
-          {activeRequest && (
-            <div className="bg-[#F5E9DA]/50 dark:bg-amber-950/20 border-l-4 border-l-primary p-6 rounded-r-2xl border border-amber-200/80 dark:border-amber-900/40 shadow-xs">
+          {activeRequests.map((activeRequest) => (
+            <div key={activeRequest.id} className="bg-[#F5E9DA]/50 dark:bg-amber-950/20 border-l-4 border-l-primary p-6 rounded-r-2xl border border-amber-200/80 dark:border-amber-900/40 shadow-xs">
               <div className="flex items-start">
                 <AlertCircle className="w-6 h-6 text-primary mt-0.5 mr-3 flex-shrink-0" />
                 <div className="w-full">
                   <div className="flex justify-between items-center flex-wrap gap-2">
-                    <h3 className="text-lg font-bold text-stone-900 dark:text-amber-100">Active Automatic Payout</h3>
+                    <h3 className="text-lg font-bold text-stone-900 dark:text-amber-100">
+                      Active {activeRequest.source === 'AUTHOR' ? 'Author' : 'Reader'} Payout
+                    </h3>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-primary/10 text-primary border border-primary/20">
                       {activeRequest.status.replace(/_/g, ' ')}
                     </span>
@@ -207,8 +210,10 @@ export const EarningsDashboard = () => {
 
                   <p className="mt-1 text-sm text-stone-700 dark:text-stone-300">
                     Your payout of <strong>₱{activeRequest.gross_amount || activeRequest.amount}</strong> to{' '}
-                    <strong>{activeRequest.payment_method}</strong> ({activeRequest.payment_account_info}) was
-                    automatically queued.
+                    <strong>{activeRequest.payment_method}</strong> ({activeRequest.payment_account_info}) is{' '}
+                    {['pending_ad_choice', 'watching_ads'].includes(activeRequest.status)
+                      ? 'waiting for your fee option.'
+                      : 'in the payment review process.'}
                   </p>
 
                   {/* Financial Breakdown */}
@@ -255,7 +260,7 @@ export const EarningsDashboard = () => {
                       </span>
                     </div>
 
-                    {!activeRequest.fee_waived && (
+                    {['pending_ad_choice', 'watching_ads'].includes(activeRequest.status) && (
                       <button
                         onClick={() => {
                           setSelectedRequestId(activeRequest.id);
@@ -264,14 +269,14 @@ export const EarningsDashboard = () => {
                         className="px-4 py-2 bg-primary text-white rounded-xl shadow-xs hover:bg-primary-hover font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        Waive ₱{activeRequest.platform_fee} Fee ({activeRequest.ads_watched_count}/10 tasks)
+                        Choose Fee Option ({activeRequest.ads_watched_count}/10 tasks)
                       </button>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          ))}
 
           {/* Payment Method Settings & History Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -478,6 +483,8 @@ export const EarningsDashboard = () => {
             userPaymentMethod={user?.payment_method}
             hasPaymentDetails={hasPaymentDetails}
             readerCoins={user?.readerCoins || 0}
+            authorIncome={user?.authorIncome || 0}
+            isVerifiedAuthor={Boolean(user?.isVerified)}
             onSetupPayment={() => setIsEditingPayment(true)}
           />
         </div>

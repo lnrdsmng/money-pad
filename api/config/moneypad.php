@@ -3,6 +3,7 @@
 $usesDevelopmentAds = in_array(env('APP_ENV', 'production'), ['local', 'testing'], true);
 
 return [
+    'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')),
     'referral_milestones' => [
         1 => ['tier' => 1, 'chapters' => 5, 'ads' => 2, 'coins' => 5],
         2 => ['tier' => 2, 'chapters' => 15, 'ads' => 5, 'coins' => 10],
@@ -20,6 +21,21 @@ return [
             ['max' => 50, 'ads' => 3],
             ['max' => 100, 'ads' => 4],
             ['max' => PHP_FLOAT_MAX, 'ads' => 5],
+        ],
+    ],
+
+    'author_earnings' => [
+        'views_per_batch' => 50,
+        'verified_usd_per_batch' => 0.10,
+        'standard_usd_per_batch' => 0.05,
+        'verified_minimum_php' => 10.0,
+        'standard_minimum_php' => 40.0,
+        'exchange' => [
+            'url' => env('AUTHOR_EXCHANGE_RATE_URL', 'https://openexchangerates.org/api/latest.json'),
+            'fallback_url' => env('AUTHOR_EXCHANGE_RATE_FALLBACK_URL', 'https://api.frankfurter.dev/v2/rate/usd/php'),
+            'app_id' => env('OPEN_EXCHANGE_RATES_APP_ID'),
+            'cache_seconds' => (int) env('AUTHOR_EXCHANGE_RATE_CACHE_SECONDS', 3600),
+            'max_stale_seconds' => (int) env('AUTHOR_EXCHANGE_RATE_MAX_STALE_SECONDS', 86400),
         ],
     ],
 

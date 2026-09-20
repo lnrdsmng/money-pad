@@ -126,6 +126,9 @@ export const WithdrawalManagement = () => {
           <div className="min-w-0">
             <h2 className="font-semibold text-gray-900 dark:text-gray-100">{req.user?.username || 'User'}</h2>
             <p className="break-all text-xs text-gray-500 dark:text-gray-400">{req.user?.email || req.userId.substring(0, 8)}</p>
+            <span className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+              {req.source === 'AUTHOR' ? 'Author income' : 'Reader coins'}
+            </span>
           </div>
           <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium capitalize text-gray-700 dark:bg-slate-700 dark:text-slate-200">
             {req.status.replaceAll('_', ' ')}
@@ -178,6 +181,7 @@ export const WithdrawalManagement = () => {
         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
           <div>{req.user?.username || 'User'}</div>
           <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">{req.user?.email || req.userId.substring(0, 8)}</span>
+          <div><span className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">{req.source === 'AUTHOR' ? 'Author income' : 'Reader coins'}</span></div>
         </td>
 
         {/* Amount & Net Payout */}

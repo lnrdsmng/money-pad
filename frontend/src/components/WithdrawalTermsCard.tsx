@@ -7,6 +7,8 @@ interface WithdrawalTermsCardProps {
   userPaymentMethod?: string;
   hasPaymentDetails: boolean;
   readerCoins?: number | string;
+  authorIncome?: number | string;
+  isVerifiedAuthor?: boolean;
   onSetupPayment?: () => void;
 }
 
@@ -15,6 +17,8 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
   userPaymentMethod,
   hasPaymentDetails,
   readerCoins = 0,
+  authorIncome = 0,
+  isVerifiedAuthor = false,
   onSetupPayment,
 }) => {
   const minEWallet = policy?.min_gcash_maya ?? 10;
@@ -28,7 +32,12 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
   const coinRate = policy?.coin_to_php_rate ?? 0.01;
   const cashValue = Number(readerCoins || 0) * coinRate;
   const selectedMin = userPaymentMethod === 'Bank Transfer' ? minBank : minEWallet;
-  const isQualifying = cashValue >= selectedMin;
+  const authorMinimum = isVerifiedAuthor
+    ? policy?.author_verified_minimum ?? 10
+    : policy?.author_standard_minimum ?? 40;
+  const effectiveAuthorMinimum = Math.max(authorMinimum, selectedMin);
+  const isQualifying = cashValue >= selectedMin || Number(authorIncome || 0) >= effectiveAuthorMinimum;
+  const qualifyingBalance = Math.max(cashValue, Number(authorIncome || 0));
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-gray-200 dark:border-slate-800 overflow-hidden mb-6">
@@ -55,7 +64,7 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
           <div className="flex items-center text-amber-800 text-xs sm:text-sm">
             <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 mr-2 flex-shrink-0" />
             <span>
-              Your balance qualifies for withdrawal (<strong>₱{cashValue.toFixed(2)}</strong>), but you have not configured your payout details yet.
+              Your balance qualifies for withdrawal (<strong>₱{qualifyingBalance.toFixed(2)}</strong>), but you have not configured your payout details yet.
             </span>
           </div>
           {onSetupPayment && (
@@ -84,6 +93,10 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
             <li className="flex items-center">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mr-1.5 flex-shrink-0" />
               <span><strong>GCash / Maya:</strong> Min. ₱{minEWallet.toFixed(2)} ({(minEWallet / coinRate).toLocaleString()} coins)</span>
+            </li>
+            <li className="flex items-center">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mr-1.5 flex-shrink-0" />
+              <span><strong>Author income:</strong> ₱{effectiveAuthorMinimum.toFixed(2)} for your current status and method</span>
             </li>
             <li className="flex items-center">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mr-1.5 flex-shrink-0" />

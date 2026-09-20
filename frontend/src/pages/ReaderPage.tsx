@@ -26,6 +26,16 @@ export default function ReaderPage() {
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [openParagraph, setOpenParagraph] = useState<(ParagraphAnchor & { partId: string }) | null>(null);
+  const viewedStoryIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!storyId || !partId || part?.id !== partId || viewedStoryIds.current.has(storyId)) return;
+
+    viewedStoryIds.current.add(storyId);
+    void http.post(`/parts/${partId}/view`).catch(() => {
+      viewedStoryIds.current.delete(storyId);
+    });
+  }, [part, partId, storyId]);
 
   // Strict validation: stop when bottom of any chapter is reached
   useEffect(() => {

@@ -9,6 +9,7 @@ use App\Models\StoryPart;
 use App\Models\User;
 use App\Models\UserReadPart;
 use App\Services\ActivityNotificationService;
+use App\Services\AuthorEarningsService;
 use App\Services\ReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,10 @@ use Illuminate\Support\Str;
 
 class StoryPartController extends Controller
 {
-    public function __construct(private readonly ActivityNotificationService $activityNotifications) {}
+    public function __construct(
+        private readonly ActivityNotificationService $activityNotifications,
+        private readonly AuthorEarningsService $authorEarnings,
+    ) {}
 
     public function index(Request $request, $storyId)
     {
@@ -190,10 +194,18 @@ class StoryPartController extends Controller
 
     public function recordPartView(Request $request, $partId)
     {
-        // View implies hitting the page, doesn't mandate a full read
-        $part = StoryPart::findOrFail($partId);
+        $part = StoryPart::query()->with('story')->findOrFail($partId);
+        Gate::authorize('view', $part);
+        if (! $part->isPublished) {
+            return response()->json(['success' => true, 'counted' => false]);
+        }
+        $counted = $this->authorEarnings->recordUniqueStoryView($request->user(), $part->story);
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'counted' => $counted,
+            'storyUniqueViews' => (int) $part->story->fresh()->uniqueViews,
+        ]);
     }
 
     public function publishedCount($storyId)

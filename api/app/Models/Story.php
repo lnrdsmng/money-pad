@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Story extends Model
 {
@@ -55,5 +56,10 @@ class Story extends Model
     public function reviews()
     {
         return $this->hasMany(Review::class, 'storyId', 'id');
+    }
+
+    public function uniqueStoryViews(): HasMany
+    {
+        return $this->hasMany(StoryView::class, 'story_id');
     }
 }

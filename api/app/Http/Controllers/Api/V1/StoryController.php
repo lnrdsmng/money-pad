@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Story;
 use App\Models\StoryPart;
+use App\Models\User;
 use App\Models\UserReadingProgress;
 use App\Models\UserReadPart;
 use App\Services\ActivityNotificationService;
@@ -20,7 +21,18 @@ class StoryController extends Controller
 
     public function index(Request $request)
     {
-        return $this->page(Story::where('isPublished', true)->orderByDesc('lastUpdatedAt')->orderBy('id'), $request);
+        $verifiedAuthor = User::query()
+            ->select('isVerified')
+            ->whereColumn('users.id', 'stories.authorId')
+            ->limit(1);
+
+        return $this->page(
+            Story::where('isPublished', true)
+                ->orderByDesc($verifiedAuthor)
+                ->orderByDesc('lastUpdatedAt')
+                ->orderBy('id'),
+            $request,
+        );
     }
 
     public function show(Request $request, $storyId)
@@ -291,7 +303,12 @@ class StoryController extends Controller
             });
         }
 
-        $stories = $query->orderByDesc('isAuthorVerified')
+        $verifiedAuthor = User::query()
+            ->select('isVerified')
+            ->whereColumn('users.id', 'stories.authorId')
+            ->limit(1);
+
+        $stories = $query->orderByDesc($verifiedAuthor)
             ->orderByDesc('readCount')
             ->orderByDesc('likes')
             ->limit(15)
@@ -302,7 +319,10 @@ class StoryController extends Controller
             $additional = Story::where('isPublished', true)
                 ->where('authorId', '!=', $user->id)
                 ->whereNotIn('id', $existingIds)
-                ->orderByDesc('isAuthorVerified')
+                ->orderByDesc(User::query()
+                    ->select('isVerified')
+                    ->whereColumn('users.id', 'stories.authorId')
+                    ->limit(1))
                 ->orderByDesc('readCount')
                 ->orderByDesc('likes')
                 ->limit(15 - $stories->count())

@@ -6,6 +6,11 @@ export interface WithdrawalPolicy {
   ads_to_waive_fee: number;
   rewarded_ads_available: boolean;
   coin_to_php_rate: number;
+  author_verified_minimum: number;
+  author_standard_minimum: number;
+  author_views_per_batch: number;
+  author_verified_usd_per_batch: number;
+  author_standard_usd_per_batch: number;
   timezone: string;
   processing_days: string[];
   processing_days_label: string;

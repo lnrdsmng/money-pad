@@ -104,6 +104,7 @@ class User extends Authenticatable
             'plan' => PlanType::class,
             'readerCoins' => 'decimal:3',
             'totalReaderCoins' => 'decimal:3',
+            'authorIncome' => 'decimal:4',
             'community_read_at' => 'datetime',
         ];
     }
@@ -176,6 +177,16 @@ class User extends Authenticatable
     public function authorVerificationRequests(): HasMany
     {
         return $this->hasMany(AuthorVerificationRequest::class, 'user_id', 'id');
+    }
+
+    public function storyViewsReceived(): HasMany
+    {
+        return $this->hasMany(StoryView::class, 'author_id');
+    }
+
+    public function authorEarnings(): HasMany
+    {
+        return $this->hasMany(AuthorEarning::class, 'author_id');
     }
 
     public function referralMilestoneClaims(): HasMany

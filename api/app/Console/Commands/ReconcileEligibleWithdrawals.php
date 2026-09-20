@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\StoryView;
 use App\Models\User;
+use App\Services\AuthorEarningsService;
 use App\Services\WithdrawalService;
 use Illuminate\Console\Command;
 
@@ -25,13 +27,22 @@ class ReconcileEligibleWithdrawals extends Command
     /**
      * Execute the console command.
      */
-    public function handle(WithdrawalService $service): int
+    public function handle(WithdrawalService $service, AuthorEarningsService $authorEarnings): int
     {
         $this->info('Starting withdrawal reconciliation...');
 
         $minCoins = 1000; // 1000 coins = ₱10.00 (GCash min)
+        StoryView::query()
+            ->select('author_id')
+            ->distinct()
+            ->pluck('author_id')
+            ->each(fn (string $authorId) => $authorEarnings->creditEligibleBatches($authorId));
+
         $users = User::query()
-            ->where('readerCoins', '>=', $minCoins)
+            ->where(function ($query) use ($minCoins) {
+                $query->where('readerCoins', '>=', $minCoins)
+                    ->orWhere('authorIncome', '>=', config('moneypad.author_earnings.verified_minimum_php', 10.0));
+            })
             ->whereNotNull('payment_method')
             ->whereNotNull('payment_account_info')
             ->get();
