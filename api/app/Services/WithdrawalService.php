@@ -24,6 +24,8 @@ class WithdrawalService
      */
     public function getPolicy(): array
     {
+        $automaticWithdrawalsAvailable = $this->automaticWithdrawalsAvailable();
+
         return [
             'min_gcash_maya' => (float) config('moneypad.withdrawals.min_gcash_maya', 10.0),
             'min_bank' => (float) config('moneypad.withdrawals.min_bank', 20.0),
@@ -41,9 +43,24 @@ class WithdrawalService
             'processing_days' => config('moneypad.withdrawals.processing_days', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),
             'processing_days_label' => 'Monday–Saturday',
             'processing_turnaround_label' => '1–7 business days',
-            'sunday_deferred' => true,
+            'sunday_deferred' => false,
+            'automatic_withdrawals_available' => $automaticWithdrawalsAvailable,
+            'automatic_withdrawals_paused_reason' => $automaticWithdrawalsAvailable
+                ? null
+                : 'Automatic withdrawals are paused on Sunday and resume on Monday.',
+            'ad_cooldown_seconds' => (int) config('moneypad.withdrawals.ad_cooldown_seconds', 3),
             'auto_withdrawal_description' => 'Withdrawals are processed automatically once you meet the minimum balance and configure complete payout details.',
         ];
+    }
+
+    public function automaticWithdrawalsAvailable(?CarbonInterface $at = null): bool
+    {
+        $timezone = (string) config('moneypad.withdrawals.timezone', 'Asia/Manila');
+        $date = $at
+            ? CarbonImmutable::parse($at)->setTimezone($timezone)
+            : CarbonImmutable::now($timezone);
+
+        return ! $date->isSunday();
     }
 
     /**
@@ -121,6 +138,10 @@ class WithdrawalService
      */
     public function evaluateAndCreate(User $user): ?WithdrawalRequest
     {
+        if (! $this->automaticWithdrawalsAvailable()) {
+            return null;
+        }
+
         $readerWithdrawal = DB::transaction(function () use ($user): ?WithdrawalRequest {
             $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->first();
             if (! $lockedUser) {
@@ -377,6 +398,10 @@ class WithdrawalService
                 throw ValidationException::withMessages(['status' => 'Fee waiver is no longer editable for this withdrawal.']);
             }
 
+            if (app(RewardedAdService::class)->withdrawalCooldown($user, $req->id) > 0) {
+                throw ValidationException::withMessages(['ad_event_id' => 'Please wait before completing the next ad.']);
+            }
+
             if (app(RewardedAdService::class)->consume($user, $eventId, 'withdrawal', $req->id)) {
                 $req->increment('ads_watched_count');
             }
@@ -400,6 +425,7 @@ class WithdrawalService
                 'fee_waived' => (bool) $req->fee_waived,
                 'net_amount' => $req->net_amount,
                 'status' => $req->status instanceof WithdrawalStatus ? $req->status->value : (string) $req->status,
+                'cooldown_remaining' => (int) config('moneypad.withdrawals.ad_cooldown_seconds', 3),
             ];
         }, 3);
     }

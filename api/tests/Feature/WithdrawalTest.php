@@ -14,8 +14,15 @@ class WithdrawalTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->travelTo(CarbonImmutable::parse('2026-09-21 10:00:00', 'Asia/Manila'));
+    }
+
     private function verifiedAd(User $user, string $purpose, ?string $target = null): string
     {
+        $this->travel((int) config('moneypad.withdrawals.ad_cooldown_seconds', 3))->seconds();
         config(['moneypad.rewarded_ads.provider' => 'mock', 'moneypad.rewarded_ads.mock_enabled' => true]);
         $event = RewardedAdEvent::create([
             'id' => (string) Str::uuid(), 'user_id' => $user->id,
@@ -42,7 +49,9 @@ class WithdrawalTest extends TestCase
                 'author_standard_minimum' => 40.0,
                 'processing_days_label' => 'Monday–Saturday',
                 'processing_turnaround_label' => '1–7 business days',
-                'sunday_deferred' => true,
+                'sunday_deferred' => false,
+                'automatic_withdrawals_available' => true,
+                'ad_cooldown_seconds' => 3,
             ]);
     }
 
@@ -226,6 +235,61 @@ class WithdrawalTest extends TestCase
         $this->assertEquals('2026-09-07', $schedule['earliest_review_at']->toDateString()); // Monday
         // 7 business days from Monday Sep 7 (Mon 7, Tue 8, Wed 9, Thu 10, Fri 11, Sat 12, skip Sun 13, Mon 14)
         $this->assertEquals('2026-09-15', $schedule['estimated_deadline_at']->toDateString());
+    }
+
+    public function test_sunday_blocks_new_automatic_withdrawals_without_reserving_balance(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-09-20 14:00:00', 'Asia/Manila'));
+        $user = User::factory()->create([
+            'readerCoins' => 1000,
+            'payment_method' => 'GCash',
+            'payment_account_info' => '09171234567',
+        ]);
+
+        $this->assertNull(app(WithdrawalService::class)->evaluateAndCreate($user));
+        $this->assertDatabaseCount('withdrawal_requests', 0);
+        $this->assertSame('1000.000', $user->fresh()->readerCoins);
+        $this->getJson('/api/v1/withdrawals/policy')
+            ->assertOk()
+            ->assertJsonPath('automatic_withdrawals_available', false);
+
+        $this->travelTo(CarbonImmutable::parse('2026-09-21 00:00:01', 'Asia/Manila'));
+        $this->assertNotNull(app(WithdrawalService::class)->evaluateAndCreate($user->fresh()));
+    }
+
+    public function test_withdrawal_ads_require_three_seconds_between_completions(): void
+    {
+        $user = User::factory()->create([
+            'readerCoins' => 1000,
+            'payment_method' => 'GCash',
+            'payment_account_info' => '09171234567',
+        ]);
+        $withdrawal = app(WithdrawalService::class)->evaluateAndCreate($user);
+        $firstEventId = $this->verifiedAd($user, 'withdrawal', $withdrawal->id);
+
+        $this->actingAs($user)
+            ->postJson("/api/v1/withdrawal-requests/{$withdrawal->id}/watch-ad", ['ad_event_id' => $firstEventId])
+            ->assertOk()
+            ->assertJsonPath('cooldown_remaining', 3);
+
+        $secondEvent = RewardedAdEvent::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'purpose' => 'withdrawal',
+            'target_id' => $withdrawal->id,
+            'provider' => 'mock',
+            'verified_at' => now(),
+            'expires_at' => now()->addMinutes(10),
+        ]);
+        $this->actingAs($user)
+            ->postJson("/api/v1/withdrawal-requests/{$withdrawal->id}/watch-ad", ['ad_event_id' => $secondEvent->id])
+            ->assertUnprocessable();
+
+        $this->travel(3)->seconds();
+        $this->actingAs($user)
+            ->postJson("/api/v1/withdrawal-requests/{$withdrawal->id}/watch-ad", ['ad_event_id' => $secondEvent->id])
+            ->assertOk()
+            ->assertJsonPath('count', 2);
     }
 
     public function test_admin_approve_and_complete_workflow_with_referral(): void

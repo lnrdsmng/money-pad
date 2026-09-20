@@ -129,7 +129,7 @@ export const WithdrawalTermsCard: React.FC<WithdrawalTermsCardProps> = ({
             Operational hours: <strong>{scheduleLabel}</strong> with a turnaround of <strong>{turnaroundLabel}</strong>.
           </p>
           <p className="text-xs text-purple-700 font-medium">
-            * Payouts recorded on Sunday are deferred for review starting the following Monday.
+            * New automatic withdrawals are disabled on Sunday and resume on Monday. Existing payouts may continue processing.
           </p>
         </div>
       </div>

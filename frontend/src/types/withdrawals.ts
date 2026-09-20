@@ -16,6 +16,9 @@ export interface WithdrawalPolicy {
   processing_days_label: string;
   processing_turnaround_label: string;
   sunday_deferred: boolean;
+  automatic_withdrawals_available: boolean;
+  automatic_withdrawals_paused_reason?: string | null;
+  ad_cooldown_seconds: number;
   auto_withdrawal_description: string;
 }
 

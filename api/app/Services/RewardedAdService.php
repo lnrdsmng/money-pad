@@ -51,6 +51,7 @@ class RewardedAdService
                 $target = null;
             } elseif ($purpose === 'withdrawal') {
                 $withdrawal = WithdrawalRequest::whereKey($target)->where('userId', $user->id)->firstOrFail();
+                abort_if($this->withdrawalCooldown($user, $withdrawal->id) > 0, 429, 'Please wait before watching the next ad.');
                 abort_if($withdrawal->fee_waived, 422, 'The platform fee is already waived.');
                 $status = $withdrawal->status instanceof WithdrawalStatus
                     ? $withdrawal->status->value
@@ -80,6 +81,24 @@ class RewardedAdService
                 'target_id' => $target, 'provider' => 'mock', 'expires_at' => now()->addMinutes(10),
             ]);
         }, 3);
+    }
+
+    public function withdrawalCooldown(User $user, string $withdrawalId): int
+    {
+        $lastConsumedAt = RewardedAdEvent::query()
+            ->where('user_id', $user->id)
+            ->where('purpose', 'withdrawal')
+            ->where('target_id', $withdrawalId)
+            ->whereNotNull('consumed_at')
+            ->max('consumed_at');
+
+        if ($lastConsumedAt === null) {
+            return 0;
+        }
+
+        $elapsed = now()->diffInSeconds($lastConsumedAt, true);
+
+        return max(0, (int) config('moneypad.withdrawals.ad_cooldown_seconds', 3) - $elapsed);
     }
 
     public function verifyMock(User $user, string $eventId): void

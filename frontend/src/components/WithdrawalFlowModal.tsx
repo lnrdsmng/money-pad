@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
 import { X, Play, FastForward, CheckCircle, LoaderCircle, Sparkles, PartyPopper } from 'lucide-react';
@@ -13,6 +13,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
   const [startingAd, setStartingAd] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showAd, setShowAd] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const feedback = useFeedback();
   const queryClient = useQueryClient();
 
@@ -29,6 +30,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
     queryKey: ['withdrawalPolicy'], queryFn: async () => (await http.get('/withdrawals/policy')).data,
   });
   const startAd = async () => {
+    if (cooldownRemaining > 0) return;
     setStartingAd(true);
     try {
       const response = await http.post<{ id: string }>('/rewarded-ads', { purpose: 'withdrawal', target_id: requestId });
@@ -43,8 +45,10 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
       await http.post(`/rewarded-ads/${adEventId}/mock-verify`);
       return http.post(`/withdrawal-requests/${requestId}/watch-ad`, { ad_event_id: adEventId });
     },
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       setShowAd(false);
+      setAdEventId(null);
+      setCooldownRemaining(Number(response.data.cooldown_remaining || policy?.ad_cooldown_seconds || 3));
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
       queryClient.invalidateQueries({ queryKey: ['referralMilestones'] });
@@ -52,6 +56,14 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
     },
     onError: (error) => feedback.error(getApiErrorMessage(error, 'The task completion could not be recorded.')),
   });
+
+  useEffect(() => {
+    if (cooldownRemaining <= 0) return;
+    const timer = window.setInterval(() => {
+      setCooldownRemaining((remaining) => Math.max(0, remaining - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldownRemaining]);
 
   const skipAdsMutation = useMutation({
     mutationFn: () => http.post(`/withdrawal-requests/${requestId}/skip-ads`),
@@ -183,11 +195,13 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
               <div className="space-y-3">
                 <button
                   onClick={() => setShowPrompt(true)}
-                  disabled={startingAd || !policy?.rewarded_ads_available || skipAdsMutation.isPending || watchAdMutation.isPending}
+                  disabled={cooldownRemaining > 0 || startingAd || !policy?.rewarded_ads_available || skipAdsMutation.isPending || watchAdMutation.isPending}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-bold text-white text-sm hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60 transition-colors cursor-pointer"
                 >
                   <Play className="w-4 h-4" />
-                  <span>{policy?.rewarded_ads_available ? 'Complete In-App Task (Ad)' : 'Rewarded ads unavailable'}</span>
+                  <span>{cooldownRemaining > 0
+                    ? `Next ad available in ${cooldownRemaining}s`
+                    : policy?.rewarded_ads_available ? 'Complete In-App Task (Ad)' : 'Rewarded ads unavailable'}</span>
                 </button>
                 <button
                   onClick={() => skipAdsMutation.mutate()}

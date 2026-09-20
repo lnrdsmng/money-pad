@@ -54,6 +54,7 @@ return [
         'ad_free_permanent_fee' => 1499.0,
     ],
     'withdrawals' => [
+        'ad_cooldown_seconds' => 3,
         'min_gcash_maya' => (float) env('WITHDRAWAL_MIN_GCASH_MAYA', 10.0),
         'min_bank' => (float) env('WITHDRAWAL_MIN_BANK', 20.0),
         'platform_fee' => (float) env('WITHDRAWAL_PLATFORM_FEE', 3.0),

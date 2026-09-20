@@ -153,6 +153,19 @@ export const EarningsDashboard = () => {
       {/* TAB 1: OVERVIEW & PAYOUTS */}
       {activeTab === 'overview' && (
         <div className="space-y-6 sm:space-y-8">
+          <div className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
+            policy?.automatic_withdrawals_available === false
+              ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
+              : 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200'
+          }`}>
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              Previous payouts are held per income source while processing. Processing takes 1–7 business days,
+              Monday–Saturday. {policy?.automatic_withdrawals_available === false
+                ? 'Automatic withdrawals are disabled on Sunday and resume Monday.'
+                : 'Reader and author payouts resume independently after their previous payout is settled.'}
+            </p>
+          </div>
           {/* Overview Cards: Reader / Author / Referral 3-Card Layout */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-gray-200 dark:border-slate-800 p-4 sm:p-6 flex items-center">
