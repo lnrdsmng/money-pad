@@ -19,8 +19,7 @@ export function ReferralMilestoneTable({
       <div className="space-y-3 lg:hidden">
         {tiers.map((tier) => {
           const chapterPercent = Math.min(100, Math.round((tier.currentChapters / Math.max(1, tier.targetChapters)) * 100));
-          const adPercent = Math.min(100, Math.round((tier.currentAds / Math.max(1, tier.targetAds)) * 100));
-          const totalPercent = Math.round((chapterPercent + adPercent) / 2);
+          const totalPercent = chapterPercent;
           const isCurrentClaiming = isClaiming && claimingTier === tier.tier;
 
           return (
@@ -40,7 +39,7 @@ export function ReferralMilestoneTable({
               <div className="mt-3">
                 <div className="mb-1 flex flex-wrap justify-between gap-x-2 text-xs text-gray-600 dark:text-gray-300">
                   <span>Progress</span>
-                  <span>{tier.targetChapters} ch • {tier.targetAds} ads</span>
+                  <span>{tier.currentChapters}/{tier.targetChapters} chapters</span>
                 </div>
                 <div role="progressbar" aria-label={`Tier ${tier.tier} progress`} aria-valuenow={totalPercent} aria-valuemin={0} aria-valuemax={100} className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                   <div className={`h-full rounded-full ${tier.isCompleted ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${totalPercent}%` }} />
@@ -84,8 +83,7 @@ export function ReferralMilestoneTable({
         <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
           {tiers.map((tier) => {
             const chPercent = Math.min(100, Math.round((tier.currentChapters / Math.max(1, tier.targetChapters)) * 100));
-            const adPercent = Math.min(100, Math.round((tier.currentAds / Math.max(1, tier.targetAds)) * 100));
-            const totalPercent = Math.round((chPercent + adPercent) / 2);
+            const totalPercent = chPercent;
 
             const isCurrentClaiming = isClaiming && claimingTier === tier.tier;
 
@@ -123,7 +121,7 @@ export function ReferralMilestoneTable({
                       />
                     </div>
                     <span className="text-[10px] text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {tier.targetChapters} ch • {tier.targetAds} ads
+                      {tier.currentChapters}/{tier.targetChapters} chapters
                     </span>
                   </div>
                 </td>

@@ -14,6 +14,7 @@ interface AdWatchStatus {
   cooldown_remaining: number;
   can_watch: boolean;
   available: boolean;
+  cooldown_ends_at: number | null;
 }
 
 export function WatchAdsTaskSection() {
@@ -25,7 +26,8 @@ export function WatchAdsTaskSection() {
   const [startingAd, setStartingAd] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showAd, setShowAd] = useState(false);
-  const [cooldownSeconds, setCooldownSeconds] = useState<number | null>(null);
+  const [cooldownEndsAt, setCooldownEndsAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const { data: status, isLoading } = useQuery<AdWatchStatus>({
     queryKey: ['ad-watch-status', user?.id],
@@ -33,23 +35,33 @@ export function WatchAdsTaskSection() {
     enabled: !!user,
   });
 
-  const cooldown = cooldownSeconds ?? (status?.cooldown_remaining ?? 0);
+  const effectiveCooldownEndsAt = cooldownEndsAt ?? status?.cooldown_ends_at ?? null;
+  const cooldown = effectiveCooldownEndsAt === null
+    ? 0
+    : Math.max(0, Math.ceil((effectiveCooldownEndsAt - now) / 1000));
 
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const interval = setInterval(() => {
-      setCooldownSeconds((prev) => {
-        const current = (prev ?? (status?.cooldown_remaining ?? 0)) - 1;
-        if (current <= 0) {
-          clearInterval(interval);
-          queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
-          return 0;
-        }
-        return current;
-      });
+    if (effectiveCooldownEndsAt === null) return;
+    const interval = window.setInterval(() => {
+      const currentTime = Date.now();
+      setNow(currentTime);
+      if (currentTime >= effectiveCooldownEndsAt) {
+        setCooldownEndsAt(null);
+        void queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
+      }
     }, 1000);
-    return () => clearInterval(interval);
-  }, [cooldown, queryClient, status?.cooldown_remaining, user?.id]);
+    return () => window.clearInterval(interval);
+  }, [effectiveCooldownEndsAt, queryClient, user?.id]);
+
+  useEffect(() => {
+    const synchronize = () => void queryClient.invalidateQueries({ queryKey: ['ad-watch-status', user?.id] });
+    window.addEventListener('focus', synchronize);
+    document.addEventListener('visibilitychange', synchronize);
+    return () => {
+      window.removeEventListener('focus', synchronize);
+      document.removeEventListener('visibilitychange', synchronize);
+    };
+  }, [queryClient, user?.id]);
 
   const watchAdMutation = useMutation({
     mutationFn: async () => {
@@ -60,7 +72,9 @@ export function WatchAdsTaskSection() {
     },
     onSuccess: (data) => {
       setShowAd(false);
-      setCooldownSeconds(data.cooldown_remaining || 60);
+      const remaining = Number(data.cooldown_remaining ?? 0);
+      setCooldownEndsAt(remaining > 0 ? Date.now() + remaining * 1000 : null);
+      setNow(Date.now());
       if (data.user) {
         updateUser(data.user);
       }

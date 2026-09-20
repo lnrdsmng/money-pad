@@ -46,6 +46,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
     onSuccess: async () => {
       setShowAd(false);
       await refetch();
+      queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
       queryClient.invalidateQueries({ queryKey: ['referralMilestones'] });
       feedback.success('Task recorded and fee calculation updated.');
     },
@@ -56,6 +57,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
     mutationFn: () => http.post(`/withdrawal-requests/${requestId}/skip-ads`),
     onSuccess: async () => {
       await refetch();
+      queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
       feedback.success('Platform fee accepted.');
     },
     onError: (error) => feedback.error(getApiErrorMessage(error, 'Could not update fee preference.')),
@@ -81,6 +83,7 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
   const platformFee = Number(req.platform_fee || 0);
   const bankFee = Number(req.bank_fee || 0);
   const isWaived = Boolean(req.fee_waived);
+  const hasEnteredReview = ['pending_review', 'approved', 'completed'].includes(req.status);
   const netAmount = Number(req.net_amount || (grossAmount - (isWaived ? 0 : platformFee) - bankFee));
 
   return (
@@ -100,7 +103,9 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
           <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
             <CheckCircle className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">Automatic Payout Queued</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
+            {hasEnteredReview ? 'Payout Submitted' : 'Choose Your Payout Fee Option'}
+          </h2>
           <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
             ₱{grossAmount.toFixed(2)} to {req.payment_method} ({req.payment_account_info})
           </p>
@@ -155,6 +160,12 @@ export const WithdrawalFlowModal = ({ requestId, onClose }: { requestId: string;
               >
                 Done
               </button>
+            </div>
+          ) : hasEnteredReview ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center dark:border-blue-900/60 dark:bg-blue-950/30">
+              <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Your payout is pending admin review.</p>
+              <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">The platform fee was accepted. Automatic withdrawals for this income source will resume after this payout is settled.</p>
+              <button type="button" onClick={onClose} className="mt-3 w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-white">Done</button>
             </div>
           ) : (
             <div className="text-center">

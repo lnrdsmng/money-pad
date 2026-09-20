@@ -34,6 +34,7 @@ class TransactionController extends Controller
             'reward_coins' => config('moneypad.rewards.ad_watch_coins'),
             'cooldown_seconds' => config('moneypad.rewards.ad_watch_cooldown_seconds'),
             'cooldown_remaining' => $remaining,
+            'cooldown_ends_at' => $remaining > 0 ? now()->addSeconds($remaining)->valueOf() : null,
             'available' => $ads->available(), 'provider' => config('moneypad.rewarded_ads.provider'),
             'can_watch' => $ads->available() && $remaining === 0,
         ]);

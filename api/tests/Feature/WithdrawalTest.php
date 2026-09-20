@@ -38,6 +38,8 @@ class WithdrawalTest extends TestCase
                 'bank_fee' => 10.0,
                 'ads_to_waive_fee' => 10,
                 'coin_to_php_rate' => 0.01,
+                'author_verified_minimum' => 10.0,
+                'author_standard_minimum' => 40.0,
                 'processing_days_label' => 'Monday–Saturday',
                 'processing_turnaround_label' => '1–7 business days',
                 'sunday_deferred' => true,
@@ -122,7 +124,7 @@ class WithdrawalTest extends TestCase
             'gross_amount' => '15.00',
             'platform_fee' => '3.00',
             'net_amount' => '12.00',
-            'status' => 'pending_review',
+            'status' => 'pending_ad_choice',
         ]);
         $this->assertEquals('0.000', $user->fresh()->readerCoins);
     }
@@ -241,6 +243,10 @@ class WithdrawalTest extends TestCase
         $service = app(WithdrawalService::class);
         $req = $service->evaluateAndCreate($user);
 
+        $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$req->id}/skip-ads")
+            ->assertOk()
+            ->assertJsonPath('status', 'pending_review');
+
         // Approve
         $this->actingAs($admin)->postJson("/api/v1/admin/withdrawals/{$req->id}/approve")
             ->assertOk();
@@ -278,6 +284,104 @@ class WithdrawalTest extends TestCase
         $this->assertEquals('rejected', $req->fresh()->status->value);
         $this->assertEquals('Invalid mobile number format', $req->fresh()->rejection_reason);
         $this->assertEquals('1200.000', $user->fresh()->readerCoins);
+    }
+
+    public function test_author_withdrawal_uses_benefit_threshold_and_rejection_restores_author_income(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $author = User::factory()->create([
+            'isVerified' => true,
+            'authorIncome' => 10.25,
+            'payment_method' => 'GCash',
+            'payment_account_name' => 'Author Name',
+            'payment_account_info' => '09179999999',
+        ]);
+
+        $withdrawal = app(WithdrawalService::class)->evaluateAndCreate($author);
+
+        $this->assertNotNull($withdrawal);
+        $this->assertSame('AUTHOR', $withdrawal->source);
+        $this->assertSame('10.25', $withdrawal->gross_amount);
+        $this->assertSame('7.25', $withdrawal->net_amount);
+        $this->assertSame('0.0000', $author->fresh()->authorIncome);
+
+        $this->actingAs($admin)->postJson("/api/v1/admin/withdrawals/{$withdrawal->id}/reject", [
+            'reason' => 'Payout account could not be verified.',
+        ])->assertOk();
+
+        $this->assertSame('10.2500', $author->fresh()->authorIncome);
+    }
+
+    public function test_standard_author_waits_for_forty_peso_minimum(): void
+    {
+        $author = User::factory()->create([
+            'isVerified' => false,
+            'authorIncome' => 39.99,
+            'payment_method' => 'GCash',
+            'payment_account_name' => 'Author Name',
+            'payment_account_info' => '09178888888',
+        ]);
+
+        $this->assertNull(app(WithdrawalService::class)->evaluateAndCreate($author));
+
+        $author->update(['authorIncome' => 40.00]);
+        $withdrawal = app(WithdrawalService::class)->evaluateAndCreate($author->fresh());
+
+        $this->assertNotNull($withdrawal);
+        $this->assertSame('AUTHOR', $withdrawal->source);
+        $this->assertSame('40.00', $withdrawal->gross_amount);
+    }
+
+    public function test_reader_and_author_withdrawals_are_blocked_separately_until_settled(): void
+    {
+        $user = User::factory()->create([
+            'isVerified' => true,
+            'readerCoins' => 1500,
+            'authorIncome' => 12.50,
+            'payment_method' => 'GCash',
+            'payment_account_name' => 'Writer Reader',
+            'payment_account_info' => '09170000000',
+        ]);
+
+        app(WithdrawalService::class)->evaluateAndCreate($user);
+
+        $this->assertDatabaseCount('withdrawal_requests', 2);
+        $this->assertDatabaseHas('withdrawal_requests', [
+            'userId' => $user->id, 'source' => 'READER', 'status' => 'pending_ad_choice',
+        ]);
+        $this->assertDatabaseHas('withdrawal_requests', [
+            'userId' => $user->id, 'source' => 'AUTHOR', 'status' => 'pending_ad_choice',
+        ]);
+
+        $user->update(['readerCoins' => 2000, 'authorIncome' => 20]);
+        app(WithdrawalService::class)->evaluateAndCreate($user->fresh());
+
+        $this->assertDatabaseCount('withdrawal_requests', 2);
+        $this->assertSame('2000.000', $user->fresh()->readerCoins);
+        $this->assertSame('20.0000', $user->fresh()->authorIncome);
+    }
+
+    public function test_admin_queue_excludes_withdrawals_until_user_selects_a_fee_option(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $user = User::factory()->create([
+            'readerCoins' => 1000,
+            'payment_method' => 'GCash',
+            'payment_account_info' => '09171111111',
+        ]);
+        $withdrawal = app(WithdrawalService::class)->evaluateAndCreate($user);
+
+        $this->actingAs($admin)->getJson('/api/v1/admin/withdrawals/pending-review')
+            ->assertOk()
+            ->assertJsonCount(0);
+
+        $this->actingAs($user)->postJson("/api/v1/withdrawal-requests/{$withdrawal->id}/skip-ads")
+            ->assertOk();
+
+        $this->actingAs($admin)->getJson('/api/v1/admin/withdrawals/pending-review')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $withdrawal->id);
     }
 
     public function test_reconcile_console_command(): void

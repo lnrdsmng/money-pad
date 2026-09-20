@@ -86,12 +86,7 @@ class WithdrawalRequest extends Model
 
     public function scopePendingReview(Builder $query): Builder
     {
-        return $query->whereIn('status', [
-            WithdrawalStatus::PendingReview->value,
-            WithdrawalStatus::PendingAdChoice->value,
-            WithdrawalStatus::WatchingAds->value,
-            WithdrawalStatus::Eligible->value,
-        ]);
+        return $query->where('status', WithdrawalStatus::PendingReview->value);
     }
 
     public function scopeApproved(Builder $query): Builder

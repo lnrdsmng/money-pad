@@ -6,6 +6,7 @@ use App\Models\AuthorReferralCommission;
 use App\Models\RewardedAdEvent;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
+use App\WithdrawalStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -51,6 +52,10 @@ class RewardedAdService
             } elseif ($purpose === 'withdrawal') {
                 $withdrawal = WithdrawalRequest::whereKey($target)->where('userId', $user->id)->firstOrFail();
                 abort_if($withdrawal->fee_waived, 422, 'The platform fee is already waived.');
+                $status = $withdrawal->status instanceof WithdrawalStatus
+                    ? $withdrawal->status->value
+                    : (string) $withdrawal->status;
+                abort_unless(in_array($status, ['pending_ad_choice', 'watching_ads'], true), 422, 'This payout is no longer accepting fee-waiver tasks.');
             } elseif ($purpose === 'author_commission') {
                 $commission = AuthorReferralCommission::whereKey($target)->where('referrer_id', $user->id)->firstOrFail();
                 abort_if($commission->status === 'claimed', 422, 'The commission has already been claimed.');

@@ -105,7 +105,7 @@ class ReadingEarningsTest extends TestCase
             'gross_amount' => '10.01',
             'platform_fee' => '3.00',
             'net_amount' => '7.01',
-            'status' => 'pending_review',
+            'status' => 'pending_ad_choice',
         ]);
     }
 

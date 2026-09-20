@@ -21,11 +21,7 @@ class AdminController extends Controller
     public function eligibleWithdrawals(): JsonResponse
     {
         $withdrawals = WithdrawalRequest::query()
-            ->whereIn('status', [
-                WithdrawalStatus::Eligible->value,
-                WithdrawalStatus::WatchingAds->value,
-                WithdrawalStatus::PendingAdChoice->value,
-            ])
+            ->where('status', WithdrawalStatus::PendingReview->value)
             ->with('user')
             ->orderByDesc('created_at')
             ->get();
@@ -36,12 +32,7 @@ class AdminController extends Controller
     public function pendingReviewWithdrawals(): JsonResponse
     {
         $withdrawals = WithdrawalRequest::query()
-            ->whereIn('status', [
-                WithdrawalStatus::PendingReview->value,
-                WithdrawalStatus::PendingAdChoice->value,
-                WithdrawalStatus::WatchingAds->value,
-                WithdrawalStatus::Eligible->value,
-            ])
+            ->where('status', WithdrawalStatus::PendingReview->value)
             ->with('user')
             ->orderBy('created_at')
             ->get();

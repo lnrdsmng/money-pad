@@ -101,6 +101,8 @@ class RewardIntegrityTest extends TestCase
         $reader->update(['readerCoins' => 1000, 'payment_method' => 'GCash', 'payment_account_info' => '09171234567']);
         $before = $referrer->fresh()->readerCoins;
         $withdrawal = app(WithdrawalService::class)->evaluateAndCreate($reader);
+        app(WithdrawalService::class)->skipWaiverTask($withdrawal, $reader);
+        app(WithdrawalService::class)->approve($withdrawal);
         app(WithdrawalService::class)->complete($withdrawal);
         $this->assertEquals((float) $before + 1000, (float) $referrer->fresh()->readerCoins);
         $this->assertSame('0.000', $impostor->fresh()->readerCoins);

@@ -115,7 +115,7 @@ class DailyLoginRewardTest extends TestCase
             'gross_amount' => '10.00',
             'platform_fee' => '3.00',
             'net_amount' => '7.00',
-            'status' => 'pending_review',
+            'status' => 'pending_ad_choice',
         ]);
         $this->assertEquals('0.000', $user->fresh()->readerCoins);
     }

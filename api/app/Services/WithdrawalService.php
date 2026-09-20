@@ -32,6 +32,11 @@ class WithdrawalService
             'rewarded_ads_available' => app(RewardedAdService::class)->available(),
             'ads_to_waive_fee' => (int) config('moneypad.withdrawals.ads_to_waive_fee', 10),
             'coin_to_php_rate' => (float) config('moneypad.conversion.coins_to_cash_ratio', 0.01),
+            'author_verified_minimum' => (float) config('moneypad.author_earnings.verified_minimum_php', 10.0),
+            'author_standard_minimum' => (float) config('moneypad.author_earnings.standard_minimum_php', 40.0),
+            'author_views_per_batch' => (int) config('moneypad.author_earnings.views_per_batch', 50),
+            'author_verified_usd_per_batch' => (float) config('moneypad.author_earnings.verified_usd_per_batch', 0.10),
+            'author_standard_usd_per_batch' => (float) config('moneypad.author_earnings.standard_usd_per_batch', 0.05),
             'timezone' => (string) config('moneypad.withdrawals.timezone', 'Asia/Manila'),
             'processing_days' => config('moneypad.withdrawals.processing_days', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),
             'processing_days_label' => 'Monday–Saturday',
@@ -116,7 +121,7 @@ class WithdrawalService
      */
     public function evaluateAndCreate(User $user): ?WithdrawalRequest
     {
-        return DB::transaction(function () use ($user): ?WithdrawalRequest {
+        $readerWithdrawal = DB::transaction(function () use ($user): ?WithdrawalRequest {
             $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->first();
             if (! $lockedUser) {
                 return null;
@@ -125,6 +130,7 @@ class WithdrawalService
             // Must not have an active withdrawal
             $hasActive = WithdrawalRequest::query()
                 ->where('userId', $lockedUser->id)
+                ->where('source', 'READER')
                 ->whereIn('status', [
                     WithdrawalStatus::Eligible->value,
                     WithdrawalStatus::PendingAdChoice->value,
@@ -199,7 +205,7 @@ class WithdrawalService
                 'bank_fee' => number_format($bankFee, 2, '.', ''),
                 'ads_watched_count' => 0,
                 'fee_waived' => $feeWaived,
-                'status' => WithdrawalStatus::PendingReview->value,
+                'status' => WithdrawalStatus::PendingAdChoice->value,
                 'triggered_at' => $schedule['triggered_at'],
                 'earliest_review_at' => $schedule['earliest_review_at'],
                 'estimated_deadline_at' => $schedule['estimated_deadline_at'],
@@ -210,8 +216,8 @@ class WithdrawalService
                 'userId' => $lockedUser->id,
                 'type' => 'withdrawal_eligible',
                 'title' => 'Automatic Payout Processing',
-                'content' => 'You reached the minimum balance! An automatic payout of ₱'.$grossAmount.' to '.$lockedUser->payment_method.' has been queued.',
-                'action_type' => app(RewardedAdService::class)->available() ? 'watch_ads_prompt' : 'info',
+                'content' => 'You reached the minimum balance. Choose whether to complete tasks or accept the platform fee before this payout is sent for review.',
+                'action_type' => 'watch_ads_prompt',
                 'action_payload' => ['withdrawal_request_id' => $req->id],
                 'is_pinned' => true,
                 'withdrawal_request_id' => $req->id,
@@ -225,12 +231,127 @@ class WithdrawalService
                 'type' => 'WITHDRAWAL_AUTO_TRIGGERED',
                 'actorId' => 'system',
                 'actorName' => 'System',
-                'content' => 'Your automatic payout of ₱'.$grossAmount.' to '.$lockedUser->payment_method.' is pending review.',
+                'content' => 'Your automatic payout of ₱'.$grossAmount.' is waiting for your fee preference.',
                 'timestamp' => (int) (now()->valueOf()),
                 'is_pinned' => true,
             ]);
 
             return $req->fresh();
+        }, 3);
+
+        $authorWithdrawal = $this->evaluateAuthorBalance($user);
+
+        return $readerWithdrawal ?? $authorWithdrawal;
+    }
+
+    private function evaluateAuthorBalance(User $user): ?WithdrawalRequest
+    {
+        return DB::transaction(function () use ($user): ?WithdrawalRequest {
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->first();
+            if (! $lockedUser || ! $this->hasCompletePayoutDetails($lockedUser)) {
+                return null;
+            }
+
+            $hasActive = WithdrawalRequest::query()
+                ->where('userId', $lockedUser->id)
+                ->where('source', 'AUTHOR')
+                ->whereIn('status', [
+                    WithdrawalStatus::Eligible->value,
+                    WithdrawalStatus::PendingAdChoice->value,
+                    WithdrawalStatus::WatchingAds->value,
+                    WithdrawalStatus::PendingReview->value,
+                    WithdrawalStatus::Approved->value,
+                ])
+                ->exists();
+
+            if ($hasActive) {
+                return null;
+            }
+
+            $authorMinimum = $lockedUser->isVerified
+                ? (float) config('moneypad.author_earnings.verified_minimum_php', 10.0)
+                : (float) config('moneypad.author_earnings.standard_minimum_php', 40.0);
+            $threshold = max($authorMinimum, $this->getThresholdForMethod($lockedUser->payment_method));
+            $grossCentavos = (int) floor(((float) $lockedUser->authorIncome + 0.000001) * 100);
+            $grossAmount = $grossCentavos / 100;
+
+            if ($grossAmount < $threshold) {
+                return null;
+            }
+
+            $gross = number_format($grossAmount, 2, '.', '');
+            $lockedUser->authorIncome = number_format(
+                max(0, (float) $lockedUser->authorIncome - $grossAmount),
+                4,
+                '.',
+                '',
+            );
+            $lockedUser->save();
+
+            $platformFee = (float) config('moneypad.withdrawals.platform_fee', 3.0);
+            $bankFee = $lockedUser->payment_method === 'Bank Transfer'
+                ? (float) config('moneypad.withdrawals.bank_processing_fee', 10.0)
+                : 0.0;
+            $netAmount = max(0, $grossAmount - $platformFee - $bankFee);
+            $schedule = $this->calculateSchedule();
+            $accountSnapshot = [
+                'payment_method' => $lockedUser->payment_method,
+                'payment_account_name' => $lockedUser->payment_account_name,
+                'payment_account_info' => $lockedUser->payment_account_info,
+                'bank_name' => $lockedUser->bank_name,
+                'username' => $lockedUser->username,
+                'email' => $lockedUser->email,
+                'captured_at' => $schedule['triggered_at']->toIso8601String(),
+            ];
+
+            $withdrawal = WithdrawalRequest::create([
+                'id' => (string) Str::uuid(),
+                'userId' => $lockedUser->id,
+                'amount' => $gross,
+                'gross_amount' => $gross,
+                'net_amount' => number_format($netAmount, 2, '.', ''),
+                'coins_deducted' => null,
+                'source' => 'AUTHOR',
+                'payment_method' => $lockedUser->payment_method,
+                'payment_account_info' => $lockedUser->payment_account_info,
+                'bank_name' => $lockedUser->bank_name,
+                'account_snapshot' => $accountSnapshot,
+                'platform_fee' => number_format($platformFee, 2, '.', ''),
+                'bank_fee' => number_format($bankFee, 2, '.', ''),
+                'ads_watched_count' => 0,
+                'fee_waived' => false,
+                'status' => WithdrawalStatus::PendingAdChoice->value,
+                'triggered_at' => $schedule['triggered_at'],
+                'earliest_review_at' => $schedule['earliest_review_at'],
+                'estimated_deadline_at' => $schedule['estimated_deadline_at'],
+            ]);
+
+            $message = SystemMessage::create([
+                'id' => (string) Str::uuid(),
+                'userId' => $lockedUser->id,
+                'type' => 'withdrawal_eligible',
+                'title' => 'Automatic Author Payout',
+                'content' => 'Your author income reached its minimum. Choose whether to complete tasks or accept the platform fee before this payout is sent for review.',
+                'action_type' => 'watch_ads_prompt',
+                'action_payload' => ['withdrawal_request_id' => $withdrawal->id],
+                'is_pinned' => true,
+                'withdrawal_request_id' => $withdrawal->id,
+            ]);
+
+            $withdrawal->update(['system_message_id' => $message->id]);
+
+            Notification::create([
+                'id' => (string) Str::uuid(),
+                'userId' => $lockedUser->id,
+                'type' => 'WITHDRAWAL_AUTO_TRIGGERED',
+                'actorId' => 'system',
+                'actorName' => 'System',
+                'content' => 'Your automatic author payout of ₱'.$gross.' is waiting for your fee preference.',
+                'timestamp' => (int) now()->valueOf(),
+                'is_pinned' => true,
+            ]);
+
+            return $withdrawal->fresh();
         }, 3);
     }
 
@@ -250,10 +371,8 @@ class WithdrawalService
 
             $statusStr = $req->status instanceof WithdrawalStatus ? $req->status->value : (string) $req->status;
             if (! in_array($statusStr, [
-                WithdrawalStatus::PendingReview->value,
                 WithdrawalStatus::PendingAdChoice->value,
                 WithdrawalStatus::WatchingAds->value,
-                WithdrawalStatus::Eligible->value,
             ], true)) {
                 throw ValidationException::withMessages(['status' => 'Fee waiver is no longer editable for this withdrawal.']);
             }
@@ -268,6 +387,9 @@ class WithdrawalService
                 $gross = (float) ($req->gross_amount ?? $req->amount);
                 $bankFee = (float) $req->bank_fee;
                 $req->net_amount = number_format(max(0, $gross - $bankFee), 2, '.', '');
+                $req->status = WithdrawalStatus::PendingReview->value;
+            } else {
+                $req->status = WithdrawalStatus::WatchingAds->value;
             }
 
             $req->save();
@@ -291,6 +413,11 @@ class WithdrawalService
     {
         if ($req->userId !== $user->id) {
             throw ValidationException::withMessages(['user' => 'Unauthorized']);
+        }
+
+        $status = $req->status instanceof WithdrawalStatus ? $req->status->value : (string) $req->status;
+        if (! in_array($status, [WithdrawalStatus::PendingAdChoice->value, WithdrawalStatus::WatchingAds->value], true)) {
+            throw ValidationException::withMessages(['status' => 'The fee preference can no longer be changed.']);
         }
 
         $gross = (float) ($req->gross_amount ?? $req->amount);
@@ -320,12 +447,7 @@ class WithdrawalService
             $locked = WithdrawalRequest::whereKey($withdrawal->id)->lockForUpdate()->firstOrFail();
 
             $statusStr = $locked->status instanceof WithdrawalStatus ? $locked->status->value : (string) $locked->status;
-            if (! in_array($statusStr, [
-                WithdrawalStatus::PendingReview->value,
-                WithdrawalStatus::PendingAdChoice->value,
-                WithdrawalStatus::WatchingAds->value,
-                WithdrawalStatus::Eligible->value,
-            ], true)) {
+            if ($statusStr !== WithdrawalStatus::PendingReview->value) {
                 throw ValidationException::withMessages(['status' => 'Withdrawal cannot be approved from its current status.']);
             }
 
@@ -375,13 +497,7 @@ class WithdrawalService
             $locked = WithdrawalRequest::whereKey($withdrawal->id)->lockForUpdate()->firstOrFail();
 
             $statusStr = $locked->status instanceof WithdrawalStatus ? $locked->status->value : (string) $locked->status;
-            if (! in_array($statusStr, [
-                WithdrawalStatus::PendingReview->value,
-                WithdrawalStatus::Approved->value,
-                WithdrawalStatus::PendingAdChoice->value,
-                WithdrawalStatus::WatchingAds->value,
-                WithdrawalStatus::Eligible->value,
-            ], true)) {
+            if ($statusStr !== WithdrawalStatus::Approved->value) {
                 throw ValidationException::withMessages(['status' => 'Withdrawal cannot be completed from its current status.']);
             }
 
@@ -435,14 +551,23 @@ class WithdrawalService
                 throw ValidationException::withMessages(['status' => 'Cannot reject a finalized withdrawal.']);
             }
 
-            // Refund reserved coins
             $user = User::whereKey($locked->userId)->lockForUpdate()->firstOrFail();
-            $coinToPhpRate = (float) config('moneypad.conversion.coins_to_cash_ratio', 0.01);
-            $coinsToRefund = $locked->coins_deducted !== null
-                ? (float) $locked->coins_deducted
-                : ((float) $locked->amount / $coinToPhpRate);
-
-            $user->readerCoins = CoinAmount::add($user->readerCoins, $coinsToRefund);
+            if ($locked->source === 'AUTHOR') {
+                $user->authorIncome = number_format(
+                    (float) $user->authorIncome + (float) $locked->amount,
+                    4,
+                    '.',
+                    '',
+                );
+                $restoredBalance = 'author income';
+            } else {
+                $coinToPhpRate = (float) config('moneypad.conversion.coins_to_cash_ratio', 0.01);
+                $coinsToRefund = $locked->coins_deducted !== null
+                    ? (float) $locked->coins_deducted
+                    : ((float) $locked->amount / $coinToPhpRate);
+                $user->readerCoins = CoinAmount::add($user->readerCoins, $coinsToRefund);
+                $restoredBalance = 'reader coins';
+            }
             $user->save();
 
             $locked->update([
@@ -466,7 +591,7 @@ class WithdrawalService
                 'type' => 'WITHDRAWAL_REJECTED',
                 'actorId' => 'system',
                 'actorName' => 'System',
-                'content' => 'Your withdrawal of ₱'.$locked->amount.' was rejected: '.$reason.'. The balance has been restored to your reader coins.',
+                'content' => 'Your withdrawal of ₱'.$locked->amount.' was rejected: '.$reason.'. The balance has been restored to your '.$restoredBalance.'.',
                 'timestamp' => (int) (now()->valueOf()),
                 'is_pinned' => true,
             ]);
