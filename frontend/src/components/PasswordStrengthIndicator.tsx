@@ -1,27 +1,19 @@
 import React from 'react';
+import { getPasswordStrength } from '../utils/password';
 
 interface PasswordStrengthIndicatorProps {
   password: string;
 }
 
 export const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps> = ({ password }) => {
-  const getStrength = () => {
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (password.length >= 12) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-
-    if (score < 3 || password.length < 8) return { label: 'Weak', color: 'bg-red-500', width: 'w-1/3' };
-    if (score < 5) return { label: 'Moderate', color: 'bg-yellow-500', width: 'w-2/3' };
-    return { label: 'Strong', color: 'bg-green-500', width: 'w-full' };
-  };
-
   if (!password) return null;
 
-  const { label, color, width } = getStrength();
+  const label = getPasswordStrength(password);
+  const { color, width } = label === 'Weak'
+    ? { color: 'bg-red-500', width: 'w-1/3' }
+    : label === 'Moderate'
+      ? { color: 'bg-yellow-500', width: 'w-2/3' }
+      : { color: 'bg-green-500', width: 'w-full' };
 
   return (
     <div className="mt-2">

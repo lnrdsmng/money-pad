@@ -5,6 +5,8 @@ import { useAuth } from './auth/AuthProvider';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage'));
 const ExplorePage = lazy(() => import('./pages/ExplorePage'));
 const StoryPage = lazy(() => import('./pages/StoryPage'));
@@ -90,6 +92,8 @@ export default function AppRouter() {
 
           <Route path="login" element={getAuthRedirect(<LoginPage />)} />
           <Route path="register" element={getAuthRedirect(<RegisterPage />)} />
+          <Route path="forgot-password" element={getAuthRedirect(<ForgotPasswordPage />)} />
+          <Route path="reset-password" element={getAuthRedirect(<ResetPasswordPage />)} />
           <Route path="onboarding" element={<OnboardingPage />} />
         </Route>
       </Routes>
