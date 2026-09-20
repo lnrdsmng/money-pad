@@ -15,6 +15,7 @@ import {
   Mail,
   MailOpen,
   Pin,
+  Trash2,
 } from 'lucide-react';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
@@ -89,16 +90,6 @@ export const NotificationBell = () => {
     },
   });
 
-  const markAllReadMutation = useMutation({
-    mutationFn: async () => {
-      await http.post('/notifications/read-all');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      refetchActivity();
-    },
-  });
-
   const markSystemReadMutation = useMutation({
     mutationFn: (id: string) => http.put(`/system-messages/${id}/read`),
     onSuccess: () => {
@@ -107,25 +98,54 @@ export const NotificationBell = () => {
     onError: (error) => feedback.error(getApiErrorMessage(error, 'The message could not be marked as read.')),
   });
 
+  const deleteActivityMutation = useMutation({
+    mutationFn: (id: string) => http.delete(`/notifications/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The notification could not be deleted.')),
+  });
+
+  const deleteSystemMutation = useMutation({
+    mutationFn: (id: string) => http.delete(`/system-messages/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['systemMessages', user?.id] }),
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The notice could not be deleted.')),
+  });
+
+  const manageAllMutation = useMutation({
+    mutationFn: async ({ tab, action }: { tab: 'activity' | 'system'; action: 'read' | 'delete' }) => {
+      if (tab === 'activity') {
+        return action === 'read' ? http.post('/notifications/read-all') : http.delete('/notifications/delete-all');
+      }
+      return action === 'read' ? http.put('/system-messages/read-all') : http.delete('/system-messages/delete-all');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['systemMessages', user?.id] });
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The notification action could not be completed.')),
+  });
+
   const handleNotificationClick = (item: any) => {
     if (!item.isRead) {
       markSingleReadMutation.mutate(item.id);
     }
-    setIsOpen(false);
-
-    // Deep link navigation
+    let destination: string | null = null;
     if (['CHAT_REPLY', 'CHAT_MENTION', 'CHAT_LIKE'].includes(item.type)) {
-      navigate(item.partId ? `/community?messageId=${item.partId}` : '/community');
+      destination = item.partId ? `/community?messageId=${item.partId}` : '/community';
     } else if (item.type === 'VERIFIED') {
-      navigate('/writer/verification');
+      destination = '/writer/verification';
     } else if (item.type === 'REFERRAL_REWARD' || item.type === 'EARNINGS') {
-      navigate('/earnings');
+      destination = '/earnings';
     } else if (item.storyId && item.partId) {
-      navigate(`/story/${item.storyId}/read/${item.partId}`);
+      destination = `/story/${item.storyId}/read/${item.partId}`;
     } else if (item.storyId) {
-      navigate(`/story/${item.storyId}`);
-    } else if (item.actorName) {
-      navigate(`/profile/${item.actorName}`);
+      destination = `/story/${item.storyId}`;
+    } else if (item.type === 'FOLLOW' && item.actorName && item.actorName !== 'System') {
+      destination = `/profile/${item.actorName}`;
+    }
+
+    if (destination) {
+      setIsOpen(false);
+      navigate(destination);
     }
   };
 
@@ -201,17 +221,24 @@ export const NotificationBell = () => {
                 )}
               </h3>
 
-              {activeTab === 'activity' && notifications.some((n: any) => !n.isRead) && (
-                <button
-                  type="button"
-                  onClick={() => markAllReadMutation.mutate()}
-                  disabled={markAllReadMutation.isPending}
-                  className="flex items-center gap-1 whitespace-nowrap text-xs font-medium text-primary hover:underline disabled:opacity-50 cursor-pointer"
-                >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  Mark all as read
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {((activeTab === 'activity' && notifications.some((n: any) => !n.isRead))
+                  || (activeTab === 'system' && unreadSystemCount > 0)) && (
+                  <button type="button" onClick={() => manageAllMutation.mutate({ tab: activeTab, action: 'read' })} disabled={manageAllMutation.isPending} className="flex items-center gap-1 whitespace-nowrap text-xs font-medium text-primary hover:underline disabled:opacity-50">
+                    <CheckCheck className="h-3.5 w-3.5" /> Mark all read
+                  </button>
+                )}
+                {((activeTab === 'activity' && notifications.length > 0)
+                  || (activeTab === 'system' && systemMessages.length > 0)) && (
+                  <button type="button" onClick={() => {
+                    if (window.confirm(`Delete all ${activeTab === 'activity' ? 'activity notifications' : 'system notices'}?`)) {
+                      manageAllMutation.mutate({ tab: activeTab, action: 'delete' });
+                    }
+                  }} disabled={manageAllMutation.isPending} className="flex items-center gap-1 whitespace-nowrap text-xs font-medium text-red-600 hover:underline disabled:opacity-50">
+                    <Trash2 className="h-3.5 w-3.5" /> Delete all
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Segmented Tab Controls */}
@@ -301,9 +328,15 @@ export const NotificationBell = () => {
                       </span>
                     </div>
 
-                    {!item.isRead && (
-                      <span className="w-2 h-2 rounded-full bg-accent shrink-0 mt-1.5" />
-                    )}
+                    <div className="flex shrink-0 flex-col items-center gap-2">
+                      {!item.isRead && <span className="mt-1.5 h-2 w-2 rounded-full bg-accent" />}
+                      <button type="button" aria-label="Delete notification" disabled={deleteActivityMutation.isPending} onClick={(event) => {
+                        event.stopPropagation();
+                        deleteActivityMutation.mutate(item.id);
+                      }} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -324,6 +357,14 @@ export const NotificationBell = () => {
                 systemMessages.map((msg: any) => (
                   <div
                     key={msg.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (!msg.is_read) markSystemReadMutation.mutate(msg.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if ((event.key === 'Enter' || event.key === ' ') && !msg.is_read) markSystemReadMutation.mutate(msg.id);
+                    }}
                     className={`p-3.5 transition-colors ${
                       !msg.is_read
                         ? 'bg-[#F5E9DA]/30 dark:bg-amber-950/20'
@@ -357,7 +398,9 @@ export const NotificationBell = () => {
                           {msg.action_type === 'watch_ads_prompt' && msg.withdrawal_request_id && (
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (!msg.is_read) markSystemReadMutation.mutate(msg.id);
                                 setIsOpen(false);
                                 setSelectedWithdrawalId(msg.withdrawal_request_id);
                               }}
@@ -378,12 +421,21 @@ export const NotificationBell = () => {
                           <button
                             type="button"
                             disabled={markSystemReadMutation.isPending}
-                            onClick={() => markSystemReadMutation.mutate(msg.id)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              markSystemReadMutation.mutate(msg.id);
+                            }}
                             className="text-[10px] font-semibold text-primary hover:underline cursor-pointer disabled:opacity-50"
                           >
                             {markSystemReadMutation.isPending ? '...' : 'Mark read'}
                           </button>
                         )}
+                        <button type="button" aria-label="Delete system notice" disabled={deleteSystemMutation.isPending} onClick={(event) => {
+                          event.stopPropagation();
+                          deleteSystemMutation.mutate(msg.id);
+                        }} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>

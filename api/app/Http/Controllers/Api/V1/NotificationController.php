@@ -75,4 +75,22 @@ class NotificationController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function destroy(Request $request, string $notificationId)
+    {
+        $deleted = Notification::whereKey($notificationId)
+            ->where('userId', $request->user()->id)
+            ->delete();
+
+        abort_if($deleted === 0, 404);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyAll(Request $request)
+    {
+        Notification::where('userId', $request->user()->id)->delete();
+
+        return response()->json(['success' => true]);
+    }
 }

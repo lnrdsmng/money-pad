@@ -33,4 +33,31 @@ class SystemMessageController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function markAllAsRead(Request $request)
+    {
+        SystemMessage::where('userId', $request->user()->id)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroy(Request $request, string $id)
+    {
+        $deleted = SystemMessage::whereKey($id)
+            ->where('userId', $request->user()->id)
+            ->delete();
+
+        abort_if($deleted === 0, 404);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyAll(Request $request)
+    {
+        SystemMessage::where('userId', $request->user()->id)->delete();
+
+        return response()->json(['success' => true]);
+    }
 }

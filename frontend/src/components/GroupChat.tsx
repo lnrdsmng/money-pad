@@ -29,6 +29,7 @@ export const GroupChat = () => {
   const feedback = useFeedback();
   const queryClient = useQueryClient();
   const lastMarkedReadRef = useRef<string | null>(null);
+  const markingReadRef = useRef(false);
 
   const { data: messages, refetch } = useQuery({
     queryKey: ['groupChat', user?.id],
@@ -78,12 +79,30 @@ export const GroupChat = () => {
   });
 
   useEffect(() => {
-    const latestMessageId = messages?.at(-1)?.id;
-    if (!latestMessageId || document.visibilityState !== 'visible' || lastMarkedReadRef.current === latestMessageId) return;
-    lastMarkedReadRef.current = latestMessageId;
-    http.post('/chat/read').then(() => {
-      queryClient.invalidateQueries({ queryKey: ['community', 'unread-count', user?.id] });
-    }).catch(() => undefined);
+    const markVisibleMessagesRead = () => {
+      const latestMessage = messages?.at(-1);
+      if (!latestMessage || document.visibilityState !== 'visible'
+        || lastMarkedReadRef.current === latestMessage.id || markingReadRef.current) return;
+
+      markingReadRef.current = true;
+      http.post('/chat/read', { through_message_id: latestMessage.id }).then((response) => {
+        lastMarkedReadRef.current = latestMessage.id;
+        queryClient.setQueryData(['community', 'unread-count', user?.id], {
+          count: Number(response.data.unread_count ?? 0),
+        });
+        return queryClient.invalidateQueries({ queryKey: ['community', 'unread-count', user?.id] });
+      }).catch(() => undefined).finally(() => {
+        markingReadRef.current = false;
+      });
+    };
+
+    markVisibleMessagesRead();
+    document.addEventListener('visibilitychange', markVisibleMessagesRead);
+    window.addEventListener('focus', markVisibleMessagesRead);
+    return () => {
+      document.removeEventListener('visibilitychange', markVisibleMessagesRead);
+      window.removeEventListener('focus', markVisibleMessagesRead);
+    };
   }, [messages, queryClient, user?.id]);
 
   // Handle scrolling to target message from notification or default to bottom

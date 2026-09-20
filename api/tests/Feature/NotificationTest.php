@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Notification;
+use App\Models\SystemMessage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -60,5 +61,51 @@ class NotificationTest extends TestCase
         // Unread count now 0
         $countRes3 = $this->actingAs($user)->getJson('/api/v1/notifications/unread-count');
         $countRes3->assertOk()->assertJsonPath('count', 0);
+    }
+
+    public function test_user_can_delete_only_their_notifications_and_system_messages(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        Notification::create([
+            'id' => 'mine', 'userId' => $user->id, 'type' => 'WELCOME', 'actorId' => 'system',
+            'actorName' => 'System', 'timestamp' => now()->valueOf(), 'isRead' => false,
+        ]);
+        Notification::create([
+            'id' => 'theirs', 'userId' => $other->id, 'type' => 'WELCOME', 'actorId' => 'system',
+            'actorName' => 'System', 'timestamp' => now()->valueOf(), 'isRead' => false,
+        ]);
+        $systemMessage = SystemMessage::create([
+            'id' => 'system-mine', 'userId' => $user->id, 'type' => 'info',
+            'title' => 'Notice', 'content' => 'Information only.', 'action_type' => 'info',
+        ]);
+
+        $this->actingAs($user)->deleteJson('/api/v1/notifications/theirs')->assertNotFound();
+        $this->deleteJson('/api/v1/notifications/mine')->assertOk();
+        $this->deleteJson("/api/v1/system-messages/{$systemMessage->id}")->assertOk();
+
+        $this->assertDatabaseHas('notifications', ['id' => 'theirs']);
+        $this->assertDatabaseMissing('notifications', ['id' => 'mine']);
+        $this->assertDatabaseMissing('system_messages', ['id' => 'system-mine']);
+    }
+
+    public function test_bulk_notification_actions_are_scoped_to_authenticated_user(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        foreach ([[$user, 'mine'], [$other, 'theirs']] as [$owner, $id]) {
+            Notification::create([
+                'id' => $id, 'userId' => $owner->id, 'type' => 'WELCOME', 'actorId' => 'system',
+                'actorName' => 'System', 'timestamp' => now()->valueOf(), 'isRead' => false,
+            ]);
+        }
+
+        $this->actingAs($user)->postJson('/api/v1/notifications/read-all')->assertOk();
+        $this->assertDatabaseHas('notifications', ['id' => 'mine', 'isRead' => true]);
+        $this->assertDatabaseHas('notifications', ['id' => 'theirs', 'isRead' => false]);
+
+        $this->deleteJson('/api/v1/notifications/delete-all')->assertOk();
+        $this->assertDatabaseMissing('notifications', ['id' => 'mine']);
+        $this->assertDatabaseHas('notifications', ['id' => 'theirs']);
     }
 }

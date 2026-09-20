@@ -199,9 +199,18 @@ class ChatController extends Controller
 
     public function markRead(Request $request)
     {
-        $request->user()->forceFill(['community_read_at' => now()])->save();
+        $data = $request->validate([
+            'through_message_id' => ['nullable', 'string', 'exists:chat_messages,id'],
+        ]);
+        $readAt = isset($data['through_message_id'])
+            ? ChatMessage::whereKey($data['through_message_id'])->value('created_at')
+            : now();
+        $request->user()->forceFill(['community_read_at' => $readAt])->save();
+        $unreadCount = ChatMessage::where('userId', '!=', $request->user()->id)
+            ->where('created_at', '>', $readAt)
+            ->count();
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'read_at' => $readAt, 'unread_count' => $unreadCount]);
     }
 
     public function pinned()

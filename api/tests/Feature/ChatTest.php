@@ -177,6 +177,25 @@ class ChatTest extends TestCase
         $this->actingAs($viewer)->getJson('/api/v1/chat/unread-count')->assertOk()->assertJsonPath('count', 0);
     }
 
+    public function test_mark_read_does_not_hide_messages_created_after_the_loaded_message(): void
+    {
+        $viewer = User::factory()->create();
+        $other = User::factory()->create();
+        $loaded = ChatMessage::create([
+            'id' => 'loaded-message', 'userId' => $other->id, 'username' => $other->username, 'message' => 'Loaded',
+        ]);
+        $this->travel(1)->second();
+        ChatMessage::create([
+            'id' => 'new-message', 'userId' => $other->id, 'username' => $other->username, 'message' => 'Arrived later',
+        ]);
+
+        $this->actingAs($viewer)->postJson('/api/v1/chat/read', [
+            'through_message_id' => $loaded->id,
+        ])->assertOk();
+
+        $this->getJson('/api/v1/chat/unread-count')->assertOk()->assertJsonPath('count', 1);
+    }
+
     public function test_only_admin_can_pin_a_message(): void
     {
         $user = User::factory()->create();
