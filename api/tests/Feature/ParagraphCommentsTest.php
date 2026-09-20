@@ -87,6 +87,19 @@ class ParagraphCommentsTest extends TestCase
         ]);
     }
 
+    public function test_comments_return_the_users_current_profile_photo(): void
+    {
+        [$reader, $part] = $this->createReaderAndPart();
+        $comment = $this->createComment($reader, $part, 'comment-avatar');
+        $comment->update(['userProfileImageUrl' => null]);
+        $reader->update(['profileImageUrl' => 'https://example.com/current-avatar.jpg']);
+
+        $this->actingAs($reader)
+            ->getJson("/api/v1/parts/{$part->id}/annotations?startIndex=0&endIndex=16")
+            ->assertOk()
+            ->assertJsonPath('data.0.userProfileImageUrl', 'https://example.com/current-avatar.jpg');
+    }
+
     private function createReaderAndPart(): array
     {
         $author = User::factory()->create();

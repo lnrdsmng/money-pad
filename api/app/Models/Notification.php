@@ -18,7 +18,8 @@ class Notification extends Model
 
     protected $fillable = [
         'id', 'userId', 'type', 'actorId', 'actorName', 'actorProfileImageUrl',
-        'storyId', 'storyTitle', 'partId', 'partTitle', 'content', 'timestamp',
+        'storyId', 'storyTitle', 'partId', 'partTitle', 'wallAuthorId',
+        'conversationId', 'parentConversationId', 'content', 'timestamp',
         'isRead', 'isActorVerified', 'is_pinned',
     ];
 
@@ -39,5 +40,10 @@ class Notification extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actorId', 'id');
+    }
+
+    public function wallAuthor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'wallAuthorId', 'id');
     }
 }

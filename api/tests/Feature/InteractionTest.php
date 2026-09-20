@@ -12,6 +12,7 @@ use App\PlanPurchaseStatus;
 use App\PlanType;
 use App\Services\PlanPurchaseReviewService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class InteractionTest extends TestCase
@@ -165,6 +166,23 @@ class InteractionTest extends TestCase
         $this->assertEquals(0, $userB->followers);
     }
 
+    public function test_follower_lists_include_the_viewers_follow_state(): void
+    {
+        $profile = User::factory()->create();
+        $viewer = User::factory()->create();
+        $listedUser = User::factory()->create();
+        DB::table('follows')->insert([
+            ['followerId' => $listedUser->id, 'followedId' => $profile->id],
+            ['followerId' => $viewer->id, 'followedId' => $listedUser->id],
+        ]);
+
+        $this->actingAs($viewer)
+            ->getJson("/api/v1/users/{$profile->id}/followers")
+            ->assertOk()
+            ->assertJsonPath('0.id', $listedUser->id)
+            ->assertJsonPath('0.isFollowing', true);
+    }
+
     public function test_author_wall_conversations_replies_and_mentions(): void
     {
         $author = User::factory()->create(['username' => 'novelist']);
@@ -208,6 +226,48 @@ class InteractionTest extends TestCase
             'type' => 'REPLY',
             'actorId' => $author->id,
         ]);
+    }
+
+    public function test_author_self_post_notifies_followers_once_with_message_target(): void
+    {
+        $author = User::factory()->create(['username' => 'wall_author']);
+        $follower = User::factory()->create(['username' => 'wall_follower']);
+        DB::table('follows')->insert(['followerId' => $follower->id, 'followedId' => $author->id]);
+
+        $response = $this->actingAs($author)->postJson('/api/v1/conversations', [
+            'authorId' => $author->id,
+            'message' => 'A wall update for @wall_follower',
+        ])->assertOk();
+
+        $conversationId = $response->json('conversation.id');
+        $this->assertDatabaseCount('notifications', 1);
+        $this->assertDatabaseHas('notifications', [
+            'userId' => $follower->id,
+            'type' => 'MENTION',
+            'wallAuthorId' => $author->id,
+            'conversationId' => $conversationId,
+        ]);
+    }
+
+    public function test_wall_reply_must_belong_to_the_requested_author_wall(): void
+    {
+        $firstAuthor = User::factory()->create();
+        $secondAuthor = User::factory()->create();
+        $sender = User::factory()->create();
+        $conversation = Conversation::create([
+            'id' => 'wall-parent',
+            'authorId' => $firstAuthor->id,
+            'senderId' => $sender->id,
+            'senderName' => $sender->username,
+            'message' => 'Original message',
+            'timestamp' => now()->valueOf(),
+        ]);
+
+        $this->actingAs($sender)->postJson('/api/v1/conversations', [
+            'authorId' => $secondAuthor->id,
+            'parentId' => $conversation->id,
+            'message' => 'Wrong wall',
+        ])->assertUnprocessable();
     }
 
     public function test_chapter_text_annotations_storage(): void

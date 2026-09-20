@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Heart, MessageSquare, Send, Reply, LoaderCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -11,9 +11,11 @@ import { UserAvatar } from '../common/UserAvatar';
 interface AuthorWallProps {
   authorId: string;
   authorUsername: string;
+  targetMessageId?: string | null;
+  targetParentId?: string | null;
 }
 
-export const AuthorWall = ({ authorId, authorUsername }: AuthorWallProps) => {
+export const AuthorWall = ({ authorId, authorUsername, targetMessageId, targetParentId }: AuthorWallProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const feedback = useFeedback();
@@ -89,6 +91,7 @@ export const AuthorWall = ({ authorId, authorUsername }: AuthorWallProps) => {
       setActiveReplyId(null);
       feedback.success('Message posted to wall.');
       queryClient.invalidateQueries({ queryKey: ['conversations', authorId] });
+      queryClient.invalidateQueries({ queryKey: ['replies'] });
     },
     onError: () => feedback.error('Could not post message.'),
   });
@@ -206,6 +209,8 @@ export const AuthorWall = ({ authorId, authorUsername }: AuthorWallProps) => {
               replyText={replyText}
               setReplyText={setReplyText}
               setActiveReplyId={setActiveReplyId}
+              targetMessageId={targetMessageId}
+              targetParentId={targetParentId}
             />
           ))}
         </div>
@@ -224,6 +229,8 @@ interface ConversationItemProps {
   replyText: string;
   setReplyText: (text: string) => void;
   setActiveReplyId: (id: string | null) => void;
+  targetMessageId?: string | null;
+  targetParentId?: string | null;
 }
 
 const ConversationItem = ({
@@ -235,9 +242,12 @@ const ConversationItem = ({
   replyText,
   setReplyText,
   setActiveReplyId,
+  targetMessageId,
+  targetParentId,
 }: ConversationItemProps) => {
   const { user } = useAuth();
-  const [showReplies, setShowReplies] = useState(false);
+  const isTargetConversation = conversation.id === (targetParentId || targetMessageId);
+  const [showReplies, setShowReplies] = useState(Boolean(targetParentId && conversation.id === targetParentId));
 
   const { data: replies = [], refetch: refetchReplies } = useQuery({
     queryKey: ['replies', conversation.id],
@@ -248,8 +258,21 @@ const ConversationItem = ({
     enabled: showReplies,
   });
 
+  useEffect(() => {
+    if (!isTargetConversation) return;
+    const timeout = window.setTimeout(() => {
+      document.getElementById(`wall-message-${targetMessageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    return () => window.clearTimeout(timeout);
+  }, [isTargetConversation, replies.length, targetMessageId, targetParentId]);
+
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-gray-100 dark:border-slate-700 shadow-xs">
+    <div
+      id={`wall-message-${conversation.id}`}
+      className={`bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border shadow-xs ${
+        isTargetConversation && !targetParentId ? 'border-primary ring-2 ring-primary/30' : 'border-gray-100 dark:border-slate-700'
+      }`}
+    >
       <div className="flex items-start gap-3">
         <Link to={`/profile/${conversation.senderName}`} className="shrink-0">
           <UserAvatar username={conversation.senderName || 'User'} imageUrl={conversation.senderProfileImageUrl} className="h-10 w-10 text-sm" />
@@ -338,7 +361,11 @@ const ConversationItem = ({
           {showReplies && replies.length > 0 && (
             <div className="mt-4 pl-4 border-l-2 border-gray-100 dark:border-slate-700 space-y-3">
               {replies.map((rep: any) => (
-                <div key={rep.id} className="text-xs">
+                <div
+                  key={rep.id}
+                  id={`wall-message-${rep.id}`}
+                  className={`rounded-md text-xs ${rep.id === targetMessageId ? 'bg-primary/10 p-2 ring-2 ring-primary/30' : ''}`}
+                >
                   <div className="flex items-center gap-1 mb-0.5">
                     <Link to={`/profile/${rep.senderName}`} className="font-semibold hover:underline text-gray-900 dark:text-gray-100">
                       {rep.senderName}

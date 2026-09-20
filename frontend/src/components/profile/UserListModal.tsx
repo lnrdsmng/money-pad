@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, UserPlus, LoaderCircle } from 'lucide-react';
+import { X, UserCheck, UserPlus, LoaderCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import http from '../../api/http';
 import { useAuth } from '../../auth/AuthProvider';
@@ -38,9 +38,7 @@ export const UserListModal = ({ userId, type, onClose }: UserListModalProps) => 
 
     setPendingUserId(targetUser.id);
     try {
-      // Check follow state
-      const checkRes = await http.get(`/users/${currentUser.id}/is-following/${targetUser.id}`);
-      const isCurrentlyFollowing = Boolean(checkRes.data?.isFollowing);
+      const isCurrentlyFollowing = Boolean(targetUser.isFollowing);
 
       if (isCurrentlyFollowing) {
         await http.post(`/users/${currentUser.id}/unfollow`, { followedId: targetUser.id });
@@ -50,7 +48,12 @@ export const UserListModal = ({ userId, type, onClose }: UserListModalProps) => 
         feedback.success(`Following ${targetUser.username}`);
       }
 
-      queryClient.invalidateQueries({ queryKey: ['users', userId, type] });
+      queryClient.setQueryData<any[]>(['users', userId, type], (current = []) => current.map((listedUser) => (
+        listedUser.id === targetUser.id
+          ? { ...listedUser, isFollowing: !isCurrentlyFollowing }
+          : listedUser
+      )));
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     } catch {
       feedback.error('Could not update follow status.');
     } finally {
@@ -107,14 +110,16 @@ export const UserListModal = ({ userId, type, onClose }: UserListModalProps) => 
                   <button
                     onClick={() => handleToggleFollow(u)}
                     disabled={pendingUserId === u.id}
-                    className="px-3 py-1 text-xs font-medium border border-primary text-primary rounded-full hover:bg-primary hover:text-white transition-colors shrink-0 flex items-center gap-1 disabled:opacity-60"
+                    className={`px-3 py-1 text-xs font-medium border border-primary rounded-full transition-colors shrink-0 flex items-center gap-1 disabled:opacity-60 ${
+                      u.isFollowing ? 'bg-primary text-white hover:bg-primary-dark' : 'text-primary hover:bg-primary hover:text-white'
+                    }`}
                   >
                     {pendingUserId === u.id ? (
                       <LoaderCircle className="w-3 h-3 animate-spin" />
                     ) : (
-                      <UserPlus className="w-3 h-3" />
+                      u.isFollowing ? <UserCheck className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />
                     )}
-                    Follow / Unfollow
+                    {u.isFollowing ? 'Followed' : 'Follow'}
                   </button>
                 )}
               </div>

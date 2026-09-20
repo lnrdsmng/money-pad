@@ -2,7 +2,8 @@ import { usePagedList } from '../hooks/usePagedList';
 import { LoadMoreButton } from '../components/common/LoadMoreButton';
 import type { Story } from '../types/content';
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
 import { UserCheck, UserPlus, BookOpen, Clock, LoaderCircle, Edit3, MessageSquare, BookCheck, BookMarked } from 'lucide-react';
 import { useAuth, type User } from '../auth/AuthProvider';
@@ -17,6 +18,8 @@ import { getApiErrorMessage } from '../utils/apiError';
 
 export default function ProfilePage() {
   const { username } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { user: currentUser, updateUser } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const storyPages = usePagedList<Story>(['stories', 'profile', username, profile?.id], `/authors/${profile?.id}/stories/published`, !!profile?.id);
@@ -37,8 +40,13 @@ export default function ProfilePage() {
 
   const feedback = useFeedback();
   const isOwnProfile = currentUser?.username === username;
-  const activeTab = tabState.username === username ? tabState.tab : 'works';
-  const setActiveTab = (tab: ProfileTab) => setTabState({ username, tab });
+  const activeTab = searchParams.get('tab') === 'wall'
+    ? 'wall'
+    : tabState.username === username ? tabState.tab : 'works';
+  const setActiveTab = (tab: ProfileTab) => {
+    setTabState({ username, tab });
+    if (searchParams.size > 0) setSearchParams({}, { replace: true });
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -128,6 +136,14 @@ export default function ProfilePage() {
 
       updateUser(updatedUser);
       setProfile((previous: any) => ({ ...previous, ...updatedUser }));
+      if (type === 'profile') {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['annotations'] }),
+          queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+          queryClient.invalidateQueries({ queryKey: ['replies'] }),
+          queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+        ]);
+      }
       feedback.success(type === 'profile' ? 'Profile photo updated.' : 'Cover photo updated.');
     } catch (error) {
       feedback.error(getApiErrorMessage(error, 'The photo could not be updated.'));
@@ -360,7 +376,13 @@ export default function ProfilePage() {
           </div>
         ) : activeTab === 'wall' ? (
           <div className="max-w-3xl">
-            <AuthorWall authorId={profile.id} authorUsername={profile.username} />
+            <AuthorWall
+              key={`${profile.id}:${searchParams.get('parentId') || ''}:${searchParams.get('messageId') || ''}`}
+              authorId={profile.id}
+              authorUsername={profile.username}
+              targetMessageId={searchParams.get('messageId')}
+              targetParentId={searchParams.get('parentId')}
+            />
           </div>
         ) : activeTab === 'reading' && isOwnProfile ? (
           <div className="mb-8">

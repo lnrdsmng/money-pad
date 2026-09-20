@@ -131,6 +131,10 @@ export const NotificationBell = () => {
     let destination: string | null = null;
     if (['CHAT_REPLY', 'CHAT_MENTION', 'CHAT_LIKE'].includes(item.type)) {
       destination = item.partId ? `/community?messageId=${item.partId}` : '/community';
+    } else if (item.wallAuthorName && item.conversationId) {
+      const params = new URLSearchParams({ tab: 'wall', messageId: item.conversationId });
+      if (item.parentConversationId) params.set('parentId', item.parentConversationId);
+      destination = `/profile/${item.wallAuthorName}?${params.toString()}`;
     } else if (item.type === 'VERIFIED') {
       destination = '/writer/verification';
     } else if (item.type === 'REFERRAL_REWARD' || item.type === 'EARNINGS') {

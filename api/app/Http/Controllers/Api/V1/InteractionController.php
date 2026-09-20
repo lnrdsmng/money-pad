@@ -93,20 +93,20 @@ class InteractionController extends Controller
         return response()->json(['isFollowing' => $exists]);
     }
 
-    public function followers($userId)
+    public function followers(Request $request, $userId)
     {
         $followerIds = DB::table('follows')->where('followedId', $userId)->pluck('followerId');
         $users = User::whereIn('id', $followerIds)->get();
 
-        return response()->json(PublicUserResource::collection($users)->resolve());
+        return response()->json($this->usersWithFollowState($request, $users));
     }
 
-    public function following($userId)
+    public function following(Request $request, $userId)
     {
         $followedIds = DB::table('follows')->where('followerId', $userId)->pluck('followedId');
         $users = User::whereIn('id', $followedIds)->get();
 
-        return response()->json(PublicUserResource::collection($users)->resolve());
+        return response()->json($this->usersWithFollowState($request, $users));
     }
 
     public function conversations($authorId)
@@ -130,12 +130,17 @@ class InteractionController extends Controller
     public function storeConversation(Request $request)
     {
         $validated = $request->validate([
-            'authorId' => 'required|string',
-            'message' => 'required|string',
-            'parentId' => 'nullable|string',
+            'authorId' => 'required|string|exists:users,id',
+            'message' => 'required|string|max:2000',
+            'parentId' => 'nullable|string|exists:conversations,id',
         ]);
 
         $user = $request->user();
+        $parent = null;
+        if (! empty($validated['parentId'])) {
+            $parent = Conversation::findOrFail($validated['parentId']);
+            abort_unless($parent->authorId === $validated['authorId'], 422, 'The reply does not belong to this author wall.');
+        }
 
         $conversation = Conversation::create([
             'id' => Str::uuid()->toString(),
@@ -149,40 +154,28 @@ class InteractionController extends Controller
             'isSenderVerified' => $user->isVerified,
         ]);
 
-        // If threaded reply, notify parent message author
-        if (! empty($validated['parentId'])) {
-            $parent = Conversation::find($validated['parentId']);
-            if ($parent && $parent->senderId !== $user->id) {
-                Notification::create([
-                    'id' => Str::uuid()->toString(),
-                    'userId' => $parent->senderId,
-                    'type' => 'REPLY',
-                    'actorId' => $user->id,
-                    'actorName' => $user->username,
-                    'actorProfileImageUrl' => $user->profileImageUrl,
-                    'content' => $user->username.' replied to your comment on the author wall',
-                    'timestamp' => time() * 1000,
-                    'isRead' => false,
-                    'isActorVerified' => (bool) $user->isVerified,
-                ]);
-            }
-        } elseif ($validated['authorId'] !== $user->id) {
-            // New wall post, notify wall owner
-            Notification::create([
-                'id' => Str::uuid()->toString(),
-                'userId' => $validated['authorId'],
-                'type' => 'CONVERSATION',
-                'actorId' => $user->id,
-                'actorName' => $user->username,
-                'actorProfileImageUrl' => $user->profileImageUrl,
-                'content' => $user->username.' posted on your message wall',
-                'timestamp' => time() * 1000,
-                'isRead' => false,
-                'isActorVerified' => (bool) $user->isVerified,
+        $recipients = collect();
+        if ($parent && $parent->senderId !== $user->id) {
+            $recipients->put($parent->senderId, [
+                'type' => 'REPLY',
+                'content' => $user->username.' replied to your message on the author wall',
             ]);
+        } elseif (! $parent && $validated['authorId'] !== $user->id) {
+            $recipients->put($validated['authorId'], [
+                'type' => 'CONVERSATION',
+                'content' => $user->username.' posted on your message wall',
+            ]);
+        } elseif (! $parent) {
+            DB::table('follows')
+                ->where('followedId', $user->id)
+                ->where('followerId', '!=', $user->id)
+                ->pluck('followerId')
+                ->each(fn (string $followerId) => $recipients->put($followerId, [
+                    'type' => 'AUTHOR_WALL_POST',
+                    'content' => $user->username.' posted a new message on their author wall',
+                ]));
         }
 
-        // Scan for @mentions
         if (preg_match_all('/@([a-zA-Z0-9_]+)/', $validated['message'], $matches)) {
             $mentionedUsernames = array_unique($matches[1]);
             $mentionedUsers = User::whereIn('username', $mentionedUsernames)
@@ -190,22 +183,36 @@ class InteractionController extends Controller
                 ->get();
 
             foreach ($mentionedUsers as $mUser) {
-                Notification::create([
-                    'id' => Str::uuid()->toString(),
-                    'userId' => $mUser->id,
+                $existingNotification = $recipients->get($mUser->id);
+                if (in_array($existingNotification['type'] ?? null, ['CONVERSATION', 'REPLY'], true)) {
+                    continue;
+                }
+                $recipients->put($mUser->id, [
                     'type' => 'MENTION',
-                    'actorId' => $user->id,
-                    'actorName' => $user->username,
-                    'actorProfileImageUrl' => $user->profileImageUrl,
                     'content' => $user->username.' mentioned you in a message on the author wall',
-                    'timestamp' => time() * 1000,
-                    'isRead' => false,
-                    'isActorVerified' => (bool) $user->isVerified,
                 ]);
             }
         }
 
-        return response()->json(['success' => true]);
+        $recipients->each(function (array $notification, string $recipientId) use ($conversation, $parent, $user): void {
+            Notification::create([
+                'id' => Str::uuid()->toString(),
+                'userId' => $recipientId,
+                'type' => $notification['type'],
+                'actorId' => $user->id,
+                'actorName' => $user->username,
+                'actorProfileImageUrl' => $user->profileImageUrl,
+                'wallAuthorId' => $conversation->authorId,
+                'conversationId' => $conversation->id,
+                'parentConversationId' => $parent?->id,
+                'content' => $notification['content'],
+                'timestamp' => time() * 1000,
+                'isRead' => false,
+                'isActorVerified' => (bool) $user->isVerified,
+            ]);
+        });
+
+        return response()->json(['success' => true, 'conversation' => $conversation]);
     }
 
     public function replies($parentId)
@@ -244,6 +251,9 @@ class InteractionController extends Controller
                 'actorId' => $request->user()->id,
                 'actorName' => $request->user()->username,
                 'actorProfileImageUrl' => $request->user()->profileImageUrl,
+                'wallAuthorId' => $conversation->authorId,
+                'conversationId' => $conversation->id,
+                'parentConversationId' => $conversation->parentId,
                 'content' => $request->user()->username.' liked your message',
                 'timestamp' => time() * 1000,
                 'isRead' => false,
@@ -252,6 +262,21 @@ class InteractionController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    private function usersWithFollowState(Request $request, $users): array
+    {
+        $viewerId = $request->user('sanctum')?->id;
+        $followedIds = $viewerId
+            ? DB::table('follows')->where('followerId', $viewerId)->whereIn('followedId', $users->pluck('id'))->pluck('followedId')->flip()
+            : collect();
+
+        return collect(PublicUserResource::collection($users)->resolve($request))
+            ->map(fn (array $user): array => [
+                ...$user,
+                'isFollowing' => $followedIds->has($user['id']),
+            ])
+            ->all();
     }
 
     public function reviews($storyId)
