@@ -27,6 +27,12 @@ body {
   margin-bottom: 1em;
 }
 
+/* Keep Enter-created paragraphs compact in the editor while retaining intentional blank lines. */
+.tiptap.prose p {
+  margin-top: 0;
+  margin-bottom: 0.45em;
+}
+
 /* Ensure empty lines and double-enter paragraph gaps retain full height and never collapse */
 .prose p:empty,
 .prose p:has(> br:only-child) {
@@ -110,4 +116,3 @@ body {
 .animate-coin-award {
   animation: coin-award-fade 3.2s ease-out forwards;
 }
-
