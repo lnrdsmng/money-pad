@@ -97,7 +97,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
         <button type="button" onClick={onClose} disabled={submitMutation.isPending} className="absolute right-4 top-4 z-10 rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Close plans"><X /></button>
         <div className="border-b border-slate-100 dark:border-slate-800 p-4 sm:p-8 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Choose your lifetime plan</h2>
-          <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400">Pay with GCash, Maya, or PayPal, then submit your proof for admin review.</p>
+          <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400">Choose any available payment method, then submit your proof for admin review.</p>
         </div>
         <div className="space-y-6 bg-slate-50 dark:bg-slate-950 p-3.5 sm:p-8">
           {pendingPurchase && (

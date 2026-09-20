@@ -17,6 +17,19 @@ class PlanPurchaseTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_additional_payment_methods_are_available_for_purchase_flows(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->getJson('/api/v1/payment-methods')->assertOk();
+
+        $methodIds = collect($response->json('data'))->pluck('id');
+        $this->assertTrue($methodIds->contains('coins-ph'));
+        $this->assertTrue($methodIds->contains('gotyme-bank'));
+        $this->assertTrue($methodIds->contains('maribank'));
+        $this->assertTrue($methodIds->contains('bpi'));
+    }
+
     public function test_user_submits_private_payment_proof_without_activating_the_plan(): void
     {
         Storage::fake('payment_proofs');
