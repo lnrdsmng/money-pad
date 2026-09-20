@@ -316,7 +316,7 @@ export const GroupChat = () => {
                 {/* Footer: Reactions, Reply Action, Timestamp */}
                 <div className="flex items-center justify-between gap-2 mt-1.5 pt-1 border-t border-black/5 dark:border-white/5 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    {!msg.is_system && (
+                    {user && (!msg.is_system || isMe) && (
                       <button
                         type="button"
                         onClick={() => reactMutation.mutate(msg.id)}
@@ -339,7 +339,7 @@ export const GroupChat = () => {
                     )}
 
                     {/* Reply Action Button */}
-                    {!msg.is_system && (
+                    {user && (!msg.is_system || isMe) && (
                       <button
                         type="button"
                         onClick={() => handleReply(msg)}

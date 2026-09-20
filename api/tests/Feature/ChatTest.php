@@ -98,6 +98,28 @@ class ChatTest extends TestCase
             ]);
     }
 
+    public function test_admin_can_reply_to_and_heart_their_own_system_message(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $message = $this->actingAs($admin)->postJson('/api/v1/chat/messages', [
+            'message' => 'Admin announcement',
+        ])->assertOk()->json();
+
+        $this->actingAs($admin)
+            ->postJson("/api/v1/chat/messages/{$message['id']}/react")
+            ->assertOk()
+            ->assertJson(['reacted' => true, 'heart_count' => 1]);
+        $this->actingAs($admin)->postJson('/api/v1/chat/messages', [
+            'message' => 'Admin follow-up',
+            'reply_to_id' => $message['id'],
+        ])->assertOk()->assertJsonPath('reply_to_id', $message['id']);
+
+        $this->assertDatabaseMissing('notifications', [
+            'userId' => $admin->id,
+            'actorId' => $admin->id,
+        ]);
+    }
+
     public function test_mentioning_a_user_sends_notification(): void
     {
         $userA = User::factory()->create(['username' => 'alice']);
