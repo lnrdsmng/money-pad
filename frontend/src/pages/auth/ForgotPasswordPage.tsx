@@ -3,21 +3,21 @@ import { Link } from 'react-router-dom';
 import { LoaderCircle, Mail } from 'lucide-react';
 import http from '../../api/http';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { useFeedback } from '../../components/feedback/feedback';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const feedback = useFeedback();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
-    setMessage('');
     setError('');
     try {
       const response = await http.post('/auth/forgot-password', { email });
-      setMessage(response.data.message);
+      feedback.success(response.data.message);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'The reset link could not be sent. Please try again.'));
     } finally {
@@ -37,7 +37,6 @@ export default function ForgotPasswordPage() {
           <label htmlFor="reset-email" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
           <input id="reset-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" className="w-full rounded border border-gray-300 bg-white p-2 text-gray-900 outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
         </div>
-        {message && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{message}</p>}
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
         <button type="submit" disabled={isSubmitting} className="flex w-full items-center justify-center gap-2 rounded bg-primary p-2 text-white hover:bg-green-600 disabled:opacity-60">
           {isSubmitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
