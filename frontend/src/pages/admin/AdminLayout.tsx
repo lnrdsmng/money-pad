@@ -13,7 +13,7 @@ const AdminLayout = () => {
   ];
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen md:h-screen bg-[#FAF9F6] dark:bg-slate-950">
+    <div className="flex min-h-screen flex-col bg-[#FAF9F6] dark:bg-slate-950 md:fixed md:inset-0 md:min-h-0 md:flex-row md:overflow-hidden">
       {/* Mobile Top Header + Navigation Bar */}
       <div className="md:hidden bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800">
         <div className="h-14 flex items-center justify-between px-4 border-b border-gray-100 dark:border-slate-800">
@@ -50,7 +50,7 @@ const AdminLayout = () => {
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex-col">
+      <div className="hidden w-64 flex-col border-r border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900 md:flex md:h-full md:min-h-0">
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-slate-800 justify-between">
           <div className="flex items-center">
             <ShieldAlert className="h-6 w-6 text-accent mr-2" />
@@ -102,12 +102,11 @@ const AdminLayout = () => {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto bg-[#FAF9F6] dark:bg-slate-950">
+      <main className="min-w-0 flex-1 bg-[#FAF9F6] dark:bg-slate-950 md:h-full md:min-h-0 md:overflow-y-auto">
         <Outlet />
-      </div>
+      </main>
     </div>
   );
 };
 
 export default AdminLayout;
-
