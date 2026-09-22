@@ -321,6 +321,9 @@ export default function AuthorVerificationPage() {
 
               {selectedPaymentMethod && (
                 <div className="space-y-4 p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700">
+                  {selectedDestination?.qr_image_url && (
+                    <img src={selectedDestination.qr_image_url} alt={`${selectedDestination.label} payment QR code`} className="mx-auto max-h-64 w-auto rounded-lg border border-gray-200 bg-white object-contain p-2 dark:border-slate-700" />
+                  )}
                   <div className="text-xs text-gray-600 dark:text-gray-400">
                     Send <strong>₱149.00</strong> via {selectedDestination?.label || selectedPaymentMethod.toUpperCase()} to{' '}
                     <strong className="text-gray-900 dark:text-gray-100">

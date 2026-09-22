@@ -15,17 +15,25 @@ class PaymentMethodSetting extends Model
 
     public $incrementing = false;
 
+    protected $appends = ['qr_image_url'];
+
     protected $fillable = [
         'id',
         'label',
         'account_name',
         'account_identifier',
         'instructions',
+        'qr_image_path',
         'is_active',
     ];
 
     protected function casts(): array
     {
         return ['is_active' => 'boolean'];
+    }
+
+    public function getQrImageUrlAttribute(): ?string
+    {
+        return $this->qr_image_path ? asset('storage/'.$this->qr_image_path) : null;
     }
 }

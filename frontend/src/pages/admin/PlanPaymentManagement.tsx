@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ExternalLink, LoaderCircle, Save, Search, X, XCircle } from 'lucide-react';
-import { useState, useDeferredValue, type FormEvent } from 'react';
+import { CheckCircle2, ExternalLink, LoaderCircle, Save, Search, Trash2, Upload, X, XCircle } from 'lucide-react';
+import { useEffect, useState, useDeferredValue, type FormEvent } from 'react';
 import http from '../../api/http';
 import type { PaymentMethodSetting, PlanPurchase, PlanPurchaseStatus } from '../../types/earnings';
 import { ActionDialog } from '../../components/feedback/ActionDialog';
@@ -21,6 +21,12 @@ interface AdminPlanSetting {
   multiplier: string | number;
   ads: boolean;
   is_active: boolean;
+}
+
+interface PaymentMethodUpdate {
+  method: PaymentMethodSetting;
+  qrImage: File | null;
+  removeQrImage: boolean;
 }
 
 export function PlanPaymentManagement() {
@@ -55,8 +61,19 @@ export function PlanPaymentManagement() {
     onError: (error) => feedback.error(getApiErrorMessage(error, 'The plan payment could not be reviewed.')),
   });
   const saveMethod = useMutation({
-    mutationFn: async (method: PaymentMethodSetting) => (await http.put(`/admin/payment-methods/${method.id}`, method)).data,
-    onSuccess: async (_data, method) => {
+    mutationFn: async ({ method, qrImage, removeQrImage }: PaymentMethodUpdate) => {
+      const formData = new FormData();
+      formData.append('_method', 'PUT');
+      formData.append('label', method.label);
+      formData.append('account_name', method.account_name);
+      formData.append('account_identifier', method.account_identifier);
+      formData.append('instructions', method.instructions ?? '');
+      formData.append('is_active', method.is_active ? '1' : '0');
+      if (qrImage) formData.append('qr_image', qrImage);
+      if (removeQrImage) formData.append('remove_qr_image', '1');
+      return (await http.post(`/admin/payment-methods/${method.id}`, formData)).data;
+    },
+    onSuccess: async (_data, { method }) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['admin', 'payment-methods'] }),
         queryClient.invalidateQueries({ queryKey: ['payment-methods'] }),
@@ -250,9 +267,9 @@ export function PlanPaymentManagement() {
         <div className="grid gap-4 lg:grid-cols-3">
           {(methodsQuery.data ?? []).map((method) => (
             <PaymentMethodForm
-              key={method.id}
+              key={`${method.id}:${method.qr_image_url ?? 'no-qr'}`}
               method={method}
-              isSaving={saveMethod.isPending && saveMethod.variables?.id === method.id}
+              isSaving={saveMethod.isPending && saveMethod.variables?.method.id === method.id}
               onSave={(value) => saveMethod.mutate(value)}
             />
           ))}
@@ -345,12 +362,22 @@ function PaymentMethodForm({
 }: {
   method: PaymentMethodSetting;
   isSaving: boolean;
-  onSave: (method: PaymentMethodSetting) => void;
+  onSave: (update: PaymentMethodUpdate) => void;
 }) {
   const [form, setForm] = useState(method);
+  const [qrImage, setQrImage] = useState<File | null>(null);
+  const [removeQrImage, setRemoveQrImage] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(method.qr_image_url);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onSave(form);
+    onSave({ method: form, qrImage, removeQrImage });
   };
 
   return (
@@ -394,6 +421,40 @@ function PaymentMethodForm({
         placeholder="Instructions"
         rows={3}
       />
+      <div className="space-y-2">
+        <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Payment QR image</span>
+        {previewUrl && (
+          <img src={previewUrl} alt={`${form.label} payment QR code`} className="mx-auto max-h-56 w-auto rounded-lg border border-slate-200 bg-white object-contain p-2 dark:border-slate-700" />
+        )}
+        <div className="flex flex-wrap gap-2">
+          <label className={`inline-flex items-center gap-2 rounded border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-slate-700 ${isSaving ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+            <Upload className="h-4 w-4" />
+            {previewUrl ? 'Replace QR' : 'Upload QR'}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={isSaving}
+              className="sr-only"
+              onChange={(event) => {
+                const selectedImage = event.target.files?.[0] ?? null;
+                setQrImage(selectedImage);
+                setPreviewUrl(selectedImage ? URL.createObjectURL(selectedImage) : method.qr_image_url);
+                setRemoveQrImage(false);
+              }}
+            />
+          </label>
+          {previewUrl && (
+            <button type="button" disabled={isSaving} onClick={() => {
+              setQrImage(null);
+              setPreviewUrl(null);
+              setRemoveQrImage(true);
+            }} className="inline-flex items-center gap-2 rounded border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30">
+              <Trash2 className="h-4 w-4" /> Remove QR
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">JPEG, PNG, or WebP up to 5 MB.</p>
+      </div>
       <button
         disabled={isSaving}
         aria-busy={isSaving}

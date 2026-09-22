@@ -28,6 +28,8 @@ class UpdatePaymentMethodSettingRequest extends FormRequest
             'account_identifier' => ['required', 'string', 'max:150'],
             'instructions' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['required', 'boolean'],
+            'qr_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'remove_qr_image' => ['sometimes', 'boolean'],
         ];
     }
 }

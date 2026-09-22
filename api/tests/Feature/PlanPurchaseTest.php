@@ -30,6 +30,60 @@ class PlanPurchaseTest extends TestCase
         $this->assertTrue($methodIds->contains('bpi'));
     }
 
+    public function test_admin_can_upload_replace_and_remove_payment_qr_image(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true);
+        $this->assertIsString($png);
+        $firstImage = UploadedFile::fake()->createWithContent('gcash-qr.png', $png);
+        $upload = $this->actingAs($admin)->post('/api/v1/admin/payment-methods/gcash', [
+            '_method' => 'PUT',
+            'label' => 'GCash',
+            'account_name' => 'MoneyPad Payments',
+            'account_identifier' => '09171234567',
+            'instructions' => 'Scan to pay.',
+            'is_active' => '1',
+            'qr_image' => $firstImage,
+        ])->assertOk();
+
+        $firstPath = $upload->json('payment_method.qr_image_path');
+        Storage::disk('public')->assertExists($firstPath);
+        $paymentMethods = $this->actingAs($user)->getJson('/api/v1/payment-methods')->assertOk();
+        $gcash = collect($paymentMethods->json('data'))->firstWhere('id', 'gcash');
+        $this->assertIsString($gcash['qr_image_url']);
+        $this->assertStringContainsString('/storage/payment-qr/', $gcash['qr_image_url']);
+
+        $secondImage = UploadedFile::fake()->createWithContent('replacement.png', $png);
+        $replace = $this->actingAs($admin)->post('/api/v1/admin/payment-methods/gcash', [
+            '_method' => 'PUT',
+            'label' => 'GCash',
+            'account_name' => 'MoneyPad Payments',
+            'account_identifier' => '09171234567',
+            'instructions' => 'Scan to pay.',
+            'is_active' => '1',
+            'qr_image' => $secondImage,
+        ])->assertOk();
+
+        $secondPath = $replace->json('payment_method.qr_image_path');
+        Storage::disk('public')->assertMissing($firstPath);
+        Storage::disk('public')->assertExists($secondPath);
+
+        $this->actingAs($admin)->post('/api/v1/admin/payment-methods/gcash', [
+            '_method' => 'PUT',
+            'label' => 'GCash',
+            'account_name' => 'MoneyPad Payments',
+            'account_identifier' => '09171234567',
+            'instructions' => '',
+            'is_active' => '1',
+            'remove_qr_image' => '1',
+        ])->assertOk()->assertJsonPath('payment_method.qr_image_url', null);
+
+        Storage::disk('public')->assertMissing($secondPath);
+    }
+
     public function test_user_submits_private_payment_proof_without_activating_the_plan(): void
     {
         Storage::fake('payment_proofs');

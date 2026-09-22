@@ -11,7 +11,7 @@ export interface MoneyPadPlan {
   duration_months: number | null;
 }
 
-export type PaymentMethodId = 'gcash' | 'paymaya' | 'paypal';
+export type PaymentMethodId = 'gcash' | 'paymaya' | 'paypal' | 'coins-ph' | 'gotyme-bank' | 'maribank' | 'bpi';
 
 export interface PaymentMethodSetting {
   id: PaymentMethodId;
@@ -19,6 +19,7 @@ export interface PaymentMethodSetting {
   account_name: string;
   account_identifier: string;
   instructions: string | null;
+  qr_image_url: string | null;
   is_active: boolean;
 }
 

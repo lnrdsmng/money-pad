@@ -31,6 +31,8 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
   const methodsQuery = useQuery<PaymentMethodSetting[]>({
     queryKey: ['payment-methods'],
     queryFn: async () => (await http.get('/payment-methods')).data.data,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
   const purchasesQuery = useQuery<PlanPurchase[]>({
     queryKey: ['plan-purchases', user?.id],
@@ -171,6 +173,7 @@ export const UpgradePlanModal = ({ onClose }: { onClose: () => void }) => {
               </div>
               {methodsQuery.data?.filter((method) => method.id === selectedPaymentMethod).map((method) => (
                 <div key={method.id} className="rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 p-4 text-sm text-blue-950 dark:text-blue-200">
+                  {method.qr_image_url && <img src={method.qr_image_url} alt={`${method.label} payment QR code`} className="mx-auto mb-4 max-h-64 w-auto rounded-lg bg-white object-contain p-2" />}
                   <p className="font-semibold">Send to {method.account_name}</p>
                   <p className="mt-1 break-all text-lg font-bold">{method.account_identifier}</p>
                   {method.instructions && <p className="mt-2 text-blue-900 dark:text-blue-300">{method.instructions}</p>}
