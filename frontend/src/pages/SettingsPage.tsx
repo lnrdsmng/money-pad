@@ -40,17 +40,15 @@ export default function SettingsPage() {
   const toggleDarkMode = () => {
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
-    if (nextMode) {
-      document.documentElement.classList.add('dark');
-      try {
-        localStorage.setItem('theme', 'dark');
-      } catch {}
-    } else {
-      document.documentElement.classList.remove('dark');
-      try {
-        localStorage.setItem('theme', 'light');
-      } catch {}
-    }
+    document.documentElement.classList.toggle('dark', nextMode);
+    document.documentElement.style.colorScheme = nextMode ? 'dark' : 'only light';
+    document
+      .querySelector('meta[name="color-scheme"]')
+      ?.setAttribute('content', nextMode ? 'dark' : 'only light');
+
+    try {
+      localStorage.setItem('theme', nextMode ? 'dark' : 'light');
+    } catch {}
   };
 
   const handleToggleGenre = (genre: string) => {

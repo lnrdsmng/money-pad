@@ -2,6 +2,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  color-scheme: only light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
 @theme {
   --color-primary: #47AA57;
   --color-primary-hover: #3d934b;

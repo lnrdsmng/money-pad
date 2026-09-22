@@ -4,15 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="only light" />
     <title>frontend</title>
     <script>
+      const root = document.documentElement;
+      const colorScheme = document.querySelector('meta[name="color-scheme"]');
+
       try {
-        if (localStorage.getItem('theme') === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      } catch (_) {}
+        const isDark = localStorage.getItem('theme') === 'dark';
+        root.classList.toggle('dark', isDark);
+        root.style.colorScheme = isDark ? 'dark' : 'only light';
+        colorScheme.setAttribute('content', isDark ? 'dark' : 'only light');
+      } catch (_) {
+        root.classList.remove('dark');
+        root.style.colorScheme = 'only light';
+      }
     </script>
   </head>
   <body>
