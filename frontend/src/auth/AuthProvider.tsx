@@ -31,6 +31,11 @@ export interface User {
   payment_account_name?: string;
   payment_account_info?: string;
   bank_name?: string;
+  terminated_at?: string | null;
+  terminated_by?: string | null;
+  termination_reason?: string | null;
+  restored_at?: string | null;
+  restored_by?: string | null;
 }
 
 export interface LoginRequest { username: string; password: string }

@@ -1,7 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import http from '../../api/http';
 import { formatCoins, formatPesoFromCoins } from '../../utils/money';
 import type { User } from '../../auth/AuthProvider';
+import { ActionDialog } from '../../components/feedback/ActionDialog';
+import { useFeedback } from '../../components/feedback/feedback';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const planBadge = (plan: string) => {
   if (plan === 'ultimate_premium') return 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300';
@@ -11,10 +15,40 @@ const planBadge = (plan: string) => {
 };
 
 export const UserManagement = () => {
+  const queryClient = useQueryClient();
+  const feedback = useFeedback();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [terminationReason, setTerminationReason] = useState('');
   const { data: users, isLoading, isError } = useQuery<User[]>({
     queryKey: ['admin', 'users'],
     queryFn: async () => (await http.get('/admin/users')).data,
   });
+  const accountMutation = useMutation({
+    mutationFn: async ({ user, action, reason }: { user: User; action: 'terminate' | 'restore'; reason?: string }) => (
+      await http.post(`/admin/users/${user.id}/${action}`, reason ? { reason } : {})
+    ).data,
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      feedback.success(`${variables.user.username}'s account was ${variables.action === 'terminate' ? 'terminated' : 'restored'}.`);
+      setSelectedUser(null);
+      setTerminationReason('');
+    },
+    onError: (error) => feedback.error(getApiErrorMessage(error, 'The account status could not be updated.')),
+  });
+
+  const accountAction = (user: User) => (
+    <button
+      type="button"
+      disabled={accountMutation.isPending || user.role !== 'user'}
+      onClick={() => {
+        setSelectedUser(user);
+        setTerminationReason('');
+      }}
+      className={`rounded px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${user.terminated_at ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
+    >
+      {user.terminated_at ? 'Restore' : 'Terminate'}
+    </button>
+  );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -23,18 +57,18 @@ export const UserManagement = () => {
         <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
           <thead className="bg-gray-50 dark:bg-slate-800/80">
             <tr>
-              {['Username', 'Email', 'Reader Coins', 'Author Income', 'Plan', 'Role'].map((heading) => (
+              {['Username', 'Email', 'Reader Coins', 'Author Income', 'Plan', 'Role', 'Status', 'Actions'].map((heading) => (
                 <th key={heading} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{heading}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
             {isLoading ? (
-              <tr><td colSpan={6} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={8} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr>
             ) : isError ? (
-              <tr><td colSpan={6} className="px-6 py-4 text-center text-red-600 dark:text-red-400">Users could not be loaded.</td></tr>
+              <tr><td colSpan={8} className="px-6 py-4 text-center text-red-600 dark:text-red-400">Users could not be loaded.</td></tr>
             ) : users?.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No users found.</td></tr>
+              <tr><td colSpan={8} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No users found.</td></tr>
             ) : users?.map((user) => (
               <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
                 <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">{user.username}</td>
@@ -47,6 +81,12 @@ export const UserManagement = () => {
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm capitalize text-gray-500 dark:text-gray-400">{user.role}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm">
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${user.terminated_at ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'}`}>
+                    {user.terminated_at ? 'Terminated' : 'Active'}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm">{accountAction(user)}</td>
               </tr>
             ))}
           </tbody>
@@ -83,10 +123,51 @@ export const UserManagement = () => {
                 <dt className="text-xs text-gray-500 dark:text-gray-400">Role</dt>
                 <dd className="capitalize text-gray-900 dark:text-gray-100">{user.role}</dd>
               </div>
+              <div className="col-span-2">
+                <dt className="text-xs text-gray-500 dark:text-gray-400">Status</dt>
+                <dd className={user.terminated_at ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                  {user.terminated_at ? 'Terminated' : 'Active'}
+                </dd>
+                {user.terminated_at && user.termination_reason && <dd className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">Reason: {user.termination_reason}</dd>}
+              </div>
             </dl>
+            <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-800">{accountAction(user)}</div>
           </article>
         ))}
       </div>
+      <ActionDialog
+        open={Boolean(selectedUser)}
+        title={selectedUser?.terminated_at ? 'Restore account?' : 'Terminate account?'}
+        description={selectedUser?.terminated_at
+          ? `Restore ${selectedUser.username}'s access to MoneyPad? They will be able to sign in again.`
+          : `Terminate ${selectedUser?.username ?? 'this user'}? Their current sessions will be revoked and future login attempts will be blocked.`}
+        confirmLabel={selectedUser?.terminated_at ? 'Restore account' : 'Terminate account'}
+        pendingLabel={selectedUser?.terminated_at ? 'Restoring...' : 'Terminating...'}
+        tone={selectedUser?.terminated_at ? 'default' : 'danger'}
+        isPending={accountMutation.isPending}
+        input={selectedUser && !selectedUser.terminated_at ? {
+          label: 'Reason',
+          value: terminationReason,
+          onChange: setTerminationReason,
+          placeholder: 'Reason for terminating this account',
+          required: true,
+          maxLength: 1000,
+        } : undefined}
+        onCancel={() => {
+          if (!accountMutation.isPending) {
+            setSelectedUser(null);
+            setTerminationReason('');
+          }
+        }}
+        onConfirm={() => {
+          if (!selectedUser) return;
+          accountMutation.mutate({
+            user: selectedUser,
+            action: selectedUser.terminated_at ? 'restore' : 'terminate',
+            reason: selectedUser.terminated_at ? undefined : terminationReason.trim(),
+          });
+        }}
+      />
     </div>
   );
 };

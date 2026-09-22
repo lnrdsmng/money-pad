@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\VerificationController;
 use App\Http\Controllers\Api\V1\WithdrawalController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\SyncExpiredPlan;
 use Illuminate\Support\Facades\Route;
 
@@ -62,7 +63,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{username}/referral-stats', [TransactionController::class, 'referralStats']);
 
     // Protected Routes (Require Authentication)
-    Route::middleware(['auth:sanctum', SyncExpiredPlan::class])->group(function () {
+    Route::middleware(['auth:sanctum', EnsureAccountIsActive::class, SyncExpiredPlan::class])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
 
@@ -203,7 +204,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Admin Routes
-    Route::middleware(['auth:sanctum', AdminMiddleware::class])->prefix('admin')->group(function () {
+    Route::middleware(['auth:sanctum', EnsureAccountIsActive::class, AdminMiddleware::class])->prefix('admin')->group(function () {
         Route::get('/withdrawals/eligible', [AdminController::class, 'eligibleWithdrawals']);
         Route::get('/withdrawals/pending-review', [AdminController::class, 'pendingReviewWithdrawals']);
         Route::get('/withdrawals/approved', [AdminController::class, 'approvedWithdrawals']);
@@ -217,6 +218,9 @@ Route::prefix('v1')->group(function () {
         Route::put('/chat/messages/{message}/pin', [ChatController::class, 'pin']);
         Route::delete('/chat/messages/{message}/pin', [ChatController::class, 'unpin']);
         Route::get('/users', [AdminController::class, 'users']);
+        Route::get('/users/search', [AdminController::class, 'searchUsers']);
+        Route::post('/users/{user}/terminate', [AdminController::class, 'terminateUser']);
+        Route::post('/users/{user}/restore', [AdminController::class, 'restoreUser']);
         Route::get('/plan-purchases', [AdminPlanPurchaseController::class, 'index']);
         Route::get('/plan-purchases/{planPurchase}/proof', [AdminPlanPurchaseController::class, 'proof']);
         Route::post('/plan-purchases/{planPurchase}/approve', [AdminPlanPurchaseController::class, 'approve']);

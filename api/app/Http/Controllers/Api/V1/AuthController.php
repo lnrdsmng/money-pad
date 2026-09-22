@@ -47,13 +47,19 @@ class AuthController extends Controller
             $needsRehash = true;
         }
 
+        if ($user->terminated_at !== null) {
+            return response()->json([
+                'message' => 'This account has been terminated. Contact support if you believe this is an error.',
+            ], 403);
+        }
+
         if ($needsRehash) {
             $user->password = Hash::make($request->password);
             $user->save();
         }
 
         // Authenticate for SPA (Session)
-        Auth::login($user);
+        Auth::guard('web')->login($user);
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }
@@ -100,7 +106,7 @@ class AuthController extends Controller
             return $user;
         }, 3);
 
-        Auth::login($user);
+        Auth::guard('web')->login($user);
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }

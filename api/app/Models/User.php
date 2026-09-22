@@ -79,6 +79,11 @@ class User extends Authenticatable
         'isReferralRewardClaimed',
         'has_received_first_withdrawal',
         'community_read_at',
+        'terminated_at',
+        'terminated_by',
+        'termination_reason',
+        'restored_at',
+        'restored_by',
     ];
 
     /**
@@ -106,6 +111,8 @@ class User extends Authenticatable
             'totalReaderCoins' => 'decimal:3',
             'authorIncome' => 'decimal:4',
             'community_read_at' => 'datetime',
+            'terminated_at' => 'datetime',
+            'restored_at' => 'datetime',
         ];
     }
 
