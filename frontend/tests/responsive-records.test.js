@@ -31,6 +31,23 @@ const purchase = {
   proof_url: '/api/v1/admin/plan-purchases/purchase-1/proof',
 };
 
+const plans = [
+  { id: 'free', name: 'Free', price: '0.00', rate_per_minute: '1.000', multiplier: '1.00', ads: true, is_active: true },
+  { id: 'standard', name: 'Standard', price: '85.00', rate_per_minute: '2.500', multiplier: '2.50', ads: true, is_active: true },
+  { id: 'mega_premium', name: 'Mega Premium', price: '199.00', rate_per_minute: '4.500', multiplier: '4.50', ads: true, is_active: true },
+  { id: 'ultimate_premium', name: 'Ultimate Premium', price: '449.00', rate_per_minute: '6.000', multiplier: '6.00', ads: false, is_active: true },
+];
+
+const paymentMethods = ['GCash', 'Maya', 'PayPal'].map((label, index) => ({
+  id: `method-${index + 1}`,
+  label,
+  account_name: 'Money Pad',
+  account_identifier: `account-${index + 1}`,
+  instructions: 'Use your payment reference when submitting proof.',
+  is_active: true,
+  qr_image_url: null,
+}));
+
 test('admin records use cards below desktop width and tables on desktop', async () => {
   const server = await createServer({ server: { host: '127.0.0.1', port: 0 } });
   let browser;
@@ -51,14 +68,15 @@ test('admin records use cards below desktop width and tables on desktop', async 
             : path === '/api/v1/admin/withdrawals/approved' ? [approvedWithdrawal]
               : path === '/api/v1/admin/withdrawals/completed' ? [completedWithdrawal]
               : path === '/api/v1/admin/plan-purchases' ? { data: [purchase] }
-                : path === '/api/v1/admin/payment-methods' || path === '/api/v1/admin/plans' ? { data: [] }
+                : path === '/api/v1/admin/plans' ? { data: plans }
+                  : path === '/api/v1/admin/payment-methods' ? { data: paymentMethods }
                   : {};
 
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
 
-    for (const width of [320, 390, 768, 1280]) {
-      await page.setViewportSize({ width, height: 800 });
+    for (const width of [320, 390, 768, 1280, 1920]) {
+      await page.setViewportSize({ width, height: width === 1920 ? 1080 : 800 });
 
       for (const [route, heading] of [
         ['users', 'User Management'],
@@ -97,6 +115,44 @@ test('admin records use cards below desktop width and tables on desktop', async 
           await page.getByText('reader', { exact: true }).first().waitFor({ state: 'attached' });
           assert.equal(await page.locator('table').first().isVisible(), width >= 1024);
           assert.equal(await page.locator('article').first().isVisible(), width < 1024);
+        }
+
+        if (width >= 1024) {
+          const viewportLayout = await page.evaluate(() => ({
+            documentClientHeight: document.documentElement.clientHeight,
+            documentScrollHeight: document.documentElement.scrollHeight,
+            mainClientHeight: document.querySelector('main')?.clientHeight,
+            viewportHeight: window.innerHeight,
+          }));
+          assert.equal(
+            viewportLayout.documentScrollHeight,
+            viewportLayout.documentClientHeight,
+            `${route} does not create a second desktop document scrollbar`,
+          );
+          assert.equal(
+            viewportLayout.mainClientHeight,
+            viewportLayout.viewportHeight,
+            `${route} main content fills the desktop viewport`,
+          );
+
+          if (route === 'plan-payments') {
+            const bottomSpacing = await page.evaluate(() => {
+              const main = document.querySelector('main');
+              const finalSection = Array.from(document.querySelectorAll('section')).at(-1);
+              main?.scrollTo(0, main.scrollHeight);
+              const mainBounds = main?.getBoundingClientRect();
+              const sectionBounds = finalSection?.getBoundingClientRect();
+              return mainBounds && sectionBounds ? {
+                spacing: mainBounds.bottom - sectionBounds.bottom,
+                scrollable: main.scrollHeight > main.clientHeight,
+              } : null;
+            });
+            assert.equal(bottomSpacing?.scrollable, true, 'plan payments exercises desktop scrolling');
+            assert.ok(
+              bottomSpacing !== null && bottomSpacing.spacing >= 0 && bottomSpacing.spacing <= 40,
+              `plan payments keeps only its intended bottom padding (${bottomSpacing?.spacing}px)`,
+            );
+          }
         }
 
         if (width === 390 && route === 'plan-payments') {
