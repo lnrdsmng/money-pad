@@ -17,6 +17,8 @@ const StoryEditPage = lazy(() => import('./pages/writer/StoryEditPage'));
 const StoryPartsPage = lazy(() => import('./pages/writer/StoryPartsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const EarningsDashboard = lazy(() => import('./pages/EarningsDashboard'));
+const OfferwallsPage = lazy(() => import('./pages/OfferwallsPage'));
+const OfferwallDetailPage = lazy(() => import('./pages/OfferwallDetailPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AuthorVerificationPage = lazy(() => import('./pages/writer/AuthorVerificationPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -26,6 +28,7 @@ const WithdrawalManagement = lazy(() => import('./pages/admin/WithdrawalManageme
 const UserManagement = lazy(() => import('./pages/admin/UserManagement').then(module => ({ default: module.UserManagement })));
 const MessagingPanel = lazy(() => import('./pages/admin/MessagingPanel').then(module => ({ default: module.MessagingPanel })));
 const PlanPaymentManagement = lazy(() => import('./pages/admin/PlanPaymentManagement').then(module => ({ default: module.PlanPaymentManagement })));
+const OfferwallManagement = lazy(() => import('./pages/admin/OfferwallManagement'));
 
 const CommunityPage = lazy(() => import('./pages/CommunityPage'));
 
@@ -65,6 +68,7 @@ export default function AppRouter() {
             <Route path="users" element={<UserManagement />} />
             <Route path="messages" element={<MessagingPanel />} />
             <Route path="plan-payments" element={<PlanPaymentManagement />} />
+            <Route path="offerwalls" element={<OfferwallManagement />} />
           </Route>
         </Route>
 
@@ -87,6 +91,8 @@ export default function AppRouter() {
             <Route path="profile" element={<ProfileRedirect />} />
             <Route path="profile/:username" element={<ProfilePage />} />
             <Route path="earnings" element={<EarningsDashboard />} />
+            <Route path="offerwalls" element={<OfferwallsPage />} />
+            <Route path="offerwalls/:id" element={<OfferwallDetailPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 

@@ -79,16 +79,11 @@ export default function UserMenu() {
             My Profile
           </Link>
 
-          <button
-            type="button"
-            disabled
-            className="flex w-full cursor-not-allowed items-center px-4 py-2 text-sm text-gray-400 dark:text-gray-500"
-            title="Offerwall is coming soon"
-          >
+          <Link to="/offerwalls" onClick={() => setIsOpen(false)}
+            className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700">
             <LayoutGrid size={16} className="mr-2" />
             Offerwall
-            <span className="ml-auto rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:bg-amber-950 dark:text-amber-300">Soon</span>
-          </button>
+          </Link>
           
           <Link 
             to="/settings" 

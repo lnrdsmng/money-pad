@@ -46,6 +46,13 @@ return [
             'report' => true,
         ],
 
+        'offerwall_proofs' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/offerwall-proofs'),
+            'serve' => false,
+            'throw' => true,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

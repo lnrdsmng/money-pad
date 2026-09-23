@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Link } from 'react-router-dom';
-import { Users, Banknote, MessageSquare, ShieldAlert, CreditCard, ArrowLeft } from 'lucide-react';
+import { Users, Banknote, MessageSquare, ShieldAlert, CreditCard, ArrowLeft, LayoutGrid } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 
 const AdminLayout = () => {
@@ -10,6 +10,7 @@ const AdminLayout = () => {
     { to: '/admin/plan-payments', label: 'Plan Payments', icon: CreditCard },
     { to: '/admin/users', label: 'Users', icon: Users },
     { to: '/admin/messages', label: 'Messaging', icon: MessageSquare },
+    { to: '/admin/offerwalls', label: 'Offerwalls', icon: LayoutGrid },
   ];
 
   return (

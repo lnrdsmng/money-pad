@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AdminController;
+use App\Http\Controllers\Api\V1\AdminOfferwallController;
+use App\Http\Controllers\Api\V1\AdminOfferwallSubmissionController;
 use App\Http\Controllers\Api\V1\AdminPlanPurchaseController;
 use App\Http\Controllers\Api\V1\AdminPlanSettingController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Api\V1\DailyLoginRewardController;
 use App\Http\Controllers\Api\V1\EarningsController;
 use App\Http\Controllers\Api\V1\InteractionController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\OfferwallController;
 use App\Http\Controllers\Api\V1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\PlanPurchaseController;
@@ -66,6 +69,13 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', EnsureAccountIsActive::class, SyncExpiredPlan::class])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+
+        Route::get('/offerwalls', [OfferwallController::class, 'index']);
+        Route::get('/offerwalls/{offerwall}', [OfferwallController::class, 'show']);
+        Route::post('/offerwalls/{offerwall}/start', [OfferwallController::class, 'start']);
+        Route::post('/offerwalls/{offerwall}/stages/{stageId}/proof', [OfferwallController::class, 'submit'])
+            ->middleware('throttle:10,1');
+        Route::get('/offerwall-submissions/{submission}/proof', [OfferwallController::class, 'proof']);
 
         Route::put('/users/{userId}/profile', [UserController::class, 'updateProfile']);
         Route::post('/users/{userId}/onboarding/gender', [UserController::class, 'onboardingGender']);
@@ -215,6 +225,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/withdrawals/{id}/reject', [AdminController::class, 'rejectWithdrawal']);
         Route::post('/messages/send', [AdminController::class, 'sendMessage']);
         Route::post('/messages/broadcast', [AdminController::class, 'broadcastMessage']);
+        Route::get('/messages/broadcasts', [AdminController::class, 'broadcasts']);
+        Route::get('/offerwalls', [AdminOfferwallController::class, 'index']);
+        Route::post('/offerwalls', [AdminOfferwallController::class, 'store']);
+        Route::delete('/offerwalls/{offerwall}', [AdminOfferwallController::class, 'destroy']);
+        Route::get('/offerwall-submissions', [AdminOfferwallSubmissionController::class, 'index']);
+        Route::get('/offerwall-submissions/{submission}/proof', [AdminOfferwallSubmissionController::class, 'proof']);
+        Route::post('/offerwall-submissions/{submission}/approve', [AdminOfferwallSubmissionController::class, 'approve']);
+        Route::post('/offerwall-submissions/{submission}/reject', [AdminOfferwallSubmissionController::class, 'reject']);
         Route::put('/chat/messages/{message}/pin', [ChatController::class, 'pin']);
         Route::delete('/chat/messages/{message}/pin', [ChatController::class, 'unpin']);
         Route::get('/users', [AdminController::class, 'users']);
