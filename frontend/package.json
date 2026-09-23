@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "test:tunnel": "node --test tests/tunnel-proxy.test.js",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/referral.test.ts tests/chapter-autosave.test.ts tests/browser-security.test.js tests/format-compact-count.test.ts tests/notification-bell.test.js tests/password-reset.test.js tests/reading-resume.test.js tests/reading-timer.test.js tests/theme.test.js tests/tunnel-proxy.test.js tests/responsive-records.test.js"
+    "test": "node --experimental-strip-types --test tests/referral.test.ts tests/chapter-autosave.test.ts tests/browser-security.test.js tests/format-compact-count.test.ts tests/notification-bell.test.js tests/password-reset.test.js tests/reading-resume.test.js tests/reading-timer.test.js tests/theme.test.js tests/tunnel-proxy.test.js tests/responsive-records.test.js tests/turnstile.test.js tests/offerwall.test.js tests/payout-notice.test.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
