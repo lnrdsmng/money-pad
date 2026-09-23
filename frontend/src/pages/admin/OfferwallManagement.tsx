@@ -1,5 +1,6 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Eye, ImageOff, LoaderCircle } from 'lucide-react';
 import http from '../../api/http';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { useFeedback } from '../../components/feedback/feedback';
@@ -22,7 +23,53 @@ interface Submission {
   rejection_reason: string | null;
   created_at: string;
   user: { username: string; email: string };
-  stage: { name: string; offerwall: { name: string } };
+  stage: { name: string; position: number; offerwall: { name: string; image_url: string } };
+}
+
+function OfferwallThumbnail({ imageUrl }: { imageUrl: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!imageUrl || failed) {
+    return <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-slate-800 sm:h-20 sm:w-20"><ImageOff aria-hidden="true" className="h-6 w-6" /></div>;
+  }
+  return <img src={imageUrl} alt="" onError={() => setFailed(true)} className="h-16 w-16 shrink-0 rounded-lg bg-gray-100 object-cover sm:h-20 sm:w-20" />;
+}
+
+function ProofPreview({ submission }: { submission: Submission }) {
+  const feedback = useFeedback();
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => () => {
+    if (proofUrl) URL.revokeObjectURL(proofUrl);
+  }, [proofUrl]);
+
+  const toggleProof = async () => {
+    if (proofUrl) {
+      setProofUrl(null);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await http.get<Blob>(submission.proof_url.replace(/^\/api\/v1/, ''), { responseType: 'blob' });
+      setProofUrl(URL.createObjectURL(response.data));
+    } catch (error) {
+      feedback.error(getApiErrorMessage(error, 'The uploaded proof could not be opened.'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <button type="button" disabled={isLoading} aria-expanded={Boolean(proofUrl)} onClick={() => void toggleProof()}
+        className="inline-flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 dark:hover:bg-primary/20">
+        {isLoading ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
+        {isLoading ? 'Opening proof...' : proofUrl ? 'Hide uploaded proof' : 'View uploaded proof'}
+      </button>
+      {proofUrl && <img src={proofUrl} alt={`Proof uploaded by ${submission.user.username} for ${submission.stage.name}`}
+        className="max-h-[32rem] max-w-full rounded-lg border border-gray-200 object-contain dark:border-slate-700" />}
+    </div>
+  );
 }
 
 export default function OfferwallManagement() {
@@ -147,10 +194,20 @@ export default function OfferwallManagement() {
         {submissionsQuery.isError && <p role="alert" className="text-red-600">Proofs could not be loaded.</p>}
         {submissionsQuery.data?.pages.flatMap((page) => page.data).length === 0 && <p className="text-sm text-gray-500">No proofs in this status.</p>}
         {submissionsQuery.data?.pages.flatMap((page) => page.data).map((submission) => (
-          <div key={submission.id} className="space-y-3 rounded-xl bg-white p-4 dark:bg-slate-900">
-            <p className="font-medium dark:text-white">{submission.user.username} · {submission.stage.offerwall.name} · {submission.stage.name}</p>
-            <p className="text-xs text-gray-500">Submitted {new Date(submission.created_at).toLocaleString()}</p>
-            <a href={submission.proof_url} target="_blank" rel="noopener noreferrer" className="inline-block text-sm text-primary underline">View uploaded proof</a>
+          <div key={submission.id} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <OfferwallThumbnail imageUrl={submission.stage.offerwall.image_url} />
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="break-words text-base font-semibold text-gray-900 dark:text-white">{submission.stage.offerwall.name}</h3>
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold capitalize text-gray-700 dark:bg-slate-800 dark:text-gray-200">{submission.status}</span>
+                </div>
+                <p className="break-words text-sm text-gray-700 dark:text-gray-200"><span className="text-gray-500 dark:text-gray-400">Stage {submission.stage.position}:</span> {submission.stage.name}</p>
+                <p className="break-words text-sm text-gray-700 dark:text-gray-200"><span className="text-gray-500 dark:text-gray-400">Submitted by</span> <strong>{submission.user.username}</strong></p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Submitted {new Date(submission.created_at).toLocaleString()}</p>
+              </div>
+            </div>
+            <ProofPreview submission={submission} />
             {submission.status === 'pending' && <div className="flex flex-wrap gap-2">
               <button type="button" disabled={review.isPending} onClick={() => review.mutate({ id: submission.id, action: 'approve' })} className="rounded-lg bg-primary px-3 py-2 text-sm text-white">Approve</button>
               <input aria-label="Rejection reason" placeholder="Reason for rejection" className={`${inputClass} sm:w-64`} value={rejectionReasons[submission.id] ?? ''}
