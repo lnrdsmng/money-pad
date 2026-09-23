@@ -38,7 +38,7 @@ export interface User {
   restored_by?: string | null;
 }
 
-export interface LoginRequest { username: string; password: string }
+export interface LoginRequest { username: string; password: string; turnstile_token?: string }
 export interface SignupRequest extends LoginRequest { email: string; referral_code?: string }
 export interface AuthResponse { user: User; token?: string | null }
 

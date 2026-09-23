@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\DailyLoginRewardService;
 use App\Services\PlanExpirationService;
 use App\Services\ReferralService;
+use App\Services\TurnstileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,8 +19,9 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
-    public function login(Request $request, PlanExpirationService $planExpirationService)
+    public function login(Request $request, PlanExpirationService $planExpirationService, TurnstileService $turnstile)
     {
+        $turnstile->verify($request, 'login');
         $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
@@ -74,8 +76,9 @@ class AuthController extends Controller
         ]);
     }
 
-    public function signup(Request $request, DailyLoginRewardService $rewardService, ReferralService $referralService)
+    public function signup(Request $request, DailyLoginRewardService $rewardService, ReferralService $referralService, TurnstileService $turnstile)
     {
+        $turnstile->verify($request, 'signup');
         $request->validate([
             'username' => 'required|string|min:3|max:50|regex:/^[A-Za-z0-9_]+$/|unique:users',
             'email' => 'required|email|max:100|unique:users',
@@ -174,8 +177,9 @@ class AuthController extends Controller
         ]);
     }
 
-    public function forgotPassword(Request $request)
+    public function forgotPassword(Request $request, TurnstileService $turnstile)
     {
+        $turnstile->verify($request, 'forgot_password');
         $data = $request->validate(['email' => ['required', 'email']]);
         Password::sendResetLink($data);
 

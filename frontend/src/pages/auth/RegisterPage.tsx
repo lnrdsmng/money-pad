@@ -8,6 +8,8 @@ import { getPasswordStrength } from '../../utils/password';
 import { useFeedback } from '../../components/feedback/feedback';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { parseReferralInput } from '../../utils/referral';
+import { TurnstileWidget } from '../../components/TurnstileWidget';
+import { turnstileEnabled } from '../../utils/turnstile';
 
 export default function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -23,6 +25,8 @@ export default function RegisterPage() {
     return initial;
   });
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [resetKey, setResetKey] = useState(0);
   
   const { signup } = useAuth();
   const navigate = useNavigate();
@@ -72,6 +76,7 @@ export default function RegisterPage() {
         email,
         password,
         referral_code: referralUsername.trim() || undefined,
+        turnstile_token: turnstileToken,
       });
       localStorage.removeItem('pending_referral_code');
       navigate('/onboarding');
@@ -79,12 +84,14 @@ export default function RegisterPage() {
       feedback.error(getApiErrorMessage(err, 'Failed to register'));
     } finally {
       setLoading(false);
+      setTurnstileToken('');
+      setResetKey((key) => key + 1);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center bg-gray-50 dark:bg-transparent py-8 sm:py-12 px-3 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-6 sm:space-y-8 bg-white dark:bg-slate-800 p-5 sm:p-8 md:p-10 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700">
+    <div className="-mx-3 flex min-h-[calc(100vh-10rem)] items-center justify-center bg-gray-50 py-8 dark:bg-transparent min-[360px]:mx-0 sm:px-6 sm:py-12 lg:px-8">
+      <div className="w-full max-w-md space-y-6 border border-gray-100 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800 min-[360px]:rounded-xl min-[360px]:p-4 sm:space-y-8 sm:p-8 md:p-10">
         <div className="text-center flex flex-col items-center">
           <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 text-primary mb-2" />
           <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-gray-100">Join MoneyPad</h2>
@@ -145,10 +152,11 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          <TurnstileWidget action="signup" onToken={setTurnstileToken} resetKey={resetKey} />
           <div>
             <button
               type="submit"
-              disabled={loading || (password.length > 0 && getPasswordStrength(password) === 'Weak')}
+              disabled={loading || (turnstileEnabled && !turnstileToken) || (password.length > 0 && getPasswordStrength(password) === 'Weak')}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 cursor-pointer"
             >
               {loading ? 'Creating account...' : 'Create Account'}
