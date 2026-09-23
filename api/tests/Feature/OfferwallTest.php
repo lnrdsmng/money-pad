@@ -58,6 +58,12 @@ class OfferwallTest extends TestCase
         ])->assertCreated();
         $submission = OfferwallSubmission::findOrFail($proofResponse->json('submission.id'));
         $this->actingAs($other)->get("/api/v1/offerwall-submissions/{$submission->id}/proof")->assertNotFound();
+        $this->get("/api/v1/admin/offerwall-submissions/{$submission->id}/proof")->assertForbidden();
+        $this->actingAs($admin)->getJson('/api/v1/admin/offerwall-submissions?status=pending')->assertOk()
+            ->assertJsonPath('data.0.stage.offerwall.image_url', '/storage/'.$offerwall->image_path)
+            ->assertJsonPath('data.0.stage.position', 1);
+        $this->get("/api/v1/admin/offerwall-submissions/{$submission->id}/proof")->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
         $this->actingAs($admin)->postJson("/api/v1/admin/offerwall-submissions/{$submission->id}/approve")
             ->assertOk();
         $this->postJson("/api/v1/admin/offerwall-submissions/{$submission->id}/approve")->assertOk();
@@ -92,6 +98,16 @@ class OfferwallTest extends TestCase
         $this->postJson("/api/v1/offerwalls/{$offerwall->id}/stages/{$firstStage->id}/proof", [
             'proof' => $this->image(),
         ])->assertNotFound();
+        Storage::disk('offerwall_proofs')->delete($submission->proof_path);
+        $this->actingAs($admin)->get("/api/v1/admin/offerwall-submissions/{$submission->id}/proof")
+            ->assertNotFound();
 
+    }
+
+    public function test_unauthenticated_proof_request_returns_json_401_even_when_accepting_html(): void
+    {
+        $this->get('/api/v1/admin/offerwall-submissions/missing/proof', ['Accept' => 'text/html'])
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Unauthenticated.');
     }
 }

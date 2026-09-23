@@ -18,9 +18,12 @@ class AdminOfferwallSubmissionController extends Controller
             ->when(isset($data['status']), fn ($query) => $query->where('status', $data['status']))
             ->with(['user:id,username,email', 'stage.offerwall'])
             ->latest()->paginate(30);
-        $submissions->getCollection()->each(fn ($submission) => $submission->setAttribute(
-            'proof_url', "/api/v1/admin/offerwall-submissions/{$submission->id}/proof",
-        ));
+        $submissions->getCollection()->each(function ($submission): void {
+            $submission->setAttribute('proof_url', "/api/v1/admin/offerwall-submissions/{$submission->id}/proof");
+            $submission->stage->offerwall->setAttribute(
+                'image_url', '/storage/'.$submission->stage->offerwall->image_path,
+            );
+        });
 
         return response()->json($submissions);
     }
