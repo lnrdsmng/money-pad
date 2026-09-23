@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TerminateUserRequest;
+use App\Jobs\DeliverSystemBroadcast;
+use App\Models\SystemBroadcast;
+use App\Models\SystemBroadcastRecipient;
 use App\Models\SystemMessage;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
@@ -12,6 +15,7 @@ use App\Services\WithdrawalService;
 use App\WithdrawalStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -136,12 +140,42 @@ class AdminController extends Controller
 
     public function broadcastMessage(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'content' => 'required|string',
+            'content' => 'required|string|max:10000',
         ]);
+        $broadcast = DB::transaction(function () use ($validated): SystemBroadcast {
+            $broadcast = SystemBroadcast::create([
+                'id' => (string) Str::uuid(),
+                'title' => $validated['title'],
+                'content' => $validated['content'],
+            ]);
+            User::query()->where('role', 'user')->whereNull('terminated_at')
+                ->select('id')->orderBy('id')->chunk(500, function ($users) use ($broadcast): void {
+                    SystemBroadcastRecipient::insert($users->map(fn ($user) => [
+                        'broadcast_id' => $broadcast->id,
+                        'user_id' => $user->id,
+                    ])->all());
+                });
+            $broadcast->update([
+                'recipient_count' => SystemBroadcastRecipient::where('broadcast_id', $broadcast->id)->count(),
+            ]);
 
-        return response()->json(['success' => true, 'message' => 'Broadcast simulated']);
+            return $broadcast;
+        });
+
+        if ($broadcast->recipient_count > 0) {
+            DeliverSystemBroadcast::dispatch($broadcast->id);
+        } else {
+            $broadcast->update(['status' => 'completed']);
+        }
+
+        return response()->json($broadcast->fresh(), 202);
+    }
+
+    public function broadcasts(): JsonResponse
+    {
+        return response()->json(SystemBroadcast::query()->latest()->limit(20)->get());
     }
 
     public function users(): JsonResponse

@@ -20,6 +20,11 @@ export const MessagingPanel = () => {
   const [content, setContent] = useState('');
   const [isPinned, setIsPinned] = useState(false);
   const feedback = useFeedback();
+  const broadcastsQuery = useQuery<{ id: string; title: string; status: string; recipient_count: number; delivered_count: number; failure_reason: string | null }[]>({
+    queryKey: ['admin', 'broadcasts'],
+    queryFn: async () => (await http.get('/admin/messages/broadcasts')).data,
+    refetchInterval: 5000,
+  });
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -45,7 +50,10 @@ export const MessagingPanel = () => {
       });
     },
     onSuccess: () => {
-      if (targetType === 'all') feedback.info('Broadcast queued (simulated MVP behavior).');
+      if (targetType === 'all') {
+        feedback.success('Broadcast queued for delivery.');
+        void broadcastsQuery.refetch();
+      }
       else feedback.success('Message sent.');
       setTitle('');
       setContent('');
@@ -147,6 +155,17 @@ export const MessagingPanel = () => {
           </div>
         </form>
       </div>
+      <section className="mt-6 rounded-lg border border-gray-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="mb-3 font-semibold text-gray-900 dark:text-white">Recent broadcasts</h2>
+        {broadcastsQuery.data?.length === 0 && <p className="text-sm text-gray-500">No broadcasts yet.</p>}
+        {broadcastsQuery.data?.map((broadcast) => (
+          <div key={broadcast.id} className="border-t border-gray-100 py-2 text-sm dark:border-slate-700">
+            <p className="font-medium text-gray-900 dark:text-white">{broadcast.title}</p>
+            <p className="capitalize text-gray-600 dark:text-gray-300">{broadcast.status}: {broadcast.delivered_count}/{broadcast.recipient_count} delivered</p>
+            {broadcast.failure_reason && <p role="alert" className="text-red-600">{broadcast.failure_reason}</p>}
+          </div>
+        ))}
+      </section>
     </div>
   );
 };
